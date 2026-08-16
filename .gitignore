@@ -1,0 +1,10 @@
+# intermedi rigenerabili con `make`
+build/
+out/
+cache/
+
+# dipendenze
+node_modules/
+lib/
+
+.DS_Store

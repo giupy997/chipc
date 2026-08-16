@@ -1,0 +1,16 @@
+{
+  "name": "rh-cpu",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RH-4 — un processore 4-bit gate-level dentro la Robinhood Chain",
+  "scripts": {
+    "asm": "node tools/asm.js",
+    "netsim": "node tools/netsim.js",
+    "codegen": "node tools/codegen.js",
+    "deploy": "node tools/deploy.js",
+    "keeper": "node tools/keeper.js"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  }
+}
