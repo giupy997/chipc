@@ -1,0 +1,22 @@
+# Il sito e' in docs/, non nella root del repo: senza questa riga Netlify
+# pubblica la root, non ci trova un index.html e risponde 404 su ogni path.
+# Questo file ha la precedenza sulla publish directory impostata nella UI.
+
+[build]
+  publish = "docs"
+
+# Sito statico: non c'e' niente da compilare. La netlist per il browser
+# (docs/rh4-data.js) e' generata da `make site` e committata.
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# La netlist non cambia se non cambia il processore, ma index.html si'.
+[[headers]]
+  for = "/rh4-data.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
