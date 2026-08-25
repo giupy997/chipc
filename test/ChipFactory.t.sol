@@ -363,16 +363,17 @@ contract ChipFactoryTest is Test {
         factory.tick(id);
         assertEq(IERC20(token).balanceOf(bob), reward);
 
+        // il ciclo che prosciuga la riserva lo annuncia, una volta sola
         vm.roll(block.number + 1);
+        vm.expectEmit(true, false, false, false);
+        emit ChipFactory.ReserveEmpty(id, 2);
         vm.prank(bob);
         factory.tick(id);
         assertEq(IERC20(token).balanceOf(bob), (reward * 3) / 2, "l'ultimo resto non e' uscito");
         assertEq(IERC20(token).balanceOf(address(factory)), 0);
 
-        // riserva vuota: il ciclo passa lo stesso
+        // riserva vuota: il ciclo passa lo stesso, in silenzio
         vm.roll(block.number + 1);
-        vm.expectEmit(true, false, false, false);
-        emit ChipFactory.ReserveEmpty(id, 3);
         vm.prank(bob);
         factory.tick(id);
 
@@ -482,6 +483,81 @@ contract ChipFactoryTest is Test {
         vm.prank(bob);
         vm.expectRevert(ChipFactory.NotChipOwner.selector);
         factory.attachToken(id, address(t), 1e18);
+    }
+
+    // ---- il chip madre ------------------------------------------------------
+
+    /// La quota di conio non va in tasca a nessuno: finisce nella riserva
+    /// della madre, cioe' paga chi la tiene accesa. Coniare un chip nuovo
+    /// finanzia chi fa girare il primo.
+    function test_laQuotaDiConioFinanziaLaMadre() public {
+        vm.prank(alice);
+        (uint256 madre, address token) =
+            factory.mint(_program("forever"), "Madre", "MADRE", LIQ_BPS, TARGET);
+
+        factory.setMother(madre);
+        assertEq(factory.motherChip(), madre);
+        assertEq(factory.motherToken(), token);
+
+        factory.setMintPriceToken(1_000e18);
+
+        (, uint256 reservePrima, , ) = factory.emission(madre);
+
+        // bob ha comprato dei MADRE e li usa per coniare il suo chip
+        deal(token, bob, 5_000e18);
+        vm.startPrank(bob);
+        IERC20(token).approve(address(factory), 1_000e18);
+        (uint256 figlio, ) = factory.mint(_program("forever"), "Figlio", "FIGLIO", LIQ_BPS, TARGET);
+        vm.stopPrank();
+
+        assertEq(figlio, madre + 1);
+        (, uint256 reserveDopo, , ) = factory.emission(madre);
+        assertEq(reserveDopo, reservePrima + 1_000e18, "la quota non e' finita nella riserva");
+        assertEq(IERC20(token).balanceOf(bob), 4_000e18);
+    }
+
+    /// Se la madre potesse spostarsi, "madre" smetterebbe di voler dire nulla.
+    function test_laMadreSiFissaUnaVoltaSola() public {
+        uint256 a = _mint(alice, "forever", "AAA");
+        uint256 b = _mint(bob, "forever", "BBB");
+
+        factory.setMother(a);
+        vm.expectRevert(ChipFactory.MotherAlreadySet.selector);
+        factory.setMother(b);
+    }
+
+    function test_quotaSenzaMadreNonSiPuoPagare() public {
+        factory.setMintPriceToken(1_000e18);
+        vm.prank(alice);
+        vm.expectRevert(ChipFactory.NoMother.selector);
+        factory.mint(_program("forever"), "X", "XXX", LIQ_BPS, TARGET);
+    }
+
+    /// Il bug che avrei lasciato: azzerare il premio a riserva vuota avrebbe
+    /// ucciso ogni pagamento successivo, e la riserva e' ricaricabile.
+    function test_riservaRicaricataRipagaDiNuovo() public {
+        vm.prank(alice);
+        (uint256 id, address token) =
+            factory.mint(_program("forever"), "Madre", "MADRE", LIQ_BPS, TARGET);
+        (, , uint256 reward, ) = factory.emission(id);
+
+        deal(token, address(factory), reward); // esattamente un ciclo
+        vm.prank(bob);
+        factory.tick(id);
+        assertEq(IERC20(token).balanceOf(address(factory)), 0, "la riserva doveva svuotarsi");
+
+        // un ciclo a secco: passa, ma non paga
+        vm.roll(block.number + 1);
+        vm.prank(bob);
+        factory.tick(id);
+        assertEq(IERC20(token).balanceOf(bob), reward, "non doveva pagare a secco");
+
+        // qualcuno ricarica: i pagamenti devono ripartire
+        deal(token, address(factory), reward * 3);
+        vm.roll(block.number + 1);
+        vm.prank(bob);
+        factory.tick(id);
+        assertEq(IERC20(token).balanceOf(bob), reward * 2, "la ricarica non ha ripagato");
     }
 
     // ---- l'immagine ---------------------------------------------------------

@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {RH4State} from "./RH4State.sol";
 import {ChipToken} from "./ChipToken.sol";
 
@@ -56,6 +57,7 @@ interface IChipRenderer {
  * puo' stampare piu' in fretta di quanto la chain chiuda i blocchi.
  */
 contract ChipFactory is ERC721, Ownable {
+    using SafeERC20 for IERC20;
     // ---- disposizione della parola macchina --------------------------------
     //   bit   0..78   stato dei flip-flop (registri, pc, flag, uscita)
     //   bit  80..127  cicli eseguiti da sempre (monotono)
@@ -105,6 +107,12 @@ contract ChipFactory is ERC721, Ownable {
 
     uint256 public totalChips;
     uint256 public mintPrice;
+
+    /// @notice Il chip madre: il primo, quello da cui discende la fabbrica.
+    ///         Si fissa una volta sola e non si sposta piu'.
+    uint256 public motherChip;
+    /// @notice Quota di conio in token della madre. Zero = conio libero.
+    uint256 public mintPriceToken;
     IChipRenderer public renderer;
 
     event ChipMinted(
@@ -131,6 +139,11 @@ contract ChipFactory is ERC721, Ownable {
         uint256 reserve,
         uint256 rewardPerCycle
     );
+    /// @notice E' stato designato il chip madre.
+    event MotherSet(uint256 indexed id, address indexed token);
+    /// @notice Una quota di conio e' finita nella riserva della madre.
+    event MotherFee(uint256 indexed newChip, address indexed payer, uint256 amount);
+
     /// @notice A un chip senza token ne e' stato agganciato uno.
     event TokenAttached(uint256 indexed id, address indexed token, uint256 rewardPerCycle);
     /// @notice Un ciclo ha pagato il suo sponsor.
@@ -155,6 +168,8 @@ contract ChipFactory is ERC721, Ownable {
     error TokenAlreadySet();
     error TokenInUse(uint256 existingChip);
     error NoToken();
+    error MotherAlreadySet();
+    error NoMother();
 
     constructor(IRH4GateArray gateArray, address owner_)
         ERC721("RH-4 Chip", "CHIP")
@@ -181,6 +196,7 @@ contract ChipFactory is ERC721, Ownable {
     ) external payable returns (uint256 id, address token) {
         if (msg.value != mintPrice) revert WrongPayment();
         if (!_validTicker(ticker)) revert BadTicker();
+        _payMotherFee();
         if (liquidityBps > MAX_LIQUIDITY_BPS) revert BadLiquidityShare();
         // targetCycles == 0 vuol dire "niente token adesso": il chip nasce
         // nudo e piu' avanti gli si aggancia un token lanciato altrove, per
@@ -253,6 +269,48 @@ contract ChipFactory is ERC721, Ownable {
         emit TokenLaunched(id, token, toLiquidity, reserve, reward);
     }
 
+    /**
+     * @notice Designa il chip madre. Una volta sola: se il proprietario
+     *         potesse spostarla, "madre" smetterebbe di voler dire qualcosa.
+     */
+    function setMother(uint256 id) external onlyOwner {
+        if (motherChip != 0) revert MotherAlreadySet();
+        Chip storage c = _chips[id];
+        if (c.bornBlock == 0) revert NoSuchChip();
+        if (c.token == address(0)) revert NoToken();
+        motherChip = id;
+        emit MotherSet(id, c.token);
+    }
+
+    /// @notice Quanto costa coniare, in token della madre.
+    function setMintPriceToken(uint256 p) external onlyOwner {
+        mintPriceToken = p;
+    }
+
+    /// @notice Il token del chip madre, se e' stata designata.
+    function motherToken() public view returns (address) {
+        return motherChip == 0 ? address(0) : _chips[motherChip].token;
+    }
+
+    /**
+     * @dev La quota di conio finisce a questo contratto. E qui c'e' il punto:
+     *      la riserva di un chip *e'* il saldo che la fabbrica ha del suo
+     *      token. Quindi la quota non va in tasca a nessuno — allunga la vita
+     *      del clock della madre, cioe' paga chi la tiene accesa.
+     *
+     *      Coniare un chip nuovo finanzia chi fa girare il primo.
+     */
+    function _payMotherFee() internal {
+        uint256 fee = mintPriceToken;
+        if (fee == 0) return;
+
+        address mt = motherToken();
+        if (mt == address(0)) revert NoMother();
+
+        IERC20(mt).safeTransferFrom(msg.sender, address(this), fee);
+        emit MotherFee(totalChips + 1, msg.sender, fee);
+    }
+
     // ---- il clock ----------------------------------------------------------
 
     /**
@@ -306,15 +364,18 @@ contract ChipFactory is ERC721, Ownable {
 
         IERC20 t = IERC20(token);
         uint256 left = t.balanceOf(address(this));
-        if (left == 0) {
-            c.rewardPerCycle = 0; // non ripaghiamo il balanceOf a ogni ciclo
-            emit ReserveEmpty(id, cycle);
-            return;
-        }
+        // Riserva vuota: il clock continua, semplicemente gratis. Il premio
+        // NON si azzera, perche' la riserva e' il saldo di questo contratto e
+        // qualcuno puo' sempre ricaricarla — le quote di conio fanno esatta-
+        // mente questo. Azzerarlo avrebbe ucciso ogni pagamento successivo.
+        if (left == 0) return;
 
         uint256 pay = reward < left ? reward : left;
-        t.transfer(msg.sender, pay);
+        t.safeTransfer(msg.sender, pay);
         emit Rewarded(id, msg.sender, pay);
+
+        // il ciclo che prosciuga la riserva lo diciamo una volta sola
+        if (pay == left) emit ReserveEmpty(id, cycle);
     }
 
     // ---- proprieta' del chip -----------------------------------------------

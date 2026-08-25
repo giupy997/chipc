@@ -21,7 +21,7 @@ Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
 | programma di mainnet | fatto — `forever.asm`, periodo 8,7 minuti, mai un HLT |
 | keeper | fatto — 10,04 Hz misurati su anvil a 100 ms |
 | sito | fatto — `docs/`, il processore gira nel browser |
-| fabbrica di chip | fatto — ERC-721, SVG on-chain, token per chip, 33 test |
+| fabbrica di chip | fatto — ERC-721, SVG on-chain, token per chip, chip madre, 37 test |
 | deploy in mainnet | da fare |
 
 ```bash
@@ -277,6 +277,30 @@ chiuda i blocchi.
 
 Quando la riserva finisce il clock **non** si ferma: continua gratis. Un chip
 senza piu' token da distribuire e' ancora un processore acceso.
+
+### Il chip madre
+
+Il primo chip coniato e' anche il primo token del launchpad. `setMother(id)`
+lo designa — **una volta sola**, perche' se il proprietario potesse spostarla
+"madre" smetterebbe di voler dire qualcosa.
+
+Da li' `setMintPriceToken(quota)` fa pagare il conio di ogni chip nuovo in
+token della madre. E qui c'e' il punto, che esce gratis dall'architettura:
+
+> La riserva di un chip **e'** il saldo che la fabbrica ha del suo token.
+
+Quindi la quota di conio non finisce in tasca a nessuno: **allunga la vita del
+clock della madre**, cioe' paga chi la tiene accesa. Coniare un chip nuovo
+finanzia chi fa girare il primo.
+
+La quota parte da zero: il conio resta libero finche' non la si accende.
+
+⚠️ Da dire chiaro: se l'unico uso del token madre fosse coniare chip, e
+l'unico uso dei chip fosse avere un token, sarebbe un giro chiuso. Il
+contrappeso e' che ogni chip vale per conto suo — e' un processore vero, con
+il suo token e i suoi sponsor — e la madre non e' l'unica fonte di valore.
+Il meccanismo regge se i chip figli interessano a qualcuno; non li fa
+interessare da solo.
 
 ### Token creato altrove (pools.trade e simili)
 
