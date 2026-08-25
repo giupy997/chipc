@@ -5,220 +5,271 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RH-4 — a processor that lives inside a blockchain</title>
 <meta name="description" content="RH-4 is a real 4-bit CPU: 1,029 NAND gates and 79 flip-flops, synthesised from Verilog and evaluated gate by gate inside a contract on Robinhood Chain. One block, one clock tick.">
-<meta property="og:title" content="RH-4 — a processor that lives inside a blockchain">
+<meta property="og:title" content="RH-4 — silicon × blockspace">
 <meta property="og:description" content="1,029 NAND gates. 79 flip-flops. One block, one clock tick. 10 Hz on Robinhood Chain.">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2308090b'/><rect x='18' y='18' width='26' height='26' fill='%2345e08b'/><rect x='56' y='18' width='26' height='26' fill='%23223'/><rect x='18' y='56' width='26' height='26' fill='%23223'/><rect x='56' y='56' width='26' height='26' fill='%2345e08b'/></svg>">
+<meta name="theme-color" content="#efeee6">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23111110'/><rect x='16' y='16' width='30' height='30' fill='%238fe8b0'/><rect x='54' y='54' width='30' height='30' fill='%238fe8b0'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="topbar">
-  <a class="brand" href="#top">
-    <span class="brand-mark" aria-hidden="true"></span>
-    <span class="brand-name">RH&#8209;4</span>
+<!-- ===================================================== ticker -->
+<div class="ticker" aria-hidden="true">
+  <div class="ticker-track">
+    <span class="ticker-set">
+      <b>1,029 NAND GATES</b><b>79 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>60,088 GAS PER CYCLE</b><b>NO EMULATION</b><b>79 BITS / ONE STORAGE SLOT</b>
+    </span>
+    <span class="ticker-set">
+      <b>1,029 NAND GATES</b><b>79 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>60,088 GAS PER CYCLE</b><b>NO EMULATION</b><b>79 BITS / ONE STORAGE SLOT</b>
+    </span>
+  </div>
+</div>
+
+<!-- ===================================================== nav -->
+<header class="nav">
+  <a class="logo" href="#top">
+    <span class="logo-box">NAND</span>
+    <span class="logo-word">RH&#8209;4.CPU</span>
   </a>
-  <nav class="topnav">
+  <nav class="nav-links">
     <a href="#machine">Machine</a>
-    <a href="#build">How it&rsquo;s built</a>
-    <a href="#isa">ISA</a>
+    <a href="#build">Fabrication</a>
+    <a href="#isa">Instruction set</a>
     <a href="#clock">Clock</a>
   </nav>
+  <a class="btn btn-dark btn-sm" href="https://github.com/giupy997/chipc">Source <span class="arr">&#8599;</span></a>
 </header>
 
 <main id="top">
 
-  <!-- ------------------------------------------------------------ hero -->
+  <!-- =================================================== hero -->
   <section class="hero">
-    <p class="eyebrow">Gate&#8209;level &middot; Robinhood Chain</p>
-    <h1>A processor that lives<br>inside a blockchain.</h1>
-    <p class="lede">
-      RH&#8209;4 is a real 4&#8209;bit CPU &mdash; <strong><span data-fact="gates">1,029</span> NAND gates</strong>
-      and <strong><span data-fact="flops">79</span> flip&#8209;flops</strong>, synthesised from Verilog.
-      The contract does not emulate it. It evaluates every gate, every block.
-    </p>
-    <p class="lede lede-2">
-      The clock is not an oscillator. <strong>One block, one clock tick.</strong>
-      Robinhood Chain closes a block every 100&nbsp;ms, so the processor runs at <strong>10&nbsp;Hz</strong>.
-    </p>
+
+    <div class="hero-copy">
+      <p class="tag"><i class="sq"></i> A REAL PROCESSOR, ON CHAIN</p>
+
+      <p class="issue">OPENING ISSUE <b>01</b></p>
+
+      <h1 class="display">
+        <span class="fill">SILICON &times;</span><br>
+        <span class="outline">BLOCKSPACE.</span>
+      </h1>
+
+      <p class="lede">
+        1,029 NAND gates and 79 flip&#8209;flops, synthesised from Verilog. The
+        contract does not emulate the processor&mdash;it evaluates every gate,
+        every block, on Robinhood Chain.
+      </p>
+
+      <div class="cta-row">
+        <a class="btn btn-dark" href="#machine">Run the processor <span class="arr">&#8594;</span></a>
+        <a class="btn btn-light" href="#build">Read the datasheet</a>
+      </div>
+
+      <dl class="specs">
+        <div class="spec"><dt>Chain</dt><dd>ROBINHOOD / 4663</dd></div>
+        <div class="spec"><dt>Clock</dt><dd>ONE TICK PER BLOCK</dd></div>
+        <div class="spec"><dt>Status</dt><dd class="ok">PRE&#8209;LAUNCH</dd></div>
+      </dl>
+    </div>
+
+    <!-- the live instrument -->
+    <div class="console">
+      <div class="con-head">
+        <span class="con-tag"><i class="sq sq-mint"></i> RH&#8209;4 / GATE ARRAY</span>
+        <span class="con-mid">1029 NAND &middot; 79 FF</span>
+        <span class="con-live">LIVE / <span id="v-clock">00:00:00</span></span>
+      </div>
+
+      <div class="con-stats">
+        <div class="cstat"><span class="ck">CYCLE</span><span class="cv" id="v-cycle">0</span></div>
+        <div class="cstat"><span class="ck">PC</span><span class="cv" id="v-pc">0x00</span></div>
+        <div class="cstat"><span class="ck">OUT</span><span class="cv" id="v-out">0</span></div>
+        <div class="cstat"><span class="ck">FLAGS</span><span class="cv" id="v-flags">&middot;&middot;</span></div>
+      </div>
+
+      <div class="con-die">
+        <canvas id="die"></canvas>
+        <span class="die-note">EVERY SQUARE IS ONE NAND GATE</span>
+      </div>
+
+      <div class="con-foot">
+        <div class="leds" id="leds"></div>
+        <div class="con-exec"><span class="ck">EXECUTING</span><span class="cv" id="v-instr">nop</span></div>
+      </div>
+
+      <p class="halted" id="v-halt" hidden>HALTED &mdash; ONLY THE OPERATOR CAN RESTART IT</p>
+    </div>
   </section>
 
-  <!-- --------------------------------------------------------- machine -->
-  <section id="machine" class="machine">
+  <!-- =================================================== stat strip -->
+  <section class="strip">
+    <div class="cell">
+      <span class="ghost">01</span>
+      <span class="ck"><i class="sq"></i> GATES</span>
+      <span class="cell-v" data-fact="gates">1,029</span>
+      <span class="cell-n">NAND only. Inverters are NANDs with their inputs tied together.</span>
+    </div>
+    <div class="cell">
+      <span class="ghost">02</span>
+      <span class="ck"><i class="sq"></i> FLIP&#8209;FLOPS</span>
+      <span class="cell-v" data-fact="flops">79</span>
+      <span class="cell-n">Registers, PC, output port and flags &mdash; 79 bits in one storage slot.</span>
+    </div>
+    <div class="cell">
+      <span class="ghost">03</span>
+      <span class="ck"><i class="sq"></i> GAS / CYCLE</span>
+      <span class="cell-v">60,088</span>
+      <span class="cell-n">Measured, not estimated. 39,088 of execution plus base transaction cost.</span>
+    </div>
+    <div class="cell">
+      <span class="ghost">04</span>
+      <span class="ck"><i class="sq"></i> BYTECODE</span>
+      <span class="cell-v">18,192<small>B</small></span>
+      <span class="cell-n">All gates unrolled into one contract, 6,384 bytes below the limit.</span>
+    </div>
+  </section>
 
-    <div class="panel panel-out">
-      <div class="panel-head">
-        <h2>Output port</h2>
-        <span class="hint">4 bits, latched</span>
-      </div>
-      <div id="leds" class="leds"></div>
-      <p class="halted" id="v-halt" hidden>HALTED &mdash; only the operator can restart it</p>
+  <!-- =================================================== machine -->
+  <section id="machine" class="sec">
+    <p class="pill">02 / THE MACHINE</p>
+    <div class="sec-head">
+      <h2 class="display display-2">Watch it<br>think.</h2>
+      <p class="sec-copy">
+        Not a recording. The netlist running above is the same one the contract
+        evaluates on&#8209;chain: 1,029 NAND gates in topological order, then every
+        flip&#8209;flop latching at once. Inside the EVM there is no propagation,
+        only a sequence.
+      </p>
     </div>
 
-    <div class="panel panel-readout">
-      <div class="readout">
-        <div class="stat"><span class="stat-k">Cycle</span><span class="stat-v" id="v-cycle">0</span></div>
-        <div class="stat"><span class="stat-k">Uptime</span><span class="stat-v" id="v-elapsed">0.0 s</span></div>
-        <div class="stat"><span class="stat-k">PC</span><span class="stat-v" id="v-pc">0x00</span></div>
-        <div class="stat"><span class="stat-k">Out</span><span class="stat-v" id="v-out">0</span></div>
-        <div class="stat"><span class="stat-k">Flags</span><span class="stat-v" id="v-flags">&middot;&middot;</span></div>
-        <div class="stat stat-wide"><span class="stat-k">Executing</span><span class="stat-v" id="v-instr">nop</span></div>
+    <div class="bar">
+      <div class="bar-cell">
+        <span class="ck">CONTROL</span>
+        <div class="controls">
+          <button id="toggle" class="chip chip-on">PAUSE</button>
+          <button id="step" class="chip">STEP</button>
+          <button id="reset" class="chip">RESET</button>
+        </div>
       </div>
-    </div>
-
-    <div class="panel panel-controls">
-      <div class="controls">
-        <button id="toggle" class="btn btn-primary">Pause</button>
-        <button id="step" class="btn">Step</button>
-        <button id="reset" class="btn">Reset</button>
+      <div class="bar-cell">
+        <span class="ck">CLOCK RATE</span>
+        <div class="chips" id="rates"></div>
       </div>
-      <div class="control-group">
-        <span class="control-label">Clock</span>
-        <div id="rates" class="chips"></div>
-      </div>
-      <div class="control-group">
-        <span class="control-label">Program</span>
+      <div class="bar-cell">
+        <span class="ck">PROGRAM</span>
         <div class="chips">
-          <button class="chip" data-program="forever">forever</button>
-          <button class="chip" data-program="fib">fib</button>
+          <button class="chip" data-program="forever">FOREVER</button>
+          <button class="chip" data-program="fib">FIB</button>
         </div>
       </div>
-    </div>
-
-    <div class="panel panel-die">
-      <div class="panel-head">
-        <h2>The die</h2>
-        <span class="hint">every square is one NAND gate &mdash; it burns when its output flips</span>
+      <div class="bar-cell">
+        <span class="ck">UPTIME @ 10 HZ</span>
+        <span class="bar-v" id="v-elapsed">0.0 s</span>
       </div>
-      <canvas id="die"></canvas>
     </div>
 
-    <div class="panel panel-regs">
-      <div class="panel-head">
-        <h2>Register file</h2>
-        <span class="hint">16 &times; 4 bits</span>
+    <div class="split">
+      <div class="card">
+        <div class="card-head">
+          <span class="ck">REGISTER FILE</span>
+          <span class="ck ck-dim">16 &times; 4 BITS</span>
+        </div>
+        <div id="registers" class="registers"></div>
       </div>
-      <div id="registers" class="registers"></div>
-    </div>
 
-    <div class="panel panel-code">
-      <div class="panel-head">
-        <h2>Program</h2>
-        <span class="hint"><span data-fact="instructions">42</span> instructions in ROM</span>
+      <div class="card">
+        <div class="card-head">
+          <span class="ck">PROGRAM / ROM</span>
+          <span class="ck ck-dim"><span data-fact="instructions">42</span> INSTRUCTIONS</span>
+        </div>
+        <div id="listing" class="listing"></div>
       </div>
-      <div id="listing" class="listing"></div>
-    </div>
-
-  </section>
-
-  <p class="machine-note">
-    This is not a recording. The netlist above is the same one the contract
-    evaluates on&#8209;chain: <span data-fact="gates">1,029</span> NAND gates in
-    topological order, then every flip&#8209;flop latching at once.
-  </p>
-
-  <!-- --------------------------------------------------------- numbers -->
-  <section class="numbers">
-    <div class="num">
-      <span class="num-v"><span data-fact="gates">1,029</span></span>
-      <span class="num-k">NAND gates</span>
-      <span class="num-n">The only combinational primitive in the design. Inverters are NANDs with their inputs tied together.</span>
-    </div>
-    <div class="num">
-      <span class="num-v"><span data-fact="flops">79</span></span>
-      <span class="num-k">flip&#8209;flops</span>
-      <span class="num-n">16&times;4 register file, 8&#8209;bit PC, 4&#8209;bit output port, carry, zero, halt.</span>
-    </div>
-    <div class="num">
-      <span class="num-v">1</span>
-      <span class="num-k">storage slot</span>
-      <span class="num-n">79 bits of architectural state fit in a single 256&#8209;bit word. One SSTORE per cycle.</span>
-    </div>
-    <div class="num">
-      <span class="num-v">60,088</span>
-      <span class="num-k">gas per cycle</span>
-      <span class="num-n">Measured, not estimated: 39,088 of execution plus the 21,000 base transaction cost.</span>
-    </div>
-    <div class="num">
-      <span class="num-v">18,192</span>
-      <span class="num-k">bytes of bytecode</span>
-      <span class="num-n">All 1,029 gates unrolled into one contract, 6,384 bytes below the limit. No delegatecall split.</span>
-    </div>
-    <div class="num">
-      <span class="num-v">10 Hz</span>
-      <span class="num-k">clock</span>
-      <span class="num-n">One cycle per block. Nothing schedules it and nothing can stop it short of the chain stopping.</span>
     </div>
   </section>
 
-  <!-- ----------------------------------------------------------- build -->
-  <section id="build" class="prose">
-    <h2>How it&rsquo;s built</h2>
-    <p>
-      Nothing here is hand&#8209;written assembly pretending to be hardware. The
-      processor starts as Verilog and goes through a real synthesis toolchain.
-    </p>
+  <!-- =================================================== band -->
+  <div class="band" aria-hidden="true">
+    <div class="band-track">
+      <span class="band-set">
+        <em>NAND BY NAND</em><b>GATE&#8209;LEVEL</b><em>ONE BLOCK ONE TICK</em><b>10 HZ</b>
+      </span>
+      <span class="band-set">
+        <em>NAND BY NAND</em><b>GATE&#8209;LEVEL</b><em>ONE BLOCK ONE TICK</em><b>10 HZ</b>
+      </span>
+    </div>
+  </div>
 
-    <ol class="pipeline">
+  <!-- =================================================== build -->
+  <section id="build" class="sec">
+    <p class="pill">03 / FABRICATION</p>
+    <div class="sec-head">
+      <h2 class="display display-2">From Verilog<br>to blockspace.</h2>
+      <p class="sec-copy">
+        Nothing here is hand&#8209;written assembly pretending to be hardware. The
+        processor starts as Verilog and goes through a real synthesis toolchain.
+      </p>
+    </div>
+
+    <ol class="steps">
       <li>
-        <span class="step-n">1</span>
-        <div>
-          <h3>Verilog</h3>
-          <p>A 12&#8209;bit instruction word, single&#8209;cycle execution, our own ISA &mdash; not a clone of the 4004.</p>
-        </div>
+        <span class="step-n">01</span>
+        <h3>Verilog</h3>
+        <p>A 12&#8209;bit instruction word, single&#8209;cycle execution, our own ISA &mdash; not a clone of the 4004.</p>
       </li>
       <li>
-        <span class="step-n">2</span>
-        <div>
-          <h3>yosys</h3>
-          <p>Synthesised down to a single combinational primitive: <code>abc -g NAND</code>, then leftover inverters folded into NANDs too.</p>
-        </div>
+        <span class="step-n">02</span>
+        <h3>yosys</h3>
+        <p>Synthesised to a single combinational primitive: <code>abc&nbsp;-g&nbsp;NAND</code>, then leftover inverters folded in too.</p>
       </li>
       <li>
-        <span class="step-n">3</span>
-        <div>
-          <h3>Topological sort</h3>
-          <p>Inside the EVM there is no propagation, only a sequence. The gates have to be ordered before they can be emitted.</p>
-        </div>
+        <span class="step-n">03</span>
+        <h3>Topological sort</h3>
+        <p>The EVM has no propagation, only a sequence. Gates must be ordered before they can be emitted.</p>
       </li>
       <li>
-        <span class="step-n">4</span>
-        <div>
-          <h3>Yul codegen</h3>
-          <p>Each gate becomes one line: <code>mstore(y, iszero(and(mload(a), mload(b))))</code>. Flip&#8209;flops become bits of a single state word.</p>
-        </div>
+        <span class="step-n">04</span>
+        <h3>Yul codegen</h3>
+        <p>Each gate becomes one line: <code>mstore(y, iszero(and(mload(a), mload(b))))</code>.</p>
       </li>
       <li>
-        <span class="step-n">5</span>
-        <div>
-          <h3>The chain</h3>
-          <p><code>tick()</code> reads <code>ROM[pc]</code>, evaluates the cone, latches the flops, writes one slot.</p>
-        </div>
+        <span class="step-n">05</span>
+        <h3>The chain</h3>
+        <p><code>tick()</code> reads <code>ROM[pc]</code>, evaluates the cone, latches the flops, writes one slot.</p>
       </li>
     </ol>
 
-    <div class="callout">
-      <h3>Three simulations have to agree</h3>
+    <div class="note">
+      <span class="ck"><i class="sq sq-mint"></i> VERIFICATION</span>
+      <h3>Three simulations have to agree, cycle for cycle.</h3>
       <p>
         RTL simulation, gate&#8209;level simulation of the synthesised netlist, and
-        execution inside the EVM &mdash; <strong>cycle for cycle</strong>. The Solidity
-        test suite does not check the contract against itself. It checks that the
-        contract behaves like the hardware.
+        execution inside the EVM. The Solidity test suite does not check the
+        contract against itself &mdash; it checks that the contract behaves like
+        the hardware.
       </p>
     </div>
   </section>
 
-  <!-- ------------------------------------------------------------- isa -->
-  <section id="isa" class="prose">
-    <h2>Instruction set</h2>
-    <p>
-      12&#8209;bit words. Sixteen registers of four bits each, an 8&#8209;bit program
-      counter, 256 words of ROM. Every instruction completes in one block.
-    </p>
-    <div class="table-scroll">
+  <!-- =================================================== isa -->
+  <section id="isa" class="sec">
+    <p class="pill">04 / INSTRUCTION SET</p>
+    <div class="sec-head">
+      <h2 class="display display-2">Sixteen<br>opcodes.</h2>
+      <p class="sec-copy">
+        12&#8209;bit words. Sixteen registers of four bits, an 8&#8209;bit program
+        counter, 256 words of ROM. Every instruction completes in one block.
+      </p>
+    </div>
+
+    <div class="table-wrap">
       <table class="isa">
         <thead>
-          <tr><th>Op</th><th>Mnemonic</th><th>Effect</th><th>Flags</th></tr>
+          <tr><th>OP</th><th>MNEMONIC</th><th>EFFECT</th><th>FLAGS</th></tr>
         </thead>
         <tbody>
           <tr><td>0</td><td><code>nop</code></td><td>&mdash;</td><td></td></tr>
@@ -246,54 +297,65 @@
     </p>
   </section>
 
-  <!-- ----------------------------------------------------------- clock -->
-  <section id="clock" class="prose">
-    <h2>Nobody owns the clock</h2>
-    <p>
-      <code>tick()</code> is open to anyone, once per block. Whoever calls it pays
-      the gas for that cycle and is written into the <code>Cycle</code> event as its
-      sponsor. There is no privileged keeper and no scheduler &mdash; the processor
-      advances because someone, somewhere, wanted it to.
-    </p>
-    <p>
-      The program running on it has no <code>hlt</code>, and cannot have one. If the
-      RH&#8209;4 ever halts it halts forever, so the loop is checked over 20,000 cycles
-      against the synthesised netlist and 5,300 cycles inside the EVM before anything
-      is deployed.
-    </p>
+  <!-- =================================================== clock -->
+  <section id="clock" class="sec">
+    <p class="pill">05 / THE CLOCK</p>
+    <div class="sec-head">
+      <h2 class="display display-2">Nobody owns<br>the clock.</h2>
+      <p class="sec-copy">
+        <code>tick()</code> is open to anyone, once per block. Whoever calls it
+        pays the gas for that cycle and is written into the <code>Cycle</code>
+        event as its sponsor. No privileged keeper, no scheduler &mdash; the
+        processor advances because someone wanted it to.
+      </p>
+    </div>
 
-    <div class="status">
-      <div class="status-row">
-        <span class="status-k">Status</span>
-        <span class="status-v"><span class="dot dot-amber"></span>Not yet deployed</span>
+    <div class="split">
+      <div class="card card-pad">
+        <span class="ck"><i class="sq"></i> THE PROGRAM CANNOT STOP</span>
+        <p class="card-copy">
+          The program running on it has no <code>hlt</code>, and cannot have one.
+          If the RH&#8209;4 ever halts it halts forever, so the loop is checked over
+          20,000 cycles against the synthesised netlist and 5,300 cycles inside
+          the EVM before anything is deployed.
+        </p>
       </div>
-      <div class="status-row">
-        <span class="status-k">Network</span>
-        <span class="status-v">Robinhood Chain &middot; id 4663</span>
-      </div>
-      <div class="status-row">
-        <span class="status-k">Contract</span>
-        <span class="status-v mono">&mdash;</span>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="ck">DEPLOYMENT</span>
+        </div>
+        <dl class="rows">
+          <div><dt>Status</dt><dd class="pending"><i class="dot"></i> NOT YET DEPLOYED</dd></div>
+          <div><dt>Network</dt><dd>ROBINHOOD CHAIN / 4663</dd></div>
+          <div><dt>Contract</dt><dd class="dim">&mdash;</dd></div>
+          <div><dt>Clock rate</dt><dd>10 HZ / 100 MS BLOCKS</dd></div>
+        </dl>
       </div>
     </div>
   </section>
 
-  <section class="prose credit">
-    <h2>Prior art</h2>
-    <p>
-      The idea of putting a real gate&#8209;level processor on a chain is not ours.
-      It was done first on BNB Chain, clocked by that chain&rsquo;s 0.45&nbsp;s blocks
-      at 2.22&nbsp;Hz. RH&#8209;4 is an independent design with its own ISA, its own
-      netlist and its own toolchain, built for a chain whose blocks close in
-      100&nbsp;ms. Credit where it&rsquo;s due.
-    </p>
+  <!-- =================================================== credit -->
+  <section class="sec sec-last">
+    <p class="pill">06 / PRIOR ART</p>
+    <div class="sec-head">
+      <h2 class="display display-2">Credit where<br>it&rsquo;s due.</h2>
+      <p class="sec-copy">
+        Putting a real gate&#8209;level processor on a chain is not our idea. It was
+        done first on BNB Chain, clocked by that chain&rsquo;s 0.45&nbsp;s blocks at
+        2.22&nbsp;Hz. RH&#8209;4 is an independent design with its own ISA, its own
+        netlist and its own toolchain, built for a chain whose blocks close in
+        100&nbsp;ms.
+      </p>
+    </div>
   </section>
 
 </main>
 
 <footer class="footer">
-  <span>RH&#8209;4</span>
-  <span class="footer-dim">Verilog &rarr; yosys &rarr; NAND &rarr; Yul &rarr; EVM</span>
+  <span class="f-word">RH&#8209;4.CPU</span>
+  <span class="f-mid">VERILOG &rarr; YOSYS &rarr; NAND &rarr; YUL &rarr; EVM</span>
+  <a class="f-link" href="https://github.com/giupy997/chipc">GITHUB <span class="arr">&#8599;</span></a>
 </footer>
 
 <script src="rh4-data.js"></script>

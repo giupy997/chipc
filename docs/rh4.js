@@ -82,6 +82,7 @@
     "nop", "ldi", "mov", "add", "adc", "sub", "nand", "xor",
     "shr", "inc", "jmp", "jz", "jc", "jnz", "out", "hlt",
   ];
+  const hex2 = (n) => "0x" + n.toString(16).padStart(2, "0");
   const FORM = {
     0: () => "",
     1: (d, s) => `r${d}, #${s}`,
@@ -93,10 +94,10 @@
     7: (d, s) => `r${d}, r${s}`,
     8: (d) => `r${d}`,
     9: (d) => `r${d}`,
-    10: (d, s) => `0x${((d << 4) | s).toString(16).padStart(2, "0")}`,
-    11: (d, s) => `0x${((d << 4) | s).toString(16).padStart(2, "0")}`,
-    12: (d, s) => `0x${((d << 4) | s).toString(16).padStart(2, "0")}`,
-    13: (d, s) => `0x${((d << 4) | s).toString(16).padStart(2, "0")}`,
+    10: (d, s) => hex2((d << 4) | s),
+    11: (d, s) => hex2((d << 4) | s),
+    12: (d, s) => hex2((d << 4) | s),
+    13: (d, s) => hex2((d << 4) | s),
     14: (d) => `r${d}`,
     15: () => "",
   };
@@ -108,12 +109,13 @@
 
   // ------------------------------------------------------------------ the die
 
+  const LIT_R = 143, LIT_G = 232, LIT_B = 176; // mint, same as the page accent
+  const COLD = "#171a16";
+
   class Die {
     constructor(canvas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext("2d", { alpha: false });
-      this.cols = 49;
-      this.rows = Math.ceil(D.gateCount / this.cols);
       this.resize();
       window.addEventListener("resize", () => this.resize());
     }
@@ -121,7 +123,13 @@
     resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = this.canvas.clientWidth;
+      if (!w) return;
+
+      // keep the cells roughly square and legible whatever the panel width
+      this.cols = Math.max(24, Math.min(56, Math.round(w / 13)));
+      this.rows = Math.ceil(D.gateCount / this.cols);
       this.cell = w / this.cols;
+
       const h = Math.round(this.cell * this.rows);
       this.canvas.style.height = `${h}px`;
       this.canvas.width = Math.round(w * dpr);
@@ -133,9 +141,10 @@
     /**
      * Repainting 1,029 rectangles every frame forever is wasteful when the
      * die is cold — a paused processor would still burn a core. Draw only
-     * while something is actually fading, plus one final frame to settle.
+     * while something is fading, plus one final frame to settle.
      */
     draw(machine) {
+      if (!this.cols) return;
       const heat = machine.heat;
       let hot = false;
       for (let k = 0; k < D.gateCount; k++) {
@@ -150,7 +159,7 @@
       ctx.fillStyle = "#07080a";
       ctx.fillRect(0, 0, w, h);
 
-      const pad = Math.max(0.5, cell * 0.16);
+      const pad = Math.max(0.5, cell * 0.18);
       const size = cell - pad;
 
       for (let k = 0; k < D.gateCount; k++) {
@@ -159,10 +168,10 @@
         const t = heat[k];
         if (t > 0.02) {
           // a gate that just flipped burns bright, then fades
-          ctx.fillStyle = `rgba(69, 224, 139, ${0.18 + t * 0.82})`;
+          ctx.fillStyle = `rgba(${LIT_R},${LIT_G},${LIT_B},${0.16 + t * 0.84})`;
           heat[k] = t * 0.86;
         } else {
-          ctx.fillStyle = "#12161a";
+          ctx.fillStyle = COLD;
           heat[k] = 0;
         }
         ctx.fillRect(x, y, size, size);
@@ -181,9 +190,9 @@
   };
 
   const RATES = [
-    { hz: 10, label: "10 Hz", note: "block time" },
-    { hz: 40, label: "40 Hz", note: "4× fast-forward" },
-    { hz: 2, label: "2 Hz", note: "slow" },
+    { hz: 10, label: "10 HZ", note: "one tick per block" },
+    { hz: 40, label: "40 HZ", note: "4× fast-forward" },
+    { hz: 2,  label: "2 HZ",  note: "slow" },
   ];
 
   class UI {
@@ -195,13 +204,17 @@
       this.running = true;
       this.acc = 0;
       this.last = performance.now();
+      this.shown = {};
 
       this.buildLeds();
       this.buildRegisters();
       this.buildListing();
       this.buildControls();
+
       this.loop = this.loop.bind(this);
       requestAnimationFrame(this.loop);
+      setInterval(() => this.wallClock(), 1000);
+      this.wallClock();
     }
 
     // ---- construction
@@ -222,7 +235,7 @@
       const host = $("#registers");
       for (let r = 0; r < 16; r++) {
         const cell = el("div", "reg");
-        cell.appendChild(el("span", "reg-name", `r${r}`));
+        cell.appendChild(el("span", "reg-name", `R${r}`));
         const val = el("span", "reg-val", "0");
         cell.appendChild(val);
         host.appendChild(cell);
@@ -231,9 +244,10 @@
     }
 
     buildListing() {
-      const host = $("#listing");
+      const host = this.listingHost = $("#listing");
       host.innerHTML = "";
       this.lines = new Map();
+      this.shownPc = undefined;
       for (const ins of this.machine.program.listing) {
         const line = el("div", "line");
         line.appendChild(el("span", "addr", ins.pc.toString(16).padStart(2, "0")));
@@ -257,6 +271,7 @@
       });
       $("#reset").addEventListener("click", () => {
         this.machine.reset();
+        this.die.dirty = true;
         this.render();
       });
 
@@ -277,6 +292,7 @@
         btn.addEventListener("click", () => {
           this.programName = btn.dataset.program;
           this.machine = new Machine(D.programs[this.programName]);
+          this.die.dirty = true;
           this.buildListing();
           this.syncPrograms();
           this.render();
@@ -287,14 +303,13 @@
     }
 
     syncToggle() {
-      $("#toggle").textContent = this.running ? "Pause" : "Run";
-      $("#toggle").classList.toggle("is-running", this.running);
+      const b = $("#toggle");
+      b.textContent = this.running ? "PAUSE" : "RUN";
+      b.classList.toggle("chip-on", this.running);
     }
 
     syncRates() {
-      for (const { r, b } of this.rateButtons) {
-        b.classList.toggle("is-on", r === this.rate);
-      }
+      for (const { r, b } of this.rateButtons) b.classList.toggle("is-on", r === this.rate);
     }
 
     syncPrograms() {
@@ -312,7 +327,7 @@
       const m = this.machine;
       if (this.running && !m.halted()) {
         this.acc += (dt / 1000) * this.rate.hz;
-        let budget = 64; // never let a background tab stampede
+        let budget = 64; // never let a backgrounded tab stampede
         while (this.acc >= 1 && budget-- > 0 && !m.halted()) {
           this.acc -= 1;
           m.tick();
@@ -334,29 +349,30 @@
       }
 
       for (let r = 0; r < 16; r++) {
-        const v = m.reg(r);
+        const text = m.reg(r).toString(16).toUpperCase();
         const { cell, val } = this.regCells[r];
-        const text = v.toString(16).toUpperCase();
         if (val.textContent !== text) {
           val.textContent = text;
           cell.classList.remove("just-changed");
-          void cell.offsetWidth;
+          void cell.offsetWidth; // restart the flash
           cell.classList.add("just-changed");
         }
       }
 
       const pc = m.pc();
       if (pc !== this.shownPc) {
-        if (this.lines.has(this.shownPc)) this.lines.get(this.shownPc).classList.remove("is-pc");
-        if (this.lines.has(pc)) {
-          const line = this.lines.get(pc);
-          line.classList.add("is-pc");
+        const prev = this.lines.get(this.shownPc);
+        if (prev) prev.classList.remove("is-pc");
+        const cur = this.lines.get(pc);
+        if (cur) {
+          cur.classList.add("is-pc");
+          this.followPc(cur);
         }
         this.shownPc = pc;
       }
 
       this.put("#v-cycle", m.cycle.toLocaleString("en-US"));
-      this.put("#v-pc", "0x" + pc.toString(16).padStart(2, "0"));
+      this.put("#v-pc", hex2(pc));
       this.put("#v-out", String(out));
       this.put("#v-instr", disasm(m.lastInstr));
       this.put("#v-flags", `${m.carry() ? "C" : "·"}${m.zero() ? "Z" : "·"}`);
@@ -364,24 +380,46 @@
       $("#v-halt").hidden = !m.halted();
     }
 
+    /**
+     * The ROM window shows a dozen lines out of forty-two, so a jump can
+     * take the program counter clean out of view. Only scroll when the line
+     * has actually left the window — scrolling on every cycle would make the
+     * listing shiver at 40 Hz.
+     */
+    followPc(line) {
+      const host = this.listingHost;
+      if (!host) return;
+      const top = line.offsetTop;
+      const bottom = top + line.offsetHeight;
+      const viewTop = host.scrollTop;
+      const viewBottom = viewTop + host.clientHeight;
+      if (top >= viewTop && bottom <= viewBottom) return;
+      host.scrollTop = top - host.clientHeight / 2 + line.offsetHeight / 2;
+    }
+
     /** Writing textContent unconditionally at 60 fps dirties layout for free. */
     put(sel, text) {
-      if (!this.shown) this.shown = {};
       if (this.shown[sel] === text) return;
       this.shown[sel] = text;
       $(sel).textContent = text;
     }
+
+    wallClock() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      $("#v-clock").textContent = `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
   }
 
-  // fill in the facts that come straight from the netlist, so the page can
-  // never drift from the hardware it describes
+  // Facts that come straight from the netlist, so the page can never drift
+  // from the hardware it describes.
   function stampFacts() {
+    const map = {
+      gates: D.gateCount.toLocaleString("en-US"),
+      flops: String(D.flopCount),
+      instructions: String(D.programs.forever.listing.length),
+    };
     document.querySelectorAll("[data-fact]").forEach((node) => {
-      const map = {
-        gates: D.gateCount.toLocaleString("en-US"),
-        flops: String(D.flopCount),
-        instructions: String(D.programs.forever.listing.length),
-      };
       const v = map[node.dataset.fact];
       if (v !== undefined) node.textContent = v;
     });
