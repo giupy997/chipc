@@ -278,6 +278,40 @@ chiuda i blocchi.
 Quando la riserva finisce il clock **non** si ferma: continua gratis. Un chip
 senza piu' token da distribuire e' ancora un processore acceso.
 
+### Aprire il mercato senza mettere ETH
+
+In Uniswap v3 una posizione interamente da un lato del prezzo corrente
+contiene **solo** quel token. Quindi il pool si apre mettendo dentro soltanto
+i token della fetta di liquidita' e **zero ETH**: man mano che qualcuno compra,
+i token si convertono in ETH dentro la posizione.
+
+**L'ETH della liquidita' lo mettono i compratori.** La posizione e' un NFT
+Uniswap nel tuo wallet, e l'ETH che ci si accumula e' tuo.
+
+```bash
+RH4_FACTORY=0x… node tools/pool.js --chip 1 --dry-run
+RH4_FACTORY=0x… node tools/pool.js --chip 1 --fdv-start 5 --fdv-end 50
+```
+
+Il prezzo che si paga: all'inizio non esiste lato acquisto. Chi vuole vendere
+puo' farlo solo contro l'ETH accumulato fino a quel momento.
+
+**Indirizzi Uniswap su Robinhood Chain** — non sono quelli canonici, a quelli
+ci sono stub vuoti da 2109 byte:
+
+| | |
+|---|---|
+| V3 Factory | `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA` |
+| NonfungiblePositionManager | `0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3` |
+| WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` |
+
+Ricavati leggendo `factory()` da un pool vivo e risalendo a chi lo mintava,
+poi verificati: il manager si chiama "Uniswap V3 Positions NFT-V1" e la sua
+`factory()` e `WETH9()` combaciano.
+
+Provato su un fork della chain vera: 200M token dentro, **0 WETH**, tick
+esattamente sul bordo del range, posizione nel wallet.
+
 ### Il chip madre
 
 Il primo chip coniato e' anche il primo token del launchpad. `setMother(id)`
@@ -385,6 +419,7 @@ src/ChipFactory.sol  la fabbrica: ERC-721 + clock permissionless
 src/ChipRenderer.sol l'SVG degli NFT, on-chain
 tools/deploy-factory.js  mette in piedi i tre contratti
 tools/keeper.js      tiene acceso un processore (singolo o chip)
+tools/pool.js        apre il mercato con un range order a un lato solo
 test/                22 test: RH-4 singola e fabbrica
 ```
 
