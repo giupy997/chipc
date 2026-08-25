@@ -52,16 +52,23 @@ contract ChipFactory is ERC721, Ownable {
 
     struct Chip {
         uint256 machine;   // stato | cicli | ultimo blocco
-        bytes32 label;     // nome, fino a 32 caratteri
-        address minter;    // chi l'ha coniato: non cambia mai
-        uint64 bornBlock;  // 0 = il chip non esiste
-        uint32 resets;
+        bytes32 label;     // nome esteso, fino a 32 caratteri
+        bytes32 ticker;    // sigla, 1-8 caratteri, unica in tutta la fabbrica
+        address minter;    // chi l'ha coniato: non cambia mai   160 bit
+        uint64 bornBlock;  // 0 = il chip non esiste              64 bit
+        uint32 resets;     //                                     32 bit
     }
+
+    uint256 public constant TICKER_MAX = 8;
 
     IRH4GateArray public immutable gates;
 
     mapping(uint256 => Chip) private _chips;
     mapping(uint256 => uint256[ROM_SLOTS]) private _rom;
+
+    /// @dev Sigla gia' presa -> id del chip che ce l'ha. Senza questo
+    ///      chiunque potrebbe coniare un chip con la sigla di un altro.
+    mapping(bytes32 => uint256) public chipByTicker;
 
     uint256 public totalChips;
     uint256 public mintPrice;
@@ -70,6 +77,7 @@ contract ChipFactory is ERC721, Ownable {
     event ChipMinted(
         uint256 indexed id,
         address indexed minter,
+        bytes32 indexed ticker,
         bytes32 label,
         bytes32 programHash
     );
@@ -92,6 +100,8 @@ contract ChipFactory is ERC721, Ownable {
     error AlreadyHalted();
     error NotChipOwner();
     error WrongPayment();
+    error TickerTaken(uint256 existingChip);
+    error BadTicker();
 
     constructor(IRH4GateArray gateArray, address owner_)
         ERC721("RH-4 Chip", "CHIP")
@@ -109,17 +119,23 @@ contract ChipFactory is ERC721, Ownable {
      *      prima e gratis con `previewProgram`, che gira via `eth_call`.
      *      Un chip che si ferma e' comunque recuperabile con `restart`.
      */
-    function mint(uint256[ROM_SLOTS] calldata words, bytes32 label)
+    function mint(uint256[ROM_SLOTS] calldata words, bytes32 label, bytes32 ticker)
         external
         payable
         returns (uint256 id)
     {
         if (msg.value != mintPrice) revert WrongPayment();
+        if (!_validTicker(ticker)) revert BadTicker();
+
+        uint256 taken = chipByTicker[ticker];
+        if (taken != 0) revert TickerTaken(taken);
 
         unchecked { id = ++totalChips; }
+        chipByTicker[ticker] = id;
 
         Chip storage c = _chips[id];
         c.label = label;
+        c.ticker = ticker;
         c.minter = msg.sender;
         c.bornBlock = uint64(block.number);
 
@@ -131,7 +147,7 @@ contract ChipFactory is ERC721, Ownable {
         }
 
         _safeMint(msg.sender, id);
-        emit ChipMinted(id, msg.sender, label, keccak256(abi.encode(words)));
+        emit ChipMinted(id, msg.sender, ticker, label, keccak256(abi.encode(words)));
     }
 
     // ---- il clock ----------------------------------------------------------
@@ -293,6 +309,36 @@ contract ChipFactory is ERC721, Ownable {
         unchecked {
             return (_rom[id][pc >> 4] >> ((pc & 15) * 16)) & 0xfff;
         }
+    }
+
+    /**
+     * @dev Una sigla valida e' 1-8 caratteri fra A-Z, 0-9 e trattino, seguiti
+     *      solo da zeri. Il vincolo non e' estetico: la sigla e' identita', e
+     *      due chip che si chiamano uguale in minuscolo e maiuscolo sono un
+     *      invito all'inganno.
+     */
+    function _validTicker(bytes32 t) internal pure returns (bool) {
+        uint256 len;
+        while (len < 32 && t[len] != 0) {
+            uint8 ch = uint8(t[len]);
+            bool ok = (ch >= 0x41 && ch <= 0x5a)   // A-Z
+                || (ch >= 0x30 && ch <= 0x39)      // 0-9
+                || ch == 0x2d;                     // -
+            if (!ok) return false;
+            unchecked { ++len; }
+        }
+        if (len == 0 || len > TICKER_MAX) return false;
+        // niente caratteri dopo il primo zero: due sigle non devono poter
+        // avere gli stessi byte visibili ed essere considerate diverse
+        for (uint256 i = len; i < 32; ++i) {
+            if (t[i] != 0) return false;
+        }
+        return true;
+    }
+
+    /// @notice La sigla e' libera? Da chiamare prima di coniare.
+    function tickerAvailable(bytes32 ticker) external view returns (bool) {
+        return _validTicker(ticker) && chipByTicker[ticker] == 0;
     }
 
     function _requireChipOwner(uint256 id) internal view {

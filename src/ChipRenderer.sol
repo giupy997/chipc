@@ -34,14 +34,19 @@ contract ChipRenderer {
         uint256 cycles = (chip.machine >> 80) & ((uint256(1) << 48) - 1);
         bool halted = RH4State.halted(state);
 
+        string memory ticker = _label(chip.ticker);
         string memory name = _label(chip.label);
-        if (bytes(name).length == 0) name = string.concat("CHIP #", id.toString());
+        if (bytes(name).length == 0) {
+            name = bytes(ticker).length != 0 ? ticker : string.concat("CHIP #", id.toString());
+        }
 
         string memory json = string.concat(
-            '{"name":"', name,
+            '{"name":"', bytes(ticker).length != 0
+                ? string.concat(name, " (", ticker, ")")
+                : name,
             '","description":"A real 4-bit processor living inside the chain. 1,029 NAND gates, 79 flip-flops, one clock tick per block. Nobody owns the clock: anyone can pay a cycle, and the sponsor is written into the Cycle event forever. A chip nobody advances is dead silicon.',
             '","image":"data:image/svg+xml;base64,',
-            Base64.encode(bytes(_svg(id, name, state, cycles, halted))),
+            Base64.encode(bytes(_svg(id, name, ticker, state, cycles, halted))),
             '","attributes":', _attributes(state, cycles, halted, chip),
             "}"
         );
@@ -59,18 +64,23 @@ contract ChipRenderer {
     function _svg(
         uint256 id,
         string memory name,
+        string memory ticker,
         uint256 state,
         uint256 cycles,
         bool halted
     ) internal pure returns (string memory) {
         return string.concat(
-            _svgHead(id),
+            _svgHead(id, ticker),
             _svgFace(name, state),
             _svgNumbers(state, cycles, halted)
         );
     }
 
-    function _svgHead(uint256 id) internal pure returns (string memory) {
+    function _svgHead(uint256 id, string memory ticker)
+        internal
+        pure
+        returns (string memory)
+    {
         return string.concat(
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" width="420" height="420">',
             '<rect width="420" height="420" fill="', PANEL, '"/>',
@@ -79,7 +89,15 @@ contract ChipRenderer {
             '<rect x="24" y="24" width="372" height="34" fill="none" stroke="', LINE, '" stroke-width="1.5"/>',
             '<rect x="40" y="37" width="7" height="7" fill="', MINT, '"/>',
             _t(56, 46, 10, DIM, "RH-4 / GATE ARRAY"),
-            _t(380, 46, 10, DIM, string.concat("#", id.toString()), "end")
+            _t(380, 46, 10, DIM, string.concat("#", id.toString()), "end"),
+            // la sigla serigrafata sul package, come su un chip vero
+            bytes(ticker).length == 0
+                ? ""
+                : string.concat(
+                    '<rect x="40" y="76" width="', (26 + bytes(ticker).length * 11).toString(),
+                    '" height="22" fill="', MINT, '"/>',
+                    _t(53, 92, 13, PANEL, ticker)
+                  )
         );
     }
 
@@ -89,8 +107,8 @@ contract ChipRenderer {
         returns (string memory)
     {
         return string.concat(
-            _t(40, 104, 30, "#efeee6", name),
-            _t(40, 128, 10, DIM, "1029 NAND / 79 FLIP-FLOPS"),
+            _t(40, 134, 26, "#efeee6", name),
+            _t(40, 156, 10, DIM, "1029 NAND / 79 FLIP-FLOPS"),
             _leds(RH4State.out(state))
         );
     }
@@ -121,7 +139,7 @@ contract ChipRenderer {
             bool on = (out >> (3 - i)) & 1 == 1;
             s = string.concat(
                 s,
-                '<rect x="', (40 + i * 56).toString(), '" y="160" width="44" height="44" ',
+                '<rect x="', (40 + i * 56).toString(), '" y="176" width="44" height="44" ',
                 on
                     ? string.concat('fill="', MINT, '"/>')
                     : string.concat('fill="#14171a" stroke="', LINE, '" stroke-width="1.5"/>')
@@ -153,7 +171,8 @@ contract ChipRenderer {
         ChipFactory.Chip calldata chip
     ) internal pure returns (string memory) {
         return string.concat(
-            '[{"trait_type":"Cycles","value":', cycles.toString(),
+            '[{"trait_type":"Ticker","value":"', _label(chip.ticker),
+            '"},{"trait_type":"Cycles","value":', cycles.toString(),
             '},{"trait_type":"Program counter","value":', uint256(RH4State.pc(state)).toString(),
             '},{"trait_type":"Output","value":', uint256(RH4State.out(state)).toString(),
             '},{"trait_type":"Status","value":"', halted ? "Halted" : "Running",

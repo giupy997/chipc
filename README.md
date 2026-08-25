@@ -222,14 +222,30 @@ ChipFactory       9,4 kB   ERC-721. Ogni chip: 79 bit di stato + la sua ROM.
 ChipRenderer      6,6 kB   l'SVG dell'NFT, disegnato dai bit veri.
 ```
 
-Coniare un chip diventa **193.298 gas** invece di 4,09 milioni: 21 volte meno.
+Coniare un chip diventa **242.734 gas** invece di 4,09 milioni: 17 volte meno.
 Il prezzo e' +1.301 gas per ciclo (il costo della staticcall), cioe' il 2%.
 
 | | gas | su Robinhood Chain |
 |---|---|---|
 | deploy dell'intero stack, una volta | ~7,4 M | ~0,00015 ETH |
-| coniare un chip | 193.298 | ~0,0000039 ETH |
+| coniare un chip | 242.734 | ~0,0000049 ETH |
 | un ciclo di clock | 61.389 | ~0,0000012 ETH |
+
+### Nome e sigla
+
+Al conio si sceglie un **nome** (fino a 32 caratteri, libero) e una **sigla**
+(1-8 caratteri fra `A-Z`, `0-9` e trattino). Sono due cose diverse: il nome e'
+descrittivo, la sigla e' identita'.
+
+**La sigla e' unica in tutta la fabbrica.** Senza unicita' chiunque potrebbe
+coniare un chip con la sigla di un altro, ed e' un invito all'inganno. La
+maiuscola e' obbligatoria per la stessa ragione: `BHMT` e `bhmt` non devono
+poter convivere. `tickerAvailable(sigla)` dice gratis se e' libera.
+
+Attenzione a una cosa che il vocabolario confonde: quella sigla e' **metadato
+del chip**, non il simbolo di un ERC-20. Tutti i chip stanno nella stessa
+collezione ERC-721 (`RH-4 Chip` / `CHIP`). Un chip non e' un token scambiabile
+con una sua liquidita': e' un NFT con sopra scritta una sigla.
 
 ### Il clock e' la cosa scarsa, non il chip
 
@@ -262,7 +278,8 @@ se il programma si ferma, prima che qualcuno ci spenda dei soldi.
 
 ```bash
 PRIVATE_KEY=0x... node tools/deploy-factory.js --dry-run
-PRIVATE_KEY=0x... node tools/deploy-factory.js --mint build/forever.slots.json --label BEHEMOTH
+PRIVATE_KEY=0x... node tools/deploy-factory.js --mint build/forever.slots.json \
+    --label "Behemoth" --ticker BHMT
 RH4_FACTORY=0x... node tools/keeper.js --chip 1 --budget 0.01
 ```
 

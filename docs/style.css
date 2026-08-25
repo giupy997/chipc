@@ -526,19 +526,25 @@ main { max-width: var(--maxw); margin: 0 auto; }
 
 .controls, .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* Nasce nella barra scura ma vive anche dentro le card chiare: il colore
+   di base e' l'inchiostro, ed e' la barra a schiarirlo. Al contrario il
+   testo spariva su fondo carta. */
 .chip {
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--paper);
+  color: var(--ink);
   background: transparent;
-  border: 1px solid var(--panel-line);
+  border: 1px solid rgba(17, 17, 16, 0.28);
   padding: 7px 12px;
   cursor: pointer;
   transition: all 0.12s;
 }
-.chip:hover { border-color: var(--panel-dim); }
+.chip:hover { border-color: var(--ink); }
+
+.bar .chip { color: var(--paper); border-color: var(--panel-line); }
+.bar .chip:hover { border-color: var(--panel-dim); }
 .chip.chip-on, .chip.is-on {
   background: var(--mint);
   border-color: var(--mint);
@@ -845,3 +851,68 @@ main { max-width: var(--maxw); margin: 0 auto; }
   * { transition: none !important; }
   .reg.just-changed { animation: none; }
 }
+
+/* ============================================================= factory == */
+
+.mintgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 22px;
+  margin-bottom: 34px;
+}
+@media (max-width: 860px) { .mintgrid { grid-template-columns: 1fr; } }
+
+.mintform { gap: 20px; }
+
+.field { display: flex; flex-direction: column; gap: 7px; }
+
+.field-k {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.field input {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--rule);
+  padding: 11px 13px;
+  width: 100%;
+}
+.field input:focus {
+  outline: none;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.field-note { font-size: 11.5px; color: var(--dim); line-height: 1.45; }
+.field-note.is-bad { color: #b4432b; }
+
+.btn-block { width: 100%; }
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.btn:disabled:hover { transform: none; box-shadow: 3px 3px 0 var(--ink); }
+
+.chipcard { gap: 16px; }
+
+.card-head-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.chip-preview { line-height: 0; }
+.chip-preview svg { width: 100%; height: auto; display: block; }
+
+.costs { margin-top: 4px; }
+.costs .isa td:nth-child(2) { color: var(--ink); font-weight: 600; }
+.costs .isa td:nth-child(3) { color: var(--ink-2); font-weight: 400; }
+.costs .isa td:last-child { color: var(--mint-deep); }
+.costs .isa td:first-child { width: auto; color: var(--ink-2); }

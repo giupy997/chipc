@@ -35,12 +35,12 @@ contract ChipFactoryTest is Test {
         for (uint256 i; i < 16; ++i) slots[i] = parsed[i];
     }
 
-    function _mint(address who, string memory prog, bytes32 label)
+    function _mint(address who, string memory prog, bytes32 ticker)
         internal
         returns (uint256 id)
     {
         vm.prank(who);
-        id = factory.mint(_program(prog), label);
+        id = factory.mint(_program(prog), ticker, ticker);
     }
 
     // ---- il chip e' un token ------------------------------------------------
@@ -54,6 +54,8 @@ contract ChipFactoryTest is Test {
 
         ChipFactory.Chip memory c = factory.chip(id);
         assertEq(c.label, bytes32("PRIMO"));
+        assertEq(c.ticker, bytes32("PRIMO"));
+        assertEq(factory.chipByTicker("PRIMO"), id);
         assertEq(c.minter, alice);
         assertEq(c.bornBlock, block.number);
     }
@@ -207,10 +209,10 @@ contract ChipFactoryTest is Test {
         vm.deal(alice, 1 ether);
         vm.prank(alice);
         vm.expectRevert(ChipFactory.WrongPayment.selector);
-        factory.mint(_program("forever"), "A");
+        factory.mint(_program("forever"), "A", "A");
 
         vm.prank(alice);
-        uint256 id = factory.mint{value: 0.01 ether}(_program("forever"), "A");
+        uint256 id = factory.mint{value: 0.01 ether}(_program("forever"), "A", "A");
         assertEq(factory.ownerOf(id), alice);
         assertEq(address(factory).balance, 0.01 ether);
 
@@ -226,7 +228,7 @@ contract ChipFactoryTest is Test {
 
         vm.prank(alice);
         uint256 g0 = gasleft();
-        uint256 id = factory.mint(prog, "GAS");
+        uint256 id = factory.mint(prog, "GAS CHIP", "GAS");
         uint256 gasMint = g0 - gasleft();
 
         factory.tick(id); // primo tick: slot freddi, non rappresentativo
@@ -241,13 +243,65 @@ contract ChipFactoryTest is Test {
         console.log("gas per ciclo (con base tx):  ", gasTick + 21000);
     }
 
+    // ---- la sigla e' identita' ----------------------------------------------
+
+    /// Senza unicita' chiunque potrebbe coniare un chip con la sigla di un
+    /// altro. La sigla e' il nome con cui il chip viene scambiato: lasciarla
+    /// duplicabile sarebbe un invito all'inganno.
+    function test_siglaUnica() public {
+        uint256 first = _mint(alice, "forever", "BHMT");
+
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSelector(ChipFactory.TickerTaken.selector, first));
+        factory.mint(_program("forever"), "ALTRO NOME", "BHMT");
+
+        assertFalse(factory.tickerAvailable("BHMT"));
+        assertTrue(factory.tickerAvailable("LIBERA"));
+    }
+
+    function test_sigleNonValide() public {
+        bytes32[5] memory cattive = [
+            bytes32(""),                    // vuota
+            bytes32("troppo lunga assai"),  // oltre gli 8 caratteri
+            bytes32("minusc"),              // minuscole
+            bytes32("A B"),                 // spazio
+            bytes32("A$")                   // simbolo
+        ];
+        for (uint256 i; i < cattive.length; ++i) {
+            vm.prank(alice);
+            vm.expectRevert(ChipFactory.BadTicker.selector);
+            factory.mint(_program("forever"), "X", cattive[i]);
+            assertFalse(factory.tickerAvailable(cattive[i]));
+        }
+
+        // queste invece vanno bene
+        vm.prank(alice);
+        factory.mint(_program("forever"), "Un nome lungo quanto voglio", "RH-4");
+        assertEq(factory.chipByTicker("RH-4"), 1);
+    }
+
+    /// Nome e sigla sono due cose diverse: il nome puo' essere lungo e
+    /// libero, la sigla e' corta, maiuscola e unica.
+    function test_nomeLungoESiglaCorta() public {
+        vm.prank(alice);
+        uint256 id = factory.mint(
+            _program("forever"),
+            "Behemoth Mark II",
+            "BHMT2"
+        );
+        ChipFactory.Chip memory c = factory.chip(id);
+        assertEq(c.label, bytes32("Behemoth Mark II"));
+        assertEq(c.ticker, bytes32("BHMT2"));
+    }
+
     // ---- l'immagine ---------------------------------------------------------
 
     /// L'NFT non e' un puntatore a un PNG su un server: e' un SVG costruito
     /// dai 79 bit veri. Questo test lo scrive su disco cosi' si puo' guardare.
     function test_tokenURIEsceUnSvgValido() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer())));
-        uint256 id = _mint(alice, "forever", "BEHEMOTH");
+        vm.prank(alice);
+        uint256 id = factory.mint(_program("forever"), "Behemoth", "BHMT");
 
         for (uint256 i; i < 20; ++i) {
             factory.tick(id);
@@ -263,7 +317,7 @@ contract ChipFactoryTest is Test {
     function test_etichettaNonInietta() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer())));
         vm.prank(alice);
-        uint256 id = factory.mint(_program("forever"), bytes32('<script>x</script>'));
+        uint256 id = factory.mint(_program("forever"), bytes32('<script>x</script>'), "EVIL");
         string memory uri = factory.tokenURI(id);
         vm.writeFile("build/tokenURI-hostile.txt", uri);
         assertGt(bytes(uri).length, 500);

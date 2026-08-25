@@ -8,7 +8,9 @@
  *     --gates 0x...    riusa un RH4GateArray gia' deployato invece di
  *                      pagarne un altro (il silicio e' uno per chain)
  *     --mint FILE      conia subito il primo chip con questo programma
- *     --label NOME     etichetta del primo chip, max 32 caratteri
+ *     --label NOME     nome esteso del primo chip, max 32 caratteri
+ *     --ticker SIGLA   sigla del primo chip: 1-8 fra A-Z, 0-9 e trattino,
+ *                      unica in tutta la fabbrica
  *     --dry-run        calcola i costi e non manda niente
  *
  * Tre contratti, in quest'ordine:
@@ -141,17 +143,31 @@ async function main() {
   let firstChip = null;
   if (args.mint) {
     const { slots } = JSON.parse(fs.readFileSync(args.mint, "utf8"));
-    const label = stringToHex(args.label || "GENESIS", { size: 32 });
+    const label = stringToHex(args.label || "Genesis", { size: 32 });
+    const ticker = stringToHex(args.ticker || "RH4", { size: 32 });
+
+    // la sigla e' unica: meglio scoprirlo con una view che con una revert
+    const free = await pub.readContract({
+      address: factoryAddr,
+      abi: factoryAbi,
+      functionName: "tickerAvailable",
+      args: [ticker],
+    });
+    if (!free) {
+      console.error(`  la sigla "${args.ticker || "RH4"}" non e' valida o e' gia' presa`);
+      process.exit(1);
+    }
+
     const hash = await wallet.writeContract({
       address: factoryAddr,
       abi: factoryAbi,
       functionName: "mint",
-      args: [slots.map((s) => BigInt(s)), label],
+      args: [slots.map((s) => BigInt(s)), label, ticker],
     });
     const r = await pub.waitForTransactionReceipt({ hash });
     spent.total += r.gasUsed * r.effectiveGasPrice;
     firstChip = 1;
-    console.log(`  chip #1 coniato  (${args.label || "GENESIS"})  ${r.gasUsed} gas`);
+    console.log(`  chip #1 coniato  ${args.label || "Genesis"} (${args.ticker || "RH4"})  ${r.gasUsed} gas`);
   }
 
   const explorer = chain.blockExplorers?.default.url;

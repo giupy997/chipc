@@ -37,6 +37,7 @@
   </a>
   <nav class="nav-links">
     <a href="#machine">Machine</a>
+    <a href="#factory">Factory</a>
     <a href="#build">Fabrication</a>
     <a href="#isa">Instruction set</a>
     <a href="#clock">Clock</a>
@@ -192,6 +193,83 @@
     </div>
   </section>
 
+
+  <!-- =================================================== factory -->
+  <section id="factory" class="sec">
+    <p class="pill">03 / THE FACTORY</p>
+    <div class="sec-head">
+      <h2 class="display display-2">Mint your own<br>processor.</h2>
+      <p class="sec-copy">
+        A standalone RH&#8209;4 costs 4,091,584 gas to deploy, because it carries
+        the 18&nbsp;kB of unrolled gates with it. So the silicon moves out: one
+        <code>RH4GateArray</code> per chain, pure, stateless, ownerless. Every
+        chip calls into it and keeps only its own 79 bits.
+      </p>
+    </div>
+
+    <div class="mintgrid">
+
+      <div class="card card-pad mintform">
+        <span class="ck"><i class="sq"></i> DESIGN YOUR CHIP</span>
+
+        <label class="field">
+          <span class="field-k">NAME</span>
+          <input id="f-name" type="text" maxlength="32" value="Behemoth"
+                 placeholder="up to 32 characters">
+        </label>
+
+        <label class="field">
+          <span class="field-k">TICKER</span>
+          <input id="f-ticker" type="text" maxlength="8" value="BHMT"
+                 placeholder="1-8, A-Z 0-9 -">
+          <span class="field-note" id="f-ticker-note">unique across the factory</span>
+        </label>
+
+        <label class="field">
+          <span class="field-k">PROGRAM</span>
+          <div class="chips">
+            <button class="chip is-on" data-mintprog="forever">FOREVER</button>
+            <button class="chip" data-mintprog="fib">FIB</button>
+          </div>
+          <span class="field-note" id="f-prog-note">runs forever &mdash; never reaches HLT</span>
+        </label>
+
+        <button class="btn btn-dark btn-block" disabled>MINT &mdash; OPENS AT LAUNCH</button>
+      </div>
+
+      <div class="card card-pad chipcard">
+        <div class="card-head-inline">
+          <span class="ck">YOUR CHIP, LIVE</span>
+          <span class="ck ck-dim">SVG BUILT ON&#8209;CHAIN</span>
+        </div>
+        <div id="chip-preview" class="chip-preview"></div>
+        <p class="field-note">
+          No IPFS, no server. <code>tokenURI</code> builds this from the real 79
+          bits, so a stopped chip and a chip someone keeps alive do not look
+          alike.
+        </p>
+      </div>
+
+    </div>
+
+    <div class="table-wrap costs">
+      <table class="isa">
+        <thead>
+          <tr><th>OPERATION</th><th>GAS</th><th>ON ROBINHOOD CHAIN</th><th>NOTE</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Deploy the whole stack</td><td>~7,400,000</td><td>~0.00015 ETH</td><td>ONCE PER CHAIN</td></tr>
+          <tr><td>Mint a chip</td><td>213,000</td><td>~0.0000043 ETH</td><td>19&times; CHEAPER</td></tr>
+          <tr><td>One clock cycle</td><td>61,389</td><td>~0.0000012 ETH</td><td>ANYONE PAYS</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="footnote">
+      The shared gate array costs +1,301 gas per cycle over the standalone
+      build &mdash; about 2%. That is the whole price of making chips cheap.
+    </p>
+  </section>
+
   <!-- =================================================== band -->
   <div class="band" aria-hidden="true">
     <div class="band-track">
@@ -206,7 +284,7 @@
 
   <!-- =================================================== build -->
   <section id="build" class="sec">
-    <p class="pill">03 / FABRICATION</p>
+    <p class="pill">04 / FABRICATION</p>
     <div class="sec-head">
       <h2 class="display display-2">From Verilog<br>to blockspace.</h2>
       <p class="sec-copy">
@@ -257,7 +335,7 @@
 
   <!-- =================================================== isa -->
   <section id="isa" class="sec">
-    <p class="pill">04 / INSTRUCTION SET</p>
+    <p class="pill">05 / INSTRUCTION SET</p>
     <div class="sec-head">
       <h2 class="display display-2">Sixteen<br>opcodes.</h2>
       <p class="sec-copy">
@@ -299,7 +377,7 @@
 
   <!-- =================================================== clock -->
   <section id="clock" class="sec">
-    <p class="pill">05 / THE CLOCK</p>
+    <p class="pill">06 / THE CLOCK</p>
     <div class="sec-head">
       <h2 class="display display-2">Nobody owns<br>the clock.</h2>
       <p class="sec-copy">
@@ -337,7 +415,7 @@
 
   <!-- =================================================== credit -->
   <section class="sec sec-last">
-    <p class="pill">06 / PRIOR ART</p>
+    <p class="pill">07 / PRIOR ART</p>
     <div class="sec-head">
       <h2 class="display display-2">Credit where<br>it&rsquo;s due.</h2>
       <p class="sec-copy">

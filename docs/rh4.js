@@ -179,6 +179,84 @@
     }
   }
 
+  // ------------------------------------------------------- the chip card
+
+  /**
+   * Lo stesso disegno che ChipRenderer.sol costruisce on-chain, ricostruito
+   * qui con le stesse coordinate. Non e' una mockup: e' cosa uscira' da
+   * `tokenURI` una volta coniato.
+   */
+  const PANEL_BG = "#0c0d0b";
+  const PANEL_LINE = "#272a25";
+  const PANEL_DIM = "#6f7669";
+  const MINT_HEX = "#8fe8b0";
+
+  /** Stesso filtro del contratto: un nome non deve poter iniettare markup. */
+  function safeName(raw) {
+    let out = "";
+    for (const ch of String(raw).slice(0, 32)) {
+      const c = ch.charCodeAt(0);
+      const ok = c >= 0x20 && c <= 0x7e &&
+        c !== 0x3c && c !== 0x3e && c !== 0x26 && c !== 0x22 && c !== 0x27;
+      out += ok ? ch : " ";
+    }
+    return out;
+  }
+
+  /** Stessa regola del contratto: 1-8 fra A-Z, 0-9 e trattino. */
+  function safeTicker(raw) {
+    return String(raw).toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+  }
+
+  function text(x, y, size, fill, body, anchor) {
+    return `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" ` +
+      `letter-spacing="1.4" text-anchor="${anchor || "start"}">${body}</text>`;
+  }
+
+  function row(y, k, v) {
+    return `<line x1="40" y1="${y - 20}" x2="380" y2="${y - 20}" stroke="${PANEL_LINE}" stroke-width="1.5"/>` +
+      text(40, y, 10, PANEL_DIM, k) +
+      text(380, y, 16, MINT_HEX, v, "end");
+  }
+
+  function chipSvg(o) {
+    const badge = o.ticker
+      ? `<rect x="40" y="76" width="${26 + o.ticker.length * 11}" height="22" fill="${MINT_HEX}"/>` +
+        text(53, 92, 13, PANEL_BG, o.ticker)
+      : "";
+
+    let leds = "";
+    for (let i = 0; i < 4; i++) {
+      const on = (o.out >> (3 - i)) & 1;
+      leds += `<rect x="${40 + i * 56}" y="176" width="44" height="44" ` +
+        (on ? `fill="${MINT_HEX}"/>`
+            : `fill="#14171a" stroke="${PANEL_LINE}" stroke-width="1.5"/>`);
+    }
+
+    const status = o.halted
+      ? `<rect x="40" y="348" width="120" height="24" fill="#f5c842"/>` +
+        text(52, 365, 11, PANEL_BG, "HALTED")
+      : text(40, 365, 11, MINT_HEX, "RUNNING / 1 TICK PER BLOCK");
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420">` +
+      `<rect width="420" height="420" fill="${PANEL_BG}"/>` +
+      `<rect x="24" y="24" width="372" height="372" fill="none" stroke="${PANEL_LINE}" stroke-width="1.5"/>` +
+      `<g font-family="ui-monospace,monospace">` +
+      `<rect x="24" y="24" width="372" height="34" fill="none" stroke="${PANEL_LINE}" stroke-width="1.5"/>` +
+      `<rect x="40" y="37" width="7" height="7" fill="${MINT_HEX}"/>` +
+      text(56, 46, 10, PANEL_DIM, "RH-4 / GATE ARRAY") +
+      text(380, 46, 10, PANEL_DIM, "#\u2014", "end") +
+      badge +
+      text(40, 134, 26, "#efeee6", o.name) +
+      text(40, 156, 10, PANEL_DIM, "1029 NAND / 79 FLIP-FLOPS") +
+      leds +
+      row(250, "CYCLES", o.cycles) +
+      row(288, "PC", "0x" + o.pc.toString(16).padStart(2, "0")) +
+      row(326, "OUT", String(o.out)) +
+      status +
+      `</g></svg>`;
+  }
+
   // --------------------------------------------------------------------- ui
 
   const $ = (sel) => document.querySelector(sel);
@@ -210,6 +288,7 @@
       this.buildRegisters();
       this.buildListing();
       this.buildControls();
+      this.buildMintForm();
 
       this.loop = this.loop.bind(this);
       requestAnimationFrame(this.loop);
@@ -289,17 +368,72 @@
       this.syncRates();
 
       document.querySelectorAll("[data-program]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          this.programName = btn.dataset.program;
-          this.machine = new Machine(D.programs[this.programName]);
-          this.die.dirty = true;
-          this.buildListing();
-          this.syncPrograms();
-          this.render();
-        });
+        btn.addEventListener("click", () => this.switchProgram(btn.dataset.program));
       });
       this.syncPrograms();
       this.syncToggle();
+    }
+
+    buildMintForm() {
+      this.nameEl = $("#f-name");
+      this.tickerEl = $("#f-ticker");
+      this.cardEl = $("#chip-preview");
+      if (!this.cardEl) return;
+
+      const onInput = () => {
+        // il ticker si normalizza mentre scrivi, come lo vuole il contratto
+        const cleaned = safeTicker(this.tickerEl.value);
+        if (cleaned !== this.tickerEl.value) this.tickerEl.value = cleaned;
+        const note = $("#f-ticker-note");
+        if (cleaned.length === 0) {
+          note.textContent = "a chip needs a ticker";
+          note.classList.add("is-bad");
+        } else {
+          note.textContent = "unique across the factory";
+          note.classList.remove("is-bad");
+        }
+        this.cardKey = null; // forza il ridisegno
+      };
+
+      this.nameEl.addEventListener("input", () => { this.cardKey = null; });
+      this.tickerEl.addEventListener("input", onInput);
+
+      // scegliere il programma qui cambia anche quello che gira sopra:
+      // cosi' l'anteprima mostra davvero il chip che si sta per coniare
+      document.querySelectorAll("[data-mintprog]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          this.switchProgram(btn.dataset.mintprog);
+        });
+      });
+    }
+
+    switchProgram(name) {
+      this.programName = name;
+      this.machine = new Machine(D.programs[name]);
+      this.die.dirty = true;
+      this.cardKey = null;
+      this.buildListing();
+      this.syncPrograms();
+      this.render();
+    }
+
+    drawChipCard() {
+      if (!this.cardEl) return;
+      const m = this.machine;
+      const name = safeName(this.nameEl.value) || "UNNAMED";
+      const ticker = safeTicker(this.tickerEl.value);
+      const key = [name, ticker, m.out(), m.cycle, m.pc(), m.halted()].join("|");
+      if (key === this.cardKey) return;
+      this.cardKey = key;
+
+      this.cardEl.innerHTML = chipSvg({
+        name,
+        ticker,
+        out: m.out(),
+        cycles: m.cycle.toLocaleString("en-US"),
+        pc: m.pc(),
+        halted: m.halted(),
+      });
     }
 
     syncToggle() {
@@ -316,6 +450,16 @@
       document.querySelectorAll("[data-program]").forEach((btn) => {
         btn.classList.toggle("is-on", btn.dataset.program === this.programName);
       });
+      document.querySelectorAll("[data-mintprog]").forEach((btn) => {
+        btn.classList.toggle("is-on", btn.dataset.mintprog === this.programName);
+      });
+      const note = $("#f-prog-note");
+      if (note) {
+        note.textContent = this.programName === "forever"
+          ? "runs forever — never reaches HLT"
+          : "halts after 49 cycles — the chip would stop for good";
+        note.classList.toggle("is-bad", this.programName !== "forever");
+      }
     }
 
     // ---- frame
@@ -378,6 +522,8 @@
       this.put("#v-flags", `${m.carry() ? "C" : "·"}${m.zero() ? "Z" : "·"}`);
       this.put("#v-elapsed", (m.cycle / 10).toFixed(1) + " s");
       $("#v-halt").hidden = !m.halted();
+
+      this.drawChipCard();
     }
 
     /**
