@@ -28,7 +28,7 @@ function hex(n) {
   return "0x" + n.toString(16);
 }
 
-function generate(net, topName) {
+function generate(net, topName, jsonPath) {
   // --- assegnazione delle parole di memoria ---------------------------------
   // Serve un net per ogni uscita di gate, per ogni bit di `instr` e per ogni
   // uscita di flip-flop: sono gli unici valori che qualcuno puo' leggere.
@@ -68,6 +68,26 @@ function generate(net, topName) {
       return idx;
     });
   }
+
+  // --- registri -------------------------------------------------------------
+  // Yosys conserva i nomi RTL delle net, quindi si ricava quale flip-flop e'
+  // quale registro senza aggiungere porte di debug al processore. Le basi
+  // finiscono impacchettate in una costante: Solidity non ha array costanti.
+  const design = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
+  const named = design.modules[topName.toLowerCase()].netnames;
+  const regBases = [];
+  for (let i = 0; i < 16; i++) {
+    const entry = named[`regs[${i}]`];
+    if (!entry) throw new Error(`regs[${i}] non rintracciabile nella netlist`);
+    const bits = entry.bits.map((b) => flopIndexByQ.get(b));
+    if (bits.some((b) => b === undefined)) throw new Error(`regs[${i}] non registrato`);
+    if (!bits.every((b, k) => b === bits[0] + k)) {
+      throw new Error(`i bit di regs[${i}] non sono contigui: ${bits}`);
+    }
+    regBases.push(bits[0]);
+  }
+  let regPacked = 0n;
+  regBases.forEach((b, i) => { regPacked |= BigInt(b) << BigInt(i * 8); });
 
   // --- emissione ------------------------------------------------------------
   const L = [];
@@ -135,40 +155,71 @@ function generate(net, topName) {
   p("    }");
   p("");
 
-  // ---- accessori sulle uscite ----
-  const accessor = (fnName, portName, sol, doc) => {
-    const bits = portToStateBits[portName];
-    p(`    /// @notice ${doc}`);
-    p(`    function ${fnName}(uint256 state) internal pure returns (${sol}) {`);
-    if (sol === "bool") {
-      p(`        return (state >> ${bits[0]}) & 1 == 1;`);
-      p("    }");
-      p("");
-      return;
-    }
-    // i bit dei flip-flop sono contigui? allora basta uno shift
-    const contiguous = bits.every((b, i) => b === bits[0] + i);
-    if (contiguous) {
-      const mask = (1n << BigInt(bits.length)) - 1n;
-      p(`        return ${sol}((state >> ${bits[0]}) & 0x${mask.toString(16)});`);
-    } else {
-      p(`        uint256 v;`);
-      bits.forEach((b, i) => {
-        p(`        v |= ((state >> ${b}) & 1) << ${i};`);
-      });
-      p(`        return ${sol}(v);`);
-    }
-    p("    }");
-    p("");
-  };
-
-  accessor("pc", "pc_o", "uint8", "Program counter corrente.");
-  accessor("out", "out_o", "uint8", "Ultimo valore latchato sulla porta di uscita.");
-  accessor("halted", "halt_o", "bool", "Vero se il processore ha incontrato HLT.");
-
   p("}");
 
-  return { code: L.join("\n") + "\n", memEnd, slots: slot.size, portToStateBits };
+  // ---- seconda libreria: solo lettura della parola di stato ----------------
+  // Sta a parte perche' chi vuole solo sapere a che punto e' un processore
+  // non deve portarsi dietro i 18 kB dei gate srotolati. Il ChipFactory
+  // importa questa, il GateArray importa quella sopra.
+  const S = [];
+  const q = (s = "") => S.push(s);
+
+  q("// SPDX-License-Identifier: MIT");
+  q("pragma solidity ^0.8.24;");
+  q("");
+  q("// ┌───────────────────────────────────────────────────────────────────┐");
+  q("// │  GENERATO DA tools/codegen.js — NON MODIFICARE A MANO.             │");
+  q("// │  Posizioni dei bit dentro la parola di stato della RH-4.           │");
+  q("// └───────────────────────────────────────────────────────────────────┘");
+  q("");
+  q(`library ${topName}State {`);
+  q(`    uint256 internal constant BITS = ${net.flops.length};`);
+  q(`    uint256 internal constant MASK = (uint256(1) << ${net.flops.length}) - 1;`);
+  q("");
+
+  const emit = (fnName, portName, sol, doc) => {
+    const bits = portToStateBits[portName];
+    q(`    /// @notice ${doc}`);
+    q(`    function ${fnName}(uint256 state) internal pure returns (${sol}) {`);
+    if (sol === "bool") {
+      q(`        return (state >> ${bits[0]}) & 1 == 1;`);
+    } else {
+      const contiguous = bits.every((b, i) => b === bits[0] + i);
+      if (contiguous) {
+        const mask = (1n << BigInt(bits.length)) - 1n;
+        q(`        return ${sol}((state >> ${bits[0]}) & 0x${mask.toString(16)});`);
+      } else {
+        q(`        uint256 v;`);
+        bits.forEach((b, i) => q(`        v |= ((state >> ${b}) & 1) << ${i};`));
+        q(`        return ${sol}(v);`);
+      }
+    }
+    q("    }");
+    q("");
+  };
+
+  emit("pc", "pc_o", "uint8", "Program counter corrente.");
+  emit("out", "out_o", "uint8", "Ultimo valore latchato sulla porta di uscita.");
+  emit("halted", "halt_o", "bool", "Vero se il processore ha incontrato HLT.");
+
+  // i registri servono al renderer dell'NFT e ai frontend
+  q(`    /// @dev Base di ciascuno dei 16 registri, otto bit per voce.`);
+  q(`    uint256 internal constant REG_BASES = 0x${regPacked.toString(16)};`);
+  q("");
+  q("    /// @notice Uno dei sedici registri da 4 bit.");
+  q("    function reg(uint256 state, uint256 i) internal pure returns (uint8) {");
+  q("        return uint8((state >> ((REG_BASES >> (i * 8)) & 0xff)) & 0xf);");
+  q("    }");
+  q("");
+  q("}");
+
+  return {
+    code: L.join("\n") + "\n",
+    stateCode: S.join("\n") + "\n",
+    memEnd,
+    slots: slot.size,
+    portToStateBits,
+  };
 }
 
 function main() {
@@ -176,12 +227,16 @@ function main() {
     process.argv.slice(2);
 
   const net = load(jsonPath, "rh4");
-  const { code, memEnd, slots, portToStateBits } = generate(net, "RH4");
+  const { code, stateCode, memEnd, slots, portToStateBits } =
+    generate(net, "RH4", jsonPath);
 
   fs.mkdirSync(path.dirname(outPath), { recursive: true });
   fs.writeFileSync(outPath, code);
 
-  console.log(`${outPath}`);
+  const statePath = path.join(path.dirname(outPath), "RH4State.sol");
+  fs.writeFileSync(statePath, stateCode);
+
+  console.log(`${outPath}  +  ${statePath}`);
   console.log(`  ${net.gates.length} NAND srotolati, ${net.flops.length} flip-flop`);
   console.log(`  ${slots} net -> ${(memEnd - MEM_BASE) / 32} parole di memoria (fino a ${hex(memEnd)})`);
   for (const [name, bits] of Object.entries(portToStateBits)) {

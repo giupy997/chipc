@@ -21,6 +21,7 @@ Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
 | programma di mainnet | fatto — `forever.asm`, periodo 8,7 minuti, mai un HLT |
 | keeper | fatto — 10,04 Hz misurati su anvil a 100 ms |
 | sito | fatto — `docs/`, il processore gira nel browser |
+| fabbrica di chip | fatto — ERC-721, SVG on-chain, 22 test |
 | deploy in mainnet | da fare |
 
 ```bash
@@ -34,7 +35,8 @@ make                   # tutto in fila
 ```
 
 Serve `brew install yosys icarus-verilog`, [foundry](https://getfoundry.sh),
-`npm install` e `forge install foundry-rs/forge-std --no-git`.
+`npm install`, `forge install foundry-rs/forge-std --no-git` e
+`forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git`.
 
 ## Il sito
 
@@ -204,6 +206,66 @@ di viem è a 4 secondi di default (quaranta blocchi persi per tick), e lo stato
 nuovo si legge dall'evento `Cycle` dentro la ricevuta invece di richiamare
 `inspect()`. Con tre round-trip per ciclo si stava a 5 Hz.
 
+## La fabbrica di chip
+
+Una RH-4 che sta per conto suo costa **4.091.584 gas** di deploy, perche' si
+porta dietro i 18 kB dei gate srotolati. Farne una per utente sarebbe assurdo.
+
+Quindi il silicio si deploya **una volta sola per tutta la chain**:
+
+```
+RH4GateArray     16,7 kB   le 1.029 NAND. `pure`, senza stato, senza padrone.
+   ^
+   | staticcall
+   |
+ChipFactory       9,4 kB   ERC-721. Ogni chip: 79 bit di stato + la sua ROM.
+ChipRenderer      6,6 kB   l'SVG dell'NFT, disegnato dai bit veri.
+```
+
+Coniare un chip diventa **193.298 gas** invece di 4,09 milioni: 21 volte meno.
+Il prezzo e' +1.301 gas per ciclo (il costo della staticcall), cioe' il 2%.
+
+| | gas | su Robinhood Chain |
+|---|---|---|
+| deploy dell'intero stack, una volta | ~7,4 M | ~0,00015 ETH |
+| coniare un chip | 193.298 | ~0,0000039 ETH |
+| un ciclo di clock | 61.389 | ~0,0000012 ETH |
+
+### Il clock e' la cosa scarsa, non il chip
+
+Fabbricare un processore costa spiccioli. Tenerlo **acceso** no: un ciclo per
+blocco, e ogni ciclo lo deve pagare qualcuno.
+
+`tick(id)` e' aperto a chiunque — **non al proprietario, a chiunque** — e chi
+paga resta inciso nell'evento `Cycle` come sponsor di quel ciclo. Un chip che
+nessuno fa avanzare e' silicio morto in storage.
+
+Il contatore dei cicli e' **monotono per tutta la vita del chip**: `restart()`
+fa ripartire il processore ma non azzera quanto ha macinato. Altrimenti
+"questo chip ha eseguito N cicli" non vorrebbe dire niente.
+
+### L'NFT si disegna da solo
+
+Niente IPFS, niente server: `tokenURI` costruisce un SVG a partire dai 79 bit
+veri del processore. Le quattro luci sono la porta di uscita in quell'istante,
+il conteggio e' quello che gli sponsor hanno pagato. **L'immagine cambia da
+sola** — un chip fermo e un chip acceso non si somigliano.
+
+Le etichette passano da un filtro: un chip chiamato `<script>` non puo'
+iniettare markup dentro l'SVG.
+
+### Provare prima di coniare
+
+Un chip che incontra `hlt` si ferma per sempre, e resta un NFT morto.
+`previewProgram(rom, n)` e' una `view`: via `eth_call` non costa niente e dice
+se il programma si ferma, prima che qualcuno ci spenda dei soldi.
+
+```bash
+PRIVATE_KEY=0x... node tools/deploy-factory.js --dry-run
+PRIVATE_KEY=0x... node tools/deploy-factory.js --mint build/forever.slots.json --label BEHEMOTH
+RH4_FACTORY=0x... node tools/keeper.js --chip 1 --budget 0.01
+```
+
 ## Struttura
 
 ```
@@ -221,8 +283,14 @@ sim/tb_rh4.v         testbench RTL
 synth/rh4.ys         script di sintesi
 synth/not2nand.v     un NOT è un NAND con gli ingressi in corto
 src/RH4Gates.sol     GENERATO — i 1.029 gate in Yul
-src/RH4.sol          il contratto: clock, ROM, eventi
-test/RH4.t.sol       prova end-to-end contro la sequenza dell'RTL
+src/RH4State.sol     GENERATO — dove stanno i bit dentro la parola di stato
+src/RH4.sol          la RH-4 singola: clock, ROM, eventi
+src/RH4GateArray.sol il silicio condiviso, uno per chain
+src/ChipFactory.sol  la fabbrica: ERC-721 + clock permissionless
+src/ChipRenderer.sol l'SVG degli NFT, on-chain
+tools/deploy-factory.js  mette in piedi i tre contratti
+tools/keeper.js      tiene acceso un processore (singolo o chip)
+test/                22 test: RH-4 singola e fabbrica
 ```
 
 `src/RH4Gates.sol` è generato: non va toccato a mano. Si rigenera con

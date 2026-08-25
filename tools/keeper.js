@@ -4,7 +4,9 @@
  *
  *   PRIVATE_KEY=0x... node tools/keeper.js --cpu 0x<indirizzo>
  *
- *     --cpu 0x...      indirizzo del processore (oppure RH4_ADDRESS)
+ *     --cpu 0x...      RH-4 singola (oppure RH4_ADDRESS)
+ *     --factory 0x...  fabbrica di chip (oppure RH4_FACTORY)
+ *     --chip N         quale chip tenere acceso, insieme a --factory
  *     --rpc URL        default: mainnet Robinhood Chain
  *     --budget 0.05    tetto di spesa in ETH: raggiunto, si ferma
  *     --cycles N       ferma dopo N cicli portati a casa
@@ -75,18 +77,82 @@ const ABI = [
   { type: "error", name: "AlreadyHalted", inputs: [] },
 ];
 
+/**
+ * Stesse chiamate, firma diversa: la RH-4 singola ha `tick()`, la fabbrica
+ * ha `tick(uint256 id)`. Il resto del keeper non deve accorgersene.
+ */
+const FACTORY_ABI = [
+  {
+    type: "function",
+    name: "tick",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [
+      { name: "pc_", type: "uint8" },
+      { name: "out_", type: "uint8" },
+      { name: "halted_", type: "bool" },
+    ],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "inspect",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [
+      { name: "pc", type: "uint8" },
+      { name: "out", type: "uint8" },
+      { name: "halted", type: "bool" },
+      { name: "cycles", type: "uint256" },
+      { name: "lastTickBlock", type: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "event",
+    name: "Cycle",
+    inputs: [
+      { name: "id", type: "uint256", indexed: true },
+      { name: "cycle", type: "uint256", indexed: true },
+      { name: "sponsor", type: "address", indexed: true },
+      { name: "pc", type: "uint8" },
+      { name: "instr", type: "uint16" },
+      { name: "out", type: "uint8" },
+      { name: "halted", type: "bool" },
+    ],
+  },
+  { type: "error", name: "OneTickPerBlock", inputs: [] },
+  { type: "error", name: "AlreadyHalted", inputs: [] },
+  { type: "error", name: "NoSuchChip", inputs: [] },
+];
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
   const args = parseArgs(process.argv.slice(2), ["dry-run"]);
   const rpc = args.rpc || process.env.RPC_URL || DEFAULT_RPC;
-  const cpu = args.cpu || process.env.RH4_ADDRESS;
   const dryRun = Boolean(args["dry-run"]);
 
-  if (!cpu) {
-    console.error("manca --cpu 0x<indirizzo> (oppure RH4_ADDRESS)");
+  // Due bersagli possibili: una RH-4 che sta per conto suo, oppure un chip
+  // dentro la fabbrica. Cambia solo la firma delle chiamate.
+  const factory = args.factory || process.env.RH4_FACTORY;
+  const chipId = args.chip !== undefined ? BigInt(args.chip) : null;
+  const standalone = args.cpu || process.env.RH4_ADDRESS;
+
+  if (factory && chipId === null) {
+    console.error("con --factory serve anche --chip N");
     process.exit(2);
   }
+  if (!factory && !standalone) {
+    console.error(
+      "manca il bersaglio:\n" +
+        "  --cpu 0x<indirizzo>              una RH-4 singola\n" +
+        "  --factory 0x<indirizzo> --chip N un chip della fabbrica"
+    );
+    process.exit(2);
+  }
+
+  const cpu = factory || standalone;
+  const abi = factory ? FACTORY_ABI : ABI;
+  const callArgs = factory ? [chipId] : [];
 
   const budget = args.budget ? parseEther(String(args.budget)) : null;
   const maxCycles = args.cycles ? Number(args.cycles) : Infinity;
@@ -104,11 +170,15 @@ async function main() {
   const wallet = createWalletClient({ account, chain, transport: http(rpc), pollingInterval });
 
   const balance = await pub.getBalance({ address: account.address });
-  const start = await pub.readContract({ address: cpu, abi: ABI, functionName: "inspect" });
+  const start = await pub.readContract({ address: cpu, abi, functionName: "inspect", args: callArgs });
 
   console.log("RH-4 keeper");
   console.log(`  rete        ${chain.name} (${chain.id}) via ${rpc}`);
-  console.log(`  processore  ${cpu}`);
+  console.log(
+    factory
+      ? `  fabbrica    ${cpu}  chip #${chipId}`
+      : `  processore  ${cpu}`
+  );
   console.log(`  sponsor     ${account.address}  (${formatEther(balance)} ETH)`);
   console.log(`  stato       ciclo ${start[3]}, pc=${start[0]}, out=${start[1]}${start[2] ? ", FERMO" : ""}`);
   console.log(
@@ -183,8 +253,9 @@ async function main() {
       // stima fallirebbe comunque se qualcuno ci ha battuto sul blocco.
       hash = await wallet.writeContract({
         address: cpu,
-        abi: ABI,
+        abi,
         functionName: "tick",
+        args: callArgs,
         gas: gasLimit,
         nonce,
       });
@@ -218,8 +289,16 @@ async function main() {
 
     // Lo stato nuovo e' gia' dentro la ricevuta: leggerlo dall'evento invece
     // di richiamare inspect() risparmia un altro giro di RPC per ciclo.
-    const [event] = parseEventLogs({ abi: ABI, eventName: "Cycle", logs: receipt.logs });
-    const { pc, out, halted } = event.args;
+    const [event] = parseEventLogs({ abi, eventName: "Cycle", logs: receipt.logs });
+    if (!event) {
+      // meglio un giro di RPC in piu' che un crash: la ricevuta c'e' ma
+      // l'evento no, quindi qualcosa non torna fra ABI e contratto
+      console.log("\n  attenzione: nessun evento Cycle nella ricevuta, rileggo lo stato");
+      const s2 = await pub.readContract({ address: cpu, abi, functionName: "inspect", args: callArgs });
+      var pc = s2[0], out = s2[1], halted = s2[2];
+    } else {
+      var { pc, out, halted } = event.args;
+    }
 
     const secs = (Date.now() - stats.t0) / 1000;
     process.stdout.write(

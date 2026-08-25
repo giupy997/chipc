@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {RH4Gates} from "./RH4Gates.sol";
+import {RH4State} from "./RH4State.sol";
 
 /**
  * @title RH-4 — un processore 4-bit che gira dentro la Robinhood Chain
@@ -87,9 +88,9 @@ contract RH4 {
         if (block.number <= m >> SHIFT_BLOCK) revert OneTickPerBlock();
 
         uint256 state = m & STATE_MASK;
-        if (RH4Gates.halted(state)) revert AlreadyHalted();
+        if (RH4State.halted(state)) revert AlreadyHalted();
 
-        uint8 pc = RH4Gates.pc(state);
+        uint8 pc = RH4State.pc(state);
         uint256 instr = _fetch(pc);
 
         uint256 next = RH4Gates.step(state, instr);
@@ -100,9 +101,9 @@ contract RH4 {
             (cycle << SHIFT_CYCLES) |
             (block.number << SHIFT_BLOCK);
 
-        pc_ = RH4Gates.pc(next);
-        out_ = RH4Gates.out(next);
-        halted_ = RH4Gates.halted(next);
+        pc_ = RH4State.pc(next);
+        out_ = RH4State.out(next);
+        halted_ = RH4State.halted(next);
 
         // _fetch maschera a 12 bit: il cast a uint16 non puo' troncare
         // forge-lint: disable-next-line(unsafe-typecast)
@@ -122,9 +123,9 @@ contract RH4 {
         uint256 m = _machine;
         uint256 state = m & STATE_MASK;
         return (
-            RH4Gates.pc(state),
-            RH4Gates.out(state),
-            RH4Gates.halted(state),
+            RH4State.pc(state),
+            RH4State.out(state),
+            RH4State.halted(state),
             (m >> SHIFT_CYCLES) & MASK48,
             m >> SHIFT_BLOCK
         );
@@ -157,13 +158,13 @@ contract RH4 {
         returns (uint8 pc, uint8 out, bool halted, uint256 executed)
     {
         uint256 s = _machine & STATE_MASK;
-        while (executed < n && !RH4Gates.halted(s)) {
-            s = RH4Gates.step(s, _fetch(RH4Gates.pc(s)));
+        while (executed < n && !RH4State.halted(s)) {
+            s = RH4Gates.step(s, _fetch(RH4State.pc(s)));
             unchecked {
                 ++executed;
             }
         }
-        return (RH4Gates.pc(s), RH4Gates.out(s), RH4Gates.halted(s), executed);
+        return (RH4State.pc(s), RH4State.out(s), RH4State.halted(s), executed);
     }
 
     // ---- programma --------------------------------------------------------

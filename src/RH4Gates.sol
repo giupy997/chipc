@@ -1237,19 +1237,4 @@ library RH4Gates {
         }
     }
 
-    /// @notice Program counter corrente.
-    function pc(uint256 state) internal pure returns (uint8) {
-        return uint8((state >> 67) & 0xff);
-    }
-
-    /// @notice Ultimo valore latchato sulla porta di uscita.
-    function out(uint256 state) internal pure returns (uint8) {
-        return uint8((state >> 75) & 0xf);
-    }
-
-    /// @notice Vero se il processore ha incontrato HLT.
-    function halted(uint256 state) internal pure returns (bool) {
-        return (state >> 65) & 1 == 1;
-    }
-
 }
