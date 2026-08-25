@@ -989,3 +989,8 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .split-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1100px) { .split-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 720px)  { .split-3 { grid-template-columns: 1fr; } }
+
+/* deployata: il pallino passa da ambra a menta */
+.dot-live { background: var(--mint-deep); box-shadow: 0 0 8px rgba(31, 122, 76, 0.5); }
+.rows .addr { color: var(--ink); text-decoration: none; border-bottom: 1.5px solid var(--mint-deep); }
+.rows .addr:hover { color: var(--mint-deep); }
