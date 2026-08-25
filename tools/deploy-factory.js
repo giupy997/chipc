@@ -11,6 +11,10 @@
  *     --label NOME     nome esteso del primo chip, max 32 caratteri
  *     --ticker SIGLA   sigla del primo chip: 1-8 fra A-Z, 0-9 e trattino,
  *                      unica in tutta la fabbrica
+ *     --liquidity BPS  quota dell'offerta che va subito a chi conia, in
+ *                      centesimi di punto (2000 = 20%). Max 5000.
+ *     --target N       su quanti cicli spalmare la riserva. A 10 Hz:
+ *                      25.920.000 = 30 giorni, 315.360.000 = un anno.
  *     --dry-run        calcola i costi e non manda niente
  *
  * Tre contratti, in quest'ordine:
@@ -158,15 +162,30 @@ async function main() {
       process.exit(1);
     }
 
+    const liquidityBps = Number(args.liquidity ?? 2000);
+    const targetCycles = BigInt(args.target ?? 25_920_000); // 30 giorni a 10 Hz
+
     const hash = await wallet.writeContract({
       address: factoryAddr,
       abi: factoryAbi,
       functionName: "mint",
-      args: [slots.map((s) => BigInt(s)), label, ticker],
+      args: [slots.map((s) => BigInt(s)), label, ticker, liquidityBps, targetCycles],
     });
     const r = await pub.waitForTransactionReceipt({ hash });
     spent.total += r.gasUsed * r.effectiveGasPrice;
     firstChip = 1;
+
+    const [token, reserve, reward] = await pub.readContract({
+      address: factoryAddr,
+      abi: factoryAbi,
+      functionName: "emission",
+      args: [1n],
+    });
+    console.log(`  token         ${token}`);
+    console.log(`    liquidita'  ${liquidityBps / 100}% a te, subito`);
+    console.log(`    riserva     ${(Number(reserve) / 1e18).toLocaleString()} token`);
+    console.log(`    per ciclo   ${(Number(reward) / 1e18).toLocaleString()} token`);
+    console.log(`    durata      ${(Number(targetCycles) / 10 / 3600).toFixed(1)} ore di clock a 10 Hz`);
     console.log(`  chip #1 coniato  ${args.label || "Genesis"} (${args.ticker || "RH4"})  ${r.gasUsed} gas`);
   }
 

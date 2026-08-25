@@ -200,10 +200,11 @@
     <div class="sec-head">
       <h2 class="display display-2">Mint your own<br>processor.</h2>
       <p class="sec-copy">
-        A standalone RH&#8209;4 costs 4,091,584 gas to deploy, because it carries
-        the 18&nbsp;kB of unrolled gates with it. So the silicon moves out: one
-        <code>RH4GateArray</code> per chain, pure, stateless, ownerless. Every
-        chip calls into it and keeps only its own 79 bits.
+        Every chip is an NFT and a real processor, and it launches its own
+        ERC&#8209;20 with the name and ticker you pick. Fixed supply, no mint
+        function, nothing to inflate. A slice goes to you for liquidity; all
+        the rest leaves the factory <strong>one clock cycle at a time</strong>,
+        to whoever paid that cycle.
       </p>
     </div>
 
@@ -234,6 +235,27 @@
           <span class="field-note" id="f-prog-note">runs forever &mdash; never reaches HLT</span>
         </label>
 
+        <div class="field-split">
+          <label class="field">
+            <span class="field-k">TO LIQUIDITY</span>
+            <div class="chips" id="f-liq">
+              <button class="chip" data-liq="0">0%</button>
+              <button class="chip is-on" data-liq="2000">20%</button>
+              <button class="chip" data-liq="5000">50%</button>
+            </div>
+          </label>
+          <label class="field">
+            <span class="field-k">EMISSION RUNS FOR</span>
+            <div class="chips" id="f-span">
+              <button class="chip" data-span="2592000">30 D</button>
+              <button class="chip is-on" data-span="31536000">1 Y</button>
+              <button class="chip" data-span="157680000">5 Y</button>
+            </div>
+          </label>
+        </div>
+
+        <div class="emission" id="f-emission"></div>
+
         <button class="btn btn-dark btn-block" disabled>MINT &mdash; OPENS AT LAUNCH</button>
       </div>
 
@@ -259,14 +281,27 @@
         </thead>
         <tbody>
           <tr><td>Deploy the whole stack</td><td>~7,400,000</td><td>~0.00015 ETH</td><td>ONCE PER CHAIN</td></tr>
-          <tr><td>Mint a chip</td><td>213,000</td><td>~0.0000043 ETH</td><td>19&times; CHEAPER</td></tr>
-          <tr><td>One clock cycle</td><td>61,389</td><td>~0.0000012 ETH</td><td>ANYONE PAYS</td></tr>
+          <tr><td>Mint a chip + launch its token</td><td>800,728</td><td>~0.0000161 ETH</td><td>5&times; CHEAPER</td></tr>
+          <tr><td>One clock cycle</td><td>68,275</td><td>~0.0000014 ETH</td><td>ANYONE PAYS, ANYONE EARNS</td></tr>
         </tbody>
       </table>
     </div>
+    <div class="note">
+      <span class="ck"><i class="sq sq-mint"></i> WHY THIS HOLDS TOGETHER</span>
+      <h3>A chip runs as fast as the market thinks it deserves.</h3>
+      <p>
+        Buying aside, the only way to get a chip&rsquo;s token is to keep its
+        processor alive. If the token is worth more than the gas of a tick,
+        someone calls it and the chip keeps running. If it is not, the chip
+        stalls &mdash; and that is the honest outcome. Emission is not governed
+        by anyone: nobody can print faster than the chain closes blocks.
+      </p>
+    </div>
+
     <p class="footnote">
       The shared gate array costs +1,301 gas per cycle over the standalone
-      build &mdash; about 2%. That is the whole price of making chips cheap.
+      build &mdash; about 2%. Paying the sponsor adds ~6,900 more. That is the
+      whole price of making chips cheap and their tokens earnable.
     </p>
   </section>
 
@@ -388,7 +423,7 @@
       </p>
     </div>
 
-    <div class="split">
+    <div class="split split-3">
       <div class="card card-pad">
         <span class="ck"><i class="sq"></i> THE PROGRAM CANNOT STOP</span>
         <p class="card-copy">
@@ -397,6 +432,30 @@
           20,000 cycles against the synthesised netlist and 5,300 cycles inside
           the EVM before anything is deployed.
         </p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="ck">POWER A CHIP</span>
+          <span class="ck ck-dim" id="w-net">ROBINHOOD CHAIN</span>
+        </div>
+        <div class="power">
+          <p class="card-copy">
+            One tick, one block, one cycle. Whoever sends it pays the gas and
+            earns that cycle&rsquo;s share of the chip&rsquo;s token.
+          </p>
+          <div class="power-row">
+            <button id="w-connect" class="btn btn-light btn-sm">CONNECT WALLET</button>
+            <button id="w-tick" class="btn btn-dark btn-sm" disabled>POWER CHIP #1</button>
+          </div>
+          <p class="field-note" id="w-status">not deployed yet &mdash; the button opens at launch</p>
+          <details class="cli">
+            <summary>or from the command line</summary>
+            <pre id="w-cli">cast send $FACTORY "tick(uint256)" 1 \
+  --rpc-url https://rpc.mainnet.chain.robinhood.com \
+  --private-key $PRIVATE_KEY</pre>
+          </details>
+        </div>
       </div>
 
       <div class="card">
@@ -436,6 +495,7 @@
   <a class="f-link" href="https://github.com/giupy997/chipc">GITHUB <span class="arr">&#8599;</span></a>
 </footer>
 
+<script src="config.js"></script>
 <script src="rh4-data.js"></script>
 <script src="rh4.js"></script>
 </body>

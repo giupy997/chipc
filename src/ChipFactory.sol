@@ -3,7 +3,9 @@ pragma solidity ^0.8.24;
 
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {RH4State} from "./RH4State.sol";
+import {ChipToken} from "./ChipToken.sol";
 
 interface IRH4GateArray {
     function step(uint256 state, uint256 instr) external pure returns (uint256);
@@ -36,6 +38,22 @@ interface IChipRenderer {
  * Il contatore dei cicli e' monotono per tutta la vita del chip: `reset()`
  * fa ripartire il processore ma non azzera quanto ha macinato. Cosi'
  * "questo chip ha eseguito N cicli" resta una cosa che si puo' credere.
+ *
+ * ------------------------------------------------------------------------
+ *  Ogni chip ha il suo token, e i cicli sono l'unico modo di guadagnarlo.
+ * ------------------------------------------------------------------------
+ * Al conio nasce un ChipToken con il nome e la sigla scelti: offerta fissa,
+ * un miliardo, mai piu' toccabile — quel contratto non ha una `mint`.
+ *
+ * Una fetta va subito a chi conia, per la liquidita'. Tutto il resto resta
+ * qui e ne esce **un ciclo di clock alla volta**, verso chi quel ciclo l'ha
+ * pagato. Non c'e' un secondo modo di estrarlo.
+ *
+ * Ne segue la proprieta' che regge tutto: **un chip gira alla velocita' che
+ * il mercato pensa che meriti**. Se il token vale piu' del gas di un tick,
+ * qualcuno lo chiama e il processore resta acceso. Se non vale, si ferma.
+ * L'emissione non e' governata da un'autorita' ma dal block time: nessuno
+ * puo' stampare piu' in fretta di quanto la chain chiuda i blocchi.
  */
 contract ChipFactory is ERC721, Ownable {
     // ---- disposizione della parola macchina --------------------------------
@@ -57,9 +75,19 @@ contract ChipFactory is ERC721, Ownable {
         address minter;    // chi l'ha coniato: non cambia mai   160 bit
         uint64 bornBlock;  // 0 = il chip non esiste              64 bit
         uint32 resets;     //                                     32 bit
+        address token;     // il suo ERC-20                      160 bit
+        uint96 rewardPerCycle; // quanto prende lo sponsor        96 bit
     }
 
     uint256 public constant TICKER_MAX = 8;
+
+    /// Un miliardo con 18 decimali: e' quello che i launchpad si aspettano.
+    uint256 public constant TOKEN_SUPPLY = 1_000_000_000e18;
+    /// Alla liquidita' non puo' andare piu' della meta': i cicli devono
+    /// restare il modo principale con cui il token si distribuisce.
+    uint256 public constant MAX_LIQUIDITY_BPS = 5_000;
+    /// Sotto questa soglia la riserva si prosciugherebbe in pochi minuti.
+    uint256 public constant MIN_TARGET_CYCLES = 100_000;
 
     IRH4GateArray public immutable gates;
 
@@ -69,6 +97,11 @@ contract ChipFactory is ERC721, Ownable {
     /// @dev Sigla gia' presa -> id del chip che ce l'ha. Senza questo
     ///      chiunque potrebbe coniare un chip con la sigla di un altro.
     mapping(bytes32 => uint256) public chipByTicker;
+
+    /// @dev Token gia' agganciato -> chip che lo usa. La riserva di un chip
+    ///      e' il saldo che questo contratto ha di quel token: due chip sullo
+    ///      stesso token si mangerebbero la riserva a vicenda.
+    mapping(address => uint256) public chipByToken;
 
     uint256 public totalChips;
     uint256 public mintPrice;
@@ -90,6 +123,21 @@ contract ChipFactory is ERC721, Ownable {
         uint8 out,
         bool halted
     );
+    /// @notice E' nato il token di un chip.
+    event TokenLaunched(
+        uint256 indexed id,
+        address indexed token,
+        uint256 toLiquidity,
+        uint256 reserve,
+        uint256 rewardPerCycle
+    );
+    /// @notice A un chip senza token ne e' stato agganciato uno.
+    event TokenAttached(uint256 indexed id, address indexed token, uint256 rewardPerCycle);
+    /// @notice Un ciclo ha pagato il suo sponsor.
+    event Rewarded(uint256 indexed id, address indexed sponsor, uint256 amount);
+    /// @notice La riserva di emissione e' finita: da qui il clock e' gratuito.
+    event ReserveEmpty(uint256 indexed id, uint256 atCycle);
+
     event Output(uint256 indexed id, uint256 indexed cycle, uint8 value);
     event Halt(uint256 indexed id, uint256 indexed cycle);
     event Reprogrammed(uint256 indexed id, bytes32 programHash);
@@ -102,6 +150,11 @@ contract ChipFactory is ERC721, Ownable {
     error WrongPayment();
     error TickerTaken(uint256 existingChip);
     error BadTicker();
+    error BadLiquidityShare();
+    error TargetTooShort();
+    error TokenAlreadySet();
+    error TokenInUse(uint256 existingChip);
+    error NoToken();
 
     constructor(IRH4GateArray gateArray, address owner_)
         ERC721("RH-4 Chip", "CHIP")
@@ -119,13 +172,20 @@ contract ChipFactory is ERC721, Ownable {
      *      prima e gratis con `previewProgram`, che gira via `eth_call`.
      *      Un chip che si ferma e' comunque recuperabile con `restart`.
      */
-    function mint(uint256[ROM_SLOTS] calldata words, bytes32 label, bytes32 ticker)
-        external
-        payable
-        returns (uint256 id)
-    {
+    function mint(
+        uint256[ROM_SLOTS] calldata words,
+        bytes32 label,
+        bytes32 ticker,
+        uint16 liquidityBps,
+        uint64 targetCycles
+    ) external payable returns (uint256 id, address token) {
         if (msg.value != mintPrice) revert WrongPayment();
         if (!_validTicker(ticker)) revert BadTicker();
+        if (liquidityBps > MAX_LIQUIDITY_BPS) revert BadLiquidityShare();
+        // targetCycles == 0 vuol dire "niente token adesso": il chip nasce
+        // nudo e piu' avanti gli si aggancia un token lanciato altrove, per
+        // esempio da un launchpad che vuole creare il proprio contratto.
+        if (targetCycles != 0 && targetCycles < MIN_TARGET_CYCLES) revert TargetTooShort();
 
         uint256 taken = chipByTicker[ticker];
         if (taken != 0) revert TickerTaken(taken);
@@ -146,8 +206,51 @@ contract ChipFactory is ERC721, Ownable {
             if (words[i] != 0) rom[i] = words[i];
         }
 
+        if (targetCycles != 0) {
+            token = _launchToken(id, label, ticker, liquidityBps, targetCycles);
+        }
+
         _safeMint(msg.sender, id);
         emit ChipMinted(id, msg.sender, ticker, label, keccak256(abi.encode(words)));
+    }
+
+    /**
+     * @dev Il token nasce qui e la riserva resta a questo contratto: da li'
+     *      esce solo passando per tick(). Sta in una funzione a parte perche'
+     *      dentro mint() erano troppe variabili vive insieme.
+     *
+     *      Il premio si calcola PRIMA di dare via la fetta di liquidita',
+     *      altrimenti dipenderebbe da cosa il minter ci fa dopo.
+     */
+    function _launchToken(
+        uint256 id,
+        bytes32 label,
+        bytes32 ticker,
+        uint16 liquidityBps,
+        uint64 targetCycles
+    ) internal returns (address token) {
+        uint256 toLiquidity = (TOKEN_SUPPLY * liquidityBps) / 10_000;
+        uint256 reserve = TOKEN_SUPPLY - toLiquidity;
+        uint256 reward = reserve / targetCycles;
+
+        token = address(
+            new ChipToken(
+                _toString(label),
+                _toString(ticker),
+                id,
+                TOKEN_SUPPLY,
+                address(this),
+                toLiquidity,
+                msg.sender
+            )
+        );
+
+        Chip storage c = _chips[id];
+        c.token = token;
+        c.rewardPerCycle = uint96(reward);
+        chipByToken[token] = id;
+
+        emit TokenLaunched(id, token, toLiquidity, reserve, reward);
     }
 
     // ---- il clock ----------------------------------------------------------
@@ -186,6 +289,32 @@ contract ChipFactory is ERC721, Ownable {
         emit Cycle(id, cycle, msg.sender, pc_, uint16(instr), out_, halted_);
         if (instr >> 8 == OP_OUT) emit Output(id, cycle, out_);
         if (halted_) emit Halt(id, cycle);
+
+        _reward(id, c, cycle);
+    }
+
+    /**
+     * @dev Paga lo sponsor del ciclo appena eseguito. Quando la riserva
+     *      finisce il clock NON si ferma: continua a girare gratis. Un chip
+     *      senza piu' token da distribuire e' ancora un processore acceso,
+     *      solo che da li' in poi lo si tiene vivo per il gusto di farlo.
+     */
+    function _reward(uint256 id, Chip storage c, uint256 cycle) internal {
+        uint256 reward = c.rewardPerCycle;
+        address token = c.token;
+        if (reward == 0 || token == address(0)) return;
+
+        IERC20 t = IERC20(token);
+        uint256 left = t.balanceOf(address(this));
+        if (left == 0) {
+            c.rewardPerCycle = 0; // non ripaghiamo il balanceOf a ogni ciclo
+            emit ReserveEmpty(id, cycle);
+            return;
+        }
+
+        uint256 pay = reward < left ? reward : left;
+        t.transfer(msg.sender, pay);
+        emit Rewarded(id, msg.sender, pay);
     }
 
     // ---- proprieta' del chip -----------------------------------------------
@@ -217,6 +346,36 @@ contract ChipFactory is ERC721, Ownable {
         c.machine = cycles << SHIFT_CYCLES;
         unchecked { ++c.resets; }
         emit Reprogrammed(id, keccak256(abi.encode(words)));
+    }
+
+    /**
+     * @notice Aggancia a un chip nudo un token lanciato altrove.
+     *
+     * Serve quando il token lo crea un launchpad, che vuole per forza
+     * distribuire il proprio contratto: la fabbrica non ha bisogno di
+     * *creare* il token, le basta sapere qual e' e avere qualcosa da
+     * distribuire. La riserva e' semplicemente il saldo che questo contratto
+     * ha di quel token: per finanziarla basta trasferirglieli.
+     *
+     * @dev Si puo' fare **una volta sola**. Se il proprietario potesse
+     *      cambiare il token dopo, chi ha macinato cicli per guadagnarlo si
+     *      ritroverebbe in mano la cosa sbagliata.
+     */
+    function attachToken(uint256 id, address token, uint96 rewardPerCycle) external {
+        _requireChipOwner(id);
+        if (token == address(0)) revert NoToken();
+
+        Chip storage c = _chips[id];
+        if (c.token != address(0)) revert TokenAlreadySet();
+
+        uint256 used = chipByToken[token];
+        if (used != 0) revert TokenInUse(used);
+
+        c.token = token;
+        c.rewardPerCycle = rewardPerCycle;
+        chipByToken[token] = id;
+
+        emit TokenAttached(id, token, rewardPerCycle);
     }
 
     // ---- lettura -----------------------------------------------------------
@@ -336,9 +495,37 @@ contract ChipFactory is ERC721, Ownable {
         return true;
     }
 
+    /// @notice Quanto resta da distribuire e quanto prende un ciclo.
+    function emission(uint256 id)
+        external
+        view
+        returns (address token, uint256 reserveLeft, uint256 rewardPerCycle, uint256 cyclesLeft)
+    {
+        Chip storage c = _chips[id];
+        if (c.bornBlock == 0) revert NoSuchChip();
+        token = c.token;
+        if (token == address(0)) return (address(0), 0, 0, 0);
+        rewardPerCycle = c.rewardPerCycle;
+        reserveLeft = IERC20(token).balanceOf(address(this));
+        cyclesLeft = rewardPerCycle == 0 ? 0 : reserveLeft / rewardPerCycle;
+    }
+
     /// @notice La sigla e' libera? Da chiamare prima di coniare.
     function tickerAvailable(bytes32 ticker) external view returns (bool) {
         return _validTicker(ticker) && chipByTicker[ticker] == 0;
+    }
+
+    /// @dev bytes32 -> stringa, tagliando gli zeri di coda. Serve per dare
+    ///      nome e simbolo al token: lo storage li tiene compatti, l'ERC-20
+    ///      li vuole come stringhe.
+    function _toString(bytes32 raw) internal pure returns (string memory) {
+        uint256 len;
+        while (len < 32 && raw[len] != 0) {
+            unchecked { ++len; }
+        }
+        bytes memory out = new bytes(len);
+        for (uint256 i; i < len; ++i) out[i] = raw[i];
+        return string(out);
     }
 
     function _requireChipOwner(uint256 id) internal view {

@@ -21,7 +21,7 @@ Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
 | programma di mainnet | fatto — `forever.asm`, periodo 8,7 minuti, mai un HLT |
 | keeper | fatto — 10,04 Hz misurati su anvil a 100 ms |
 | sito | fatto — `docs/`, il processore gira nel browser |
-| fabbrica di chip | fatto — ERC-721, SVG on-chain, 22 test |
+| fabbrica di chip | fatto — ERC-721, SVG on-chain, token per chip, 33 test |
 | deploy in mainnet | da fare |
 
 ```bash
@@ -222,14 +222,17 @@ ChipFactory       9,4 kB   ERC-721. Ogni chip: 79 bit di stato + la sua ROM.
 ChipRenderer      6,6 kB   l'SVG dell'NFT, disegnato dai bit veri.
 ```
 
-Coniare un chip diventa **242.734 gas** invece di 4,09 milioni: 17 volte meno.
-Il prezzo e' +1.301 gas per ciclo (il costo della staticcall), cioe' il 2%.
+Coniare un chip nudo costa **~250.000 gas** invece di 4,09 milioni: 16 volte
+meno. Con il token integrato si sale a **822.987**, perche' si deploya anche un
+ERC-20. Il prezzo per ciclo e' +1.301 gas per la staticcall al silicio (2%) e
+~6.900 per pagare lo sponsor.
 
 | | gas | su Robinhood Chain |
 |---|---|---|
 | deploy dell'intero stack, una volta | ~7,4 M | ~0,00015 ETH |
-| coniare un chip | 242.734 | ~0,0000049 ETH |
-| un ciclo di clock | 61.389 | ~0,0000012 ETH |
+| coniare un chip + lanciare il token | 822.987 | ~0,0000166 ETH |
+| coniare un chip nudo (token dopo) | ~250.000 | ~0,0000050 ETH |
+| un ciclo di clock (paga lo sponsor) | 68.275 | ~0,0000014 ETH |
 
 ### Nome e sigla
 
@@ -246,6 +249,57 @@ Attenzione a una cosa che il vocabolario confonde: quella sigla e' **metadato
 del chip**, non il simbolo di un ERC-20. Tutti i chip stanno nella stessa
 collezione ERC-721 (`RH-4 Chip` / `CHIP`). Un chip non e' un token scambiabile
 con una sua liquidita': e' un NFT con sopra scritta una sigla.
+
+### Ogni chip ha il suo token, e i cicli sono l'unico modo di guadagnarlo
+
+Al conio nasce un `ChipToken` con il nome e la sigla scelti: **offerta fissa,
+un miliardo, e nessuna `mint`** — quel contratto non ha modo di stamparne
+altri, ne' per l'operatore ne' per il proprietario del chip.
+
+L'offerta si divide in due:
+
+| | dove va |
+|---|---|
+| fetta di liquidita' (max 50%) | subito a chi conia, per farci il mercato |
+| tutto il resto | resta alla fabbrica, esce **un ciclo alla volta** |
+
+Non c'e' una seconda strada. A parte comprarli, **l'unico modo di ottenere i
+token di un chip e' tenere acceso il suo processore**.
+
+Ne segue la proprieta' che regge tutto:
+
+> **Un chip gira alla velocita' che il mercato pensa che meriti.**
+
+Se il token vale piu' del gas di un tick, qualcuno lo chiama e il processore
+resta acceso. Se non vale, si ferma — ed e' l'esito onesto. L'emissione non e'
+governata da nessuno: nessuno puo' stampare piu' in fretta di quanto la chain
+chiuda i blocchi.
+
+Quando la riserva finisce il clock **non** si ferma: continua gratis. Un chip
+senza piu' token da distribuire e' ancora un processore acceso.
+
+### Token creato altrove (pools.trade e simili)
+
+Un launchpad vuole creare il **proprio** contratto token: `UERC20Factory` non
+creera' mai un `ChipToken`. Non serve che lo faccia. La fabbrica non ha bisogno
+di *creare* il token, le basta sapere qual e' e avere una riserva da
+distribuire.
+
+```
+mint(..., targetCycles: 0)     -> chip nudo, senza token
+  ...lanci il token dove vuoi...
+attachToken(id, token, reward) -> lo agganci
+transfer(factory, riserva)     -> la riserva e' il saldo della fabbrica
+```
+
+Si aggancia **una volta sola**: se il proprietario potesse cambiare il token
+dopo, chi ha macinato cicli per guadagnarlo si ritroverebbe in mano la cosa
+sbagliata. E un token non puo' servire due chip, altrimenti si mangerebbero la
+riserva a vicenda.
+
+⚠️ Attenzione a `pools-launch/launch.js` cosi' com'e': passa
+`amount: SUPPLY` alla strategy, cioe' manda **tutto** il miliardo nel pool.
+Per finanziare i cicli va lasciata fuori una quota.
 
 ### Il clock e' la cosa scarsa, non il chip
 

@@ -257,6 +257,131 @@
       `</g></svg>`;
   }
 
+  // ------------------------------------------------------------- the wallet
+
+  /**
+   * Il bottone che alimenta un chip. Nessuna libreria: `tick(uint256)` e'
+   * un selettore piu' un uint256 in padding, e il wallet fa il resto.
+   *
+   * Finche' config.factory e' null il bottone resta spento e lo dice: meglio
+   * un bottone onesto che uno che finge.
+   */
+  const SELECTOR_TICK = "0xfc7b6aee"; // tick(uint256)
+
+  class Wallet {
+    constructor(cfg) {
+      this.cfg = cfg;
+      this.account = null;
+      this.connectBtn = $("#w-connect");
+      this.tickBtn = $("#w-tick");
+      this.statusEl = $("#w-status");
+      if (!this.connectBtn) return;
+
+      this.chipId = cfg.defaultChip || 1;
+      this.tickBtn.textContent = `POWER CHIP #${this.chipId}`;
+
+      if (cfg.factory) {
+        const cli = $("#w-cli");
+        if (cli) cli.textContent = cli.textContent.replace("$FACTORY", cfg.factory);
+      }
+
+      this.connectBtn.addEventListener("click", () => this.connect());
+      this.tickBtn.addEventListener("click", () => this.tick());
+      this.refresh();
+    }
+
+    get provider() {
+      return typeof window !== "undefined" ? window.ethereum : undefined;
+    }
+
+    say(msg, bad) {
+      this.statusEl.textContent = msg;
+      this.statusEl.classList.toggle("is-bad", Boolean(bad));
+    }
+
+    refresh() {
+      if (!this.cfg.factory) {
+        this.tickBtn.disabled = true;
+        this.connectBtn.disabled = true;
+        this.say("not deployed yet — the button opens at launch");
+        return;
+      }
+      if (!this.provider) {
+        this.tickBtn.disabled = true;
+        this.say("no wallet found in this browser", true);
+        return;
+      }
+      this.tickBtn.disabled = !this.account;
+      if (this.account) {
+        this.connectBtn.textContent = this.account.slice(0, 6) + "…" + this.account.slice(-4);
+        this.say("one tick per block — first one in wins the cycle");
+      }
+    }
+
+    async connect() {
+      if (!this.provider) return this.say("no wallet found in this browser", true);
+      try {
+        const [acc] = await this.provider.request({ method: "eth_requestAccounts" });
+        this.account = acc;
+        await this.ensureChain();
+        this.refresh();
+      } catch (e) {
+        this.say(short(e), true);
+      }
+    }
+
+    /** Il chip vive su una chain sola: se il wallet sta altrove, si sposta. */
+    async ensureChain() {
+      const { chainIdHex, chainName, rpc, explorer } = this.cfg;
+      try {
+        await this.provider.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: chainIdHex }],
+        });
+      } catch (e) {
+        // 4902: la chain non c'e' ancora nel wallet, quindi la aggiungiamo
+        if (e && e.code === 4902) {
+          await this.provider.request({
+            method: "wallet_addEthereumChain",
+            params: [{
+              chainId: chainIdHex,
+              chainName,
+              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: [rpc],
+              blockExplorerUrls: [explorer],
+            }],
+          });
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    async tick() {
+      if (!this.account || !this.cfg.factory) return;
+      this.tickBtn.disabled = true;
+      this.say("confirm in your wallet…");
+      try {
+        await this.ensureChain();
+        const data = SELECTOR_TICK + BigInt(this.chipId).toString(16).padStart(64, "0");
+        const hash = await this.provider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: this.account, to: this.cfg.factory, data }],
+        });
+        this.say(`sent — ${hash.slice(0, 10)}…`);
+      } catch (e) {
+        this.say(short(e), true);
+      } finally {
+        this.tickBtn.disabled = false;
+      }
+    }
+  }
+
+  function short(e) {
+    const m = String((e && (e.shortMessage || e.message)) || e);
+    return m.split("\n")[0].slice(0, 90);
+  }
+
   // --------------------------------------------------------------------- ui
 
   const $ = (sel) => document.querySelector(sel);
@@ -380,6 +505,28 @@
       this.cardEl = $("#chip-preview");
       if (!this.cardEl) return;
 
+      // parametri economici del chip che si sta disegnando
+      this.liqBps = 2000;
+      this.spanSeconds = 31536000; // un anno
+
+      document.querySelectorAll("[data-liq]").forEach((b) => {
+        b.addEventListener("click", () => {
+          this.liqBps = Number(b.dataset.liq);
+          document.querySelectorAll("[data-liq]").forEach((x) =>
+            x.classList.toggle("is-on", x === b));
+          this.drawEmission();
+        });
+      });
+      document.querySelectorAll("[data-span]").forEach((b) => {
+        b.addEventListener("click", () => {
+          this.spanSeconds = Number(b.dataset.span);
+          document.querySelectorAll("[data-span]").forEach((x) =>
+            x.classList.toggle("is-on", x === b));
+          this.drawEmission();
+        });
+      });
+      this.drawEmission();
+
       const onInput = () => {
         // il ticker si normalizza mentre scrivi, come lo vuole il contratto
         const cleaned = safeTicker(this.tickerEl.value);
@@ -393,6 +540,7 @@
           note.classList.remove("is-bad");
         }
         this.cardKey = null; // forza il ridisegno
+        this.drawEmission();
       };
 
       this.nameEl.addEventListener("input", () => { this.cardKey = null; });
@@ -405,6 +553,39 @@
           this.switchProgram(btn.dataset.mintprog);
         });
       });
+    }
+
+    /**
+     * I conti dell'emissione, fatti in chiaro. Il numero che conta e' il
+     * pareggio: sotto quella capitalizzazione un tick costa piu' di quanto
+     * rende, e il chip si ferma. Non e' una minaccia, e' il meccanismo.
+     */
+    drawEmission() {
+      const host = $("#f-emission");
+      if (!host) return;
+
+      const SUPPLY = 1e9;
+      const GAS_PER_TICK = 68275;
+      const GWEI = 0.020166;          // Robinhood Chain, misurato
+      const ethPerTick = GAS_PER_TICK * GWEI * 1e-9;
+
+      const cycles = this.spanSeconds * 10;   // un ciclo per blocco, 10 Hz
+      const reserve = SUPPLY * (1 - this.liqBps / 10000);
+      const perCycle = reserve / cycles;
+      const breakEvenMcap = ethPerTick * (SUPPLY / perCycle);
+
+      const fmt = (n) => n >= 1
+        ? n.toLocaleString("en-US", { maximumFractionDigits: 2 })
+        : n.toPrecision(3);
+
+      host.innerHTML =
+        `<div class="em-row"><span>To liquidity</span><span>${fmt(SUPPLY - reserve)} ${this.tickerEl.value || "TOKENS"}</span></div>` +
+        `<div class="em-row"><span>Earned by cycles</span><span>${fmt(reserve)} ${this.tickerEl.value || "TOKENS"}</span></div>` +
+        `<div class="em-row"><span>Per clock cycle</span><span>${fmt(perCycle)}</span></div>` +
+        `<div class="em-row"><span>Cost of one tick</span><span>${ethPerTick.toPrecision(3)} ETH</span></div>` +
+        `<div class="em-break">Ticking pays for itself once the token is worth about ` +
+        `<b>${fmt(breakEvenMcap)} ETH</b> fully diluted. Below that the chip stalls ` +
+        `until someone thinks it is worth running.</div>`;
     }
 
     switchProgram(name) {
@@ -574,5 +755,6 @@
   document.addEventListener("DOMContentLoaded", () => {
     stampFacts();
     new UI();
+    new Wallet(window.RH4_CONFIG || {});
   });
 })();

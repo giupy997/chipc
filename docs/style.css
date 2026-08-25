@@ -916,3 +916,76 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .costs .isa td:nth-child(3) { color: var(--ink-2); font-weight: 400; }
 .costs .isa td:last-child { color: var(--mint-deep); }
 .costs .isa td:first-child { width: auto; color: var(--ink-2); }
+
+.field-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 460px) { .field-split { grid-template-columns: 1fr; } }
+
+/* i conti dell'emissione, in chiaro sotto al form */
+.emission {
+  border: var(--rule);
+  background: var(--paper-2);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.em-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.em-row span:first-child {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.em-row span:last-child { font-weight: 600; }
+
+.em-break {
+  border-top: 1px solid rgba(17, 17, 16, 0.22);
+  padding-top: 9px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.em-break b { color: var(--ink); }
+
+/* ============================================================== wallet == */
+
+.power { padding: 18px 16px; display: flex; flex-direction: column; gap: 14px; }
+.power-row { display: flex; flex-wrap: wrap; gap: 10px; }
+
+.cli summary {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+  cursor: pointer;
+}
+.cli summary:hover { color: var(--ink); }
+
+.cli pre {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  background: var(--panel);
+  color: var(--mint);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  border: var(--rule);
+}
+
+/* tre card in fila: la sezione clock ne ha una in piu' delle altre */
+.split-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .split-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px)  { .split-3 { grid-template-columns: 1fr; } }
