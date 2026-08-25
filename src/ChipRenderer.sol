@@ -20,6 +20,19 @@ import {RH4State} from "./RH4State.sol";
 contract ChipRenderer {
     using Strings for uint256;
 
+    /**
+     * @notice Dove vive il chip sul web. Finisce in `external_url`, il campo
+     *         con cui marketplace ed explorer rimandano al progetto.
+     * @dev Fissato alla nascita e senza setter: per cambiarlo si deploya un
+     *      renderer nuovo e si chiama setRenderer sulla fabbrica. Costa meno
+     *      di quanto costerebbe tenersi un pezzo mutabile in giro.
+     */
+    string public baseURL;
+
+    constructor(string memory baseURL_) {
+        baseURL = baseURL_;
+    }
+
     string private constant MINT = "#8fe8b0";
     string private constant PANEL = "#0c0d0b";
     string private constant LINE = "#272a25";
@@ -29,7 +42,7 @@ contract ChipRenderer {
         uint256 id,
         ChipFactory.Chip calldata chip,
         uint256[16] calldata
-    ) external pure returns (string memory) {
+    ) external view returns (string memory) {
         uint256 state = chip.machine & ((uint256(1) << 79) - 1);
         uint256 cycles = (chip.machine >> 80) & ((uint256(1) << 48) - 1);
         bool halted = RH4State.halted(state);
@@ -45,6 +58,7 @@ contract ChipRenderer {
                 ? string.concat(name, " (", ticker, ")")
                 : name,
             '","description":"A real 4-bit processor living inside the chain. 1,029 NAND gates, 79 flip-flops, one clock tick per block. Nobody owns the clock: anyone can pay a cycle, and the sponsor is written into the Cycle event forever. A chip nobody advances is dead silicon.',
+            '","external_url":"', _chipURL(id),
             '","image":"data:image/svg+xml;base64,',
             Base64.encode(bytes(_svg(id, name, ticker, state, cycles, halted))),
             '","attributes":', _attributes(state, cycles, halted, chip),
@@ -55,6 +69,13 @@ contract ChipRenderer {
             "data:application/json;base64,",
             Base64.encode(bytes(json))
         );
+    }
+
+    /// @dev Link al singolo chip, non alla home: chi arriva dall'NFT deve
+    ///      trovarsi davanti quel processore, non un altro.
+    function _chipURL(uint256 id) internal view returns (string memory) {
+        if (bytes(baseURL).length == 0) return "";
+        return string.concat(baseURL, "?chip=", id.toString());
     }
 
     // ---- immagine -----------------------------------------------------------

@@ -565,7 +565,7 @@ contract ChipFactoryTest is Test {
     /// L'NFT non e' un puntatore a un PNG su un server: e' un SVG costruito
     /// dai 79 bit veri. Questo test lo scrive su disco cosi' si puo' guardare.
     function test_tokenURIEsceUnSvgValido() public {
-        factory.setRenderer(IChipRenderer(address(new ChipRenderer())));
+        factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
         vm.prank(alice);
         (uint256 id, ) = factory.mint(_program("forever"), "Behemoth", "BHMT", LIQ_BPS, TARGET);
 
@@ -579,9 +579,21 @@ contract ChipFactoryTest is Test {
         vm.writeFile("build/tokenURI.txt", uri);
     }
 
+    /// L'NFT deve rimandare al suo chip, non alla home: chi ci arriva sopra
+    /// si deve trovare davanti quel processore.
+    function test_tokenURIPortaAlSuoChip() public {
+        factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(_program("forever"), "RH4 CPU", "RH4", LIQ_BPS, TARGET);
+
+        string memory uri = factory.tokenURI(id);
+        vm.writeFile("build/tokenURI-link.txt", uri);
+        assertGt(bytes(uri).length, 500);
+    }
+
     /// Un'etichetta ostile non deve poter iniettare markup dentro l'SVG.
     function test_etichettaNonInietta() public {
-        factory.setRenderer(IChipRenderer(address(new ChipRenderer())));
+        factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
         vm.prank(alice);
         (uint256 id, ) = factory.mint(_program("forever"), bytes32('<script>x</script>'), "EVIL", LIQ_BPS, TARGET);
         string memory uri = factory.tokenURI(id);

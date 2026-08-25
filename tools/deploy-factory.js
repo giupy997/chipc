@@ -7,8 +7,10 @@
  *     --rpc URL        default: mainnet Robinhood Chain
  *     --gates 0x...    riusa un RH4GateArray gia' deployato invece di
  *                      pagarne un altro (il silicio e' uno per chain)
- *     --renderer 0x... riusa un ChipRenderer gia' deployato. Anche lui e'
- *                      `pure` e non sa niente di quale fabbrica lo chiama.
+ *     --renderer 0x... riusa un ChipRenderer gia' deployato. Anche lui non
+ *                      sa niente di quale fabbrica lo chiama.
+ *     --site URL       indirizzo del sito: finisce in `external_url` dentro
+ *                      i metadati dell'NFT, per chip (…?chip=1).
  *     --mint FILE      conia subito il primo chip con questo programma
  *     --label NOME     nome esteso del primo chip, max 32 caratteri
  *     --ticker SIGLA   sigla del primo chip: 1-8 fra A-Z, 0-9 e trattino,
@@ -129,7 +131,7 @@ async function main() {
     rendererAddr = getAddress(rendererAddr);
     console.log(`  ChipRenderer  riuso ${rendererAddr}`);
   } else {
-    rendererAddr = await deploy("ChipRenderer", [], "ChipRenderer — l'SVG on-chain");
+    rendererAddr = await deploy("ChipRenderer", [args.site || ""], "ChipRenderer — l'SVG on-chain");
   }
   console.log();
 

@@ -277,7 +277,10 @@
       this.statusEl = $("#w-status");
       if (!this.connectBtn) return;
 
-      this.chipId = cfg.defaultChip || 1;
+      // L'NFT rimanda qui con ?chip=N: chi arriva dai metadati deve trovarsi
+      // davanti a quel processore, non a quello di default.
+      const asked = Number(new URLSearchParams(location.search).get("chip"));
+      this.chipId = Number.isInteger(asked) && asked > 0 ? asked : (cfg.defaultChip || 1);
       this.tickBtn.textContent = `POWER CHIP #${this.chipId}`;
 
       if (cfg.factory) {
