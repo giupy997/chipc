@@ -591,6 +591,15 @@ contract ChipFactoryTest is Test {
         assertGt(bytes(uri).length, 500);
     }
 
+    /// Senza sito configurato il campo deve sparire, non restare vuoto:
+    /// `"external_url":""` e' un link rotto, l'assenza no.
+    function test_senzaSitoNienteExternalUrl() public {
+        factory.setRenderer(IChipRenderer(address(new ChipRenderer(""))));
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(_program("forever"), "RH4 CPU", "RH4", LIQ_BPS, TARGET);
+        vm.writeFile("build/tokenURI-nolink.txt", factory.tokenURI(id));
+    }
+
     /// Un'etichetta ostile non deve poter iniettare markup dentro l'SVG.
     function test_etichettaNonInietta() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
