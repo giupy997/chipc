@@ -15,6 +15,9 @@
  *                      centesimi di punto (2000 = 20%). Max 5000.
  *     --target N       su quanti cicli spalmare la riserva. A 10 Hz:
  *                      25.920.000 = 30 giorni, 315.360.000 = un anno.
+ *     --owner 0x...    chi comanda la fabbrica (default: chi deploya).
+ *                      Utile per deployare da un wallet caldo e lasciare i
+ *                      poteri a uno freddo o a un multisig.
  *     --dry-run        calcola i costi e non manda niente
  *
  * Tre contratti, in quest'ordine:
@@ -29,6 +32,7 @@
 
 const fs = require("fs");
 const {
+  getAddress,
   createPublicClient,
   createWalletClient,
   http,
@@ -119,10 +123,13 @@ async function main() {
   console.log();
 
   // 3. la fabbrica
+  // Chi deploya non deve per forza restare al comando: setMintPrice,
+  // setMother, setRenderer e withdraw sono tutti dell'owner.
+  const owner = args.owner ? getAddress(args.owner) : account.address;
   const factoryAddr = await deploy(
     "ChipFactory",
-    [gatesAddr, account.address],
-    "ChipFactory — l'ERC-721"
+    [gatesAddr, owner],
+    `ChipFactory — l'ERC-721 (owner: ${owner === account.address ? "tu" : owner})`
   );
   console.log();
 
@@ -132,8 +139,13 @@ async function main() {
     return;
   }
 
-  // collego il renderer
+  // collego il renderer. Se i poteri sono stati dati a un altro indirizzo
+  // questa non possiamo farla noi: la dovra' chiamare l'owner.
   const factoryAbi = artifact("ChipFactory").abi;
+  if (owner !== account.address) {
+    console.log(`  renderer NON collegato: chiamalo dall'owner`);
+    console.log(`    cast send ${factoryAddr} "setRenderer(address)" ${rendererAddr}`);
+  } else {
   const setHash = await wallet.writeContract({
     address: factoryAddr,
     abi: factoryAbi,
@@ -142,6 +154,7 @@ async function main() {
   });
   await pub.waitForTransactionReceipt({ hash: setHash });
   console.log("  renderer collegato alla fabbrica");
+  }
 
   // opzionale: conio del primo chip
   let firstChip = null;
