@@ -114,6 +114,9 @@ async function main() {
   // 1. il silicio — uno per chain
   let gatesAddr = args.gates;
   if (gatesAddr) {
+    // gli indirizzi li stampiamo in minuscolo: getAddress li rimette in
+    // checksum, altrimenti viem li rifiuta e il deploy muore a meta'
+    gatesAddr = getAddress(gatesAddr);
     console.log(`  RH4GateArray  riuso ${gatesAddr} (silicio gia' in chain)`);
   } else {
     gatesAddr = await deploy("RH4GateArray", [], "RH4GateArray — il silicio condiviso");
