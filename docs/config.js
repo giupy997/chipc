@@ -2,12 +2,15 @@
  * config.js — dove sta la fabbrica.
  *
  * Deployata in mainnet il 26 agosto 2026.
- *   RH4GateArray  0x7f6272273ebd9eb1c7491dcbf959c2750c98ec2d
- *   ChipRenderer  0x6844caa761b43a28d694447df6139a84310243a9
- *   ChipFactory   0x825d87157899791e738707d96477d04268e62578
- *   chip #1       Behemoth (BHMT), la madre
- *   token BHMT    0x4c07Db6EaA85a8cCF4E99eD0F2279f9c5389118C
- *   pool          0x948C1A1619bc2961A7db05FA36120fd00b212Ecf  (WETH/BHMT 1%)
+ *   RH4GateArray  0x7f6272273EBd9EB1C7491dCBf959C2750c98ec2D
+ *   ChipRenderer  0x48a367c644ffd4d881657ac58a376c1bd5955339
+ *   ChipFactory   0xa13518ccd7d4d1dc15ca41f646290408af0384cd
+ *   chip #1       RH4 CPU (RH4), la madre
+ *   token RH4     0x2b858a1E61Bb118aA7991435e46F9647e7e087Ab
+ *   pool          0x19D7b8cA3002949A0961D7a42c7F914efdbd9942  (WETH/RH4 1%)
+ *
+ * Il renderer non ha ancora il dominio: `external_url` resta assente finche'
+ * non se ne deploya uno con --site e si chiama setRenderer.
  */
 window.RH4_CONFIG = {
   chainId: 4663,
@@ -16,7 +19,7 @@ window.RH4_CONFIG = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   explorer: "https://robinhoodchain.blockscout.com",
 
-  factory: "0x825d87157899791e738707d96477d04268e62578",
-  gateArray: "0x7f6272273ebd9eb1c7491dcbf959c2750c98ec2d",
+  factory: "0xa13518ccd7d4d1dc15ca41f646290408af0384cd",
+  gateArray: "0x7f6272273EBd9EB1C7491dCBf959C2750c98ec2D",
   defaultChip: 1,  // quale chip mostra il bottone
 };

@@ -7,6 +7,28 @@ Nessuna emulazione: il contratto valuta 1.029 porte NAND a ogni ciclo.
 Il clock non è un oscillatore. **Un blocco = un colpo di clock.**
 Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
 
+## In mainnet
+
+Robinhood Chain (4663), dal 26 agosto 2026.
+
+| | |
+|---|---|
+| RH4GateArray | `0x7f6272273EBd9EB1C7491dCBf959C2750c98ec2D` |
+| ChipRenderer | `0x48a367c644ffd4d881657ac58a376c1bd5955339` |
+| ChipFactory | `0xa13518ccd7d4d1dc15ca41f646290408af0384cd` |
+| chip #1, la madre | RH4 CPU (`RH4`) |
+| token | `0x2b858a1E61Bb118aA7991435e46F9647e7e087Ab` |
+| pool | `0x19D7b8cA3002949A0961D7a42c7F914efdbd9942` (WETH/RH4 1%) |
+
+Emissione su 6.048.000 cicli — sette giorni di clock pieno a 10 Hz — con il
+20% dell'offerta andato alla liquidita' e il resto distribuito un ciclo alla
+volta. Il pool e' aperto con un range order a un lato solo: 200M RH4 dentro,
+**zero ETH**.
+
+Il silicio (`RH4GateArray`) e' condiviso: e' `pure`, senza stato e senza
+padrone, e ogni fabbrica futura su questa chain puo' riusarlo invece di
+ripagarne 3,7 milioni di gas.
+
 ## Stato
 
 | fase | stato |
@@ -242,7 +264,7 @@ descrittivo, la sigla e' identita'.
 
 **La sigla e' unica in tutta la fabbrica.** Senza unicita' chiunque potrebbe
 coniare un chip con la sigla di un altro, ed e' un invito all'inganno. La
-maiuscola e' obbligatoria per la stessa ragione: `BHMT` e `bhmt` non devono
+maiuscola e' obbligatoria per la stessa ragione: `RH4` e `rh4` non devono
 poter convivere. `tickerAvailable(sigla)` dice gratis se e' libera.
 
 Attenzione a una cosa che il vocabolario confonde: quella sigla e' **metadato
@@ -391,7 +413,7 @@ se il programma si ferma, prima che qualcuno ci spenda dei soldi.
 ```bash
 PRIVATE_KEY=0x... node tools/deploy-factory.js --dry-run
 PRIVATE_KEY=0x... node tools/deploy-factory.js --mint build/forever.slots.json \
-    --label "Behemoth" --ticker BHMT
+    --label "RH4 CPU" --ticker RH4
 RH4_FACTORY=0x... node tools/keeper.js --chip 1 --budget 0.01
 ```
 
