@@ -50,10 +50,12 @@ const {
 } = require("viem");
 const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
 
-const ART = (name) => `out/${name}.sol/${name}.json`;
+// forge archivia per NOME DEL FILE, non del contratto: RH8GateArray vive
+// dentro RH8Gates.sol, quindi il suo artefatto sta la'.
+const ART = (name, file) => `out/${file || name}.sol/${name}.json`;
 
-function artifact(name) {
-  const p = ART(name);
+function artifact(name, file) {
+  const p = ART(name, file);
   if (!fs.existsSync(p)) {
     console.error(`manca ${p} — compila prima con "make rh8 && forge build"`);
     process.exit(2);
@@ -82,8 +84,8 @@ async function main() {
 
   const spent = { total: 0n };
 
-  async function deploy(name, argsList, label) {
-    const art = artifact(name);
+  async function deploy(name, argsList, label, file) {
+    const art = artifact(name, file);
     const data = encodeDeployData({
       abi: art.abi,
       bytecode: art.bytecode.object,
@@ -125,7 +127,7 @@ async function main() {
     gatesAddr = getAddress(gatesAddr);
     console.log(`  RH8GateArray  riuso ${gatesAddr} (silicio gia' in chain)`);
   } else {
-    gatesAddr = await deploy("RH8GateArray", [], "RH8GateArray — il silicio interpretato");
+    gatesAddr = await deploy("RH8GateArray", [], "RH8GateArray — il silicio interpretato", "RH8Gates");
   }
   console.log();
 
