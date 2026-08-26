@@ -1031,3 +1031,25 @@ main { max-width: var(--maxw); margin: 0 auto; }
 }
 
 .field-note.is-busy { color: var(--ink-2); }
+
+/* il byte in ingresso: piccolo, mono, a fianco dei controlli */
+.byte-in {
+  font-family: var(--mono);
+  font-size: 15px;
+  width: 72px;
+  color: var(--mint);
+  background: var(--panel-2, #141613);
+  border: 1px solid var(--panel-line);
+  padding: 7px 9px;
+}
+.power .byte-in { color: var(--ink); background: var(--paper); border: var(--rule); }
+.byte-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--dim);
+}
+.rows .pending { color: var(--ink); font-weight: 600; }

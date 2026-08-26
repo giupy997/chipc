@@ -26,10 +26,10 @@
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
     <span class="ticker-set">
-      <b>1,029 NAND GATES</b><b>79 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>60,088 GAS PER CYCLE</b><b>NO EMULATION</b><b>79 BITS / ONE STORAGE SLOT</b>
+      <b>2,368 NAND GATES</b><b>171 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>256 BYTES OF RAM</b><b>NO EMULATION</b><b>ONE BYTE IN, EVERY TICK</b>
     </span>
     <span class="ticker-set">
-      <b>1,029 NAND GATES</b><b>79 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>60,088 GAS PER CYCLE</b><b>NO EMULATION</b><b>79 BITS / ONE STORAGE SLOT</b>
+      <b>2,368 NAND GATES</b><b>171 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>256 BYTES OF RAM</b><b>NO EMULATION</b><b>ONE BYTE IN, EVERY TICK</b>
     </span>
   </div>
 </div>
@@ -65,9 +65,11 @@
       </h1>
 
       <p class="lede">
-        1,029 NAND gates and 79 flip&#8209;flops, synthesised from Verilog. The
-        contract does not emulate the processor&mdash;it evaluates every gate,
-        every block, on Robinhood Chain.
+        <span data-fact="gates">2,368</span> NAND gates,
+        <span data-fact="flops">171</span> flip&#8209;flops and 256 bytes of RAM,
+        synthesised from Verilog. The contract does not emulate the
+        processor&mdash;it walks every gate, every block, on Robinhood Chain.
+        And every tick carries a byte from whoever paid it.
       </p>
 
       <div class="cta-row">
@@ -78,15 +80,15 @@
       <dl class="specs">
         <div class="spec"><dt>Chain</dt><dd>ROBINHOOD / 4663</dd></div>
         <div class="spec"><dt>Clock</dt><dd>ONE TICK PER BLOCK</dd></div>
-        <div class="spec"><dt>Status</dt><dd class="ok">LIVE &middot; CHIP #1 MINTED</dd></div>
+        <div class="spec"><dt>Status</dt><dd class="pending">RELAUNCHING &middot; 8&#8209;BIT SILICON</dd></div>
       </dl>
     </div>
 
     <!-- the live instrument -->
     <div class="console">
       <div class="con-head">
-        <span class="con-tag"><i class="sq sq-mint"></i> RH&#8209;4 / GATE ARRAY</span>
-        <span class="con-mid">1029 NAND &middot; 79 FF</span>
+        <span class="con-tag"><i class="sq sq-mint"></i> RH&#8209;8 / GATE ARRAY</span>
+        <span class="con-mid">2368 NAND &middot; 171 FF &middot; 256 B RAM</span>
         <span class="con-live">LIVE / <span id="v-clock">00:00:00</span></span>
       </div>
 
@@ -123,19 +125,19 @@
       <span class="ghost">02</span>
       <span class="ck"><i class="sq"></i> FLIP&#8209;FLOPS</span>
       <span class="cell-v" data-fact="flops">79</span>
-      <span class="cell-n">Registers, PC, output port and flags &mdash; 79 bits in one storage slot.</span>
+      <span class="cell-n">Registers, PC, memory latches and flags &mdash; still one storage slot per tick.</span>
     </div>
     <div class="cell">
       <span class="ghost">03</span>
       <span class="ck"><i class="sq"></i> GAS / CYCLE</span>
-      <span class="cell-v">60,088</span>
-      <span class="cell-n">Measured, not estimated. 39,088 of execution plus base transaction cost.</span>
+      <span class="cell-v">256,740</span>
+      <span class="cell-n">Measured, not estimated. The price of a processor with input and memory.</span>
     </div>
     <div class="cell">
       <span class="ghost">04</span>
-      <span class="ck"><i class="sq"></i> BYTECODE</span>
-      <span class="cell-v">18,192<small>B</small></span>
-      <span class="cell-n">All gates unrolled into one contract, 6,384 bytes below the limit.</span>
+      <span class="ck"><i class="sq"></i> RAM</span>
+      <span class="cell-v">256<small>B</small></span>
+      <span class="cell-n">Per chip, in storage. The processor asks, the contract answers &mdash; a load takes two honest cycles.</span>
     </div>
   </section>
 
@@ -146,9 +148,10 @@
       <h2 class="display display-2">Watch it<br>think.</h2>
       <p class="sec-copy">
         Not a recording. The netlist running above is the same one the contract
-        evaluates on&#8209;chain: 1,029 NAND gates in topological order, then every
-        flip&#8209;flop latching at once. Inside the EVM there is no propagation,
-        only a sequence.
+        interprets on&#8209;chain: 2,368 NAND gates in topological order, then every
+        flip&#8209;flop latching at once &mdash; with its RAM and its input port
+        handled here exactly as the contract handles them. Type a byte into the
+        IN port and watch the program chew it.
       </p>
     </div>
 
@@ -168,9 +171,13 @@
       <div class="bar-cell">
         <span class="ck">PROGRAM</span>
         <div class="chips">
-          <button class="chip" data-program="forever">FOREVER</button>
-          <button class="chip" data-program="fib">FIB</button>
+          <button class="chip" data-program="echo8">ECHO</button>
+          <button class="chip" data-program="test8">SELFTEST</button>
         </div>
+      </div>
+      <div class="bar-cell">
+        <span class="ck">IN PORT &mdash; YOUR BYTE</span>
+        <input id="f-inbyte" class="byte-in" type="number" min="0" max="255" value="165">
       </div>
       <div class="bar-cell">
         <span class="ck">UPTIME @ 10 HZ</span>
@@ -243,10 +250,10 @@
         <label class="field">
           <span class="field-k">PROGRAM</span>
           <div class="chips">
-            <button class="chip is-on" data-mintprog="forever">FOREVER</button>
-            <button class="chip" data-mintprog="fib">FIB</button>
+            <button class="chip is-on" data-mintprog="echo8">ECHO</button>
+            <button class="chip" data-mintprog="test8">SELFTEST</button>
           </div>
-          <span class="field-note" id="f-prog-note">runs forever &mdash; never reaches HLT</span>
+          <span class="field-note" id="f-prog-note">listens forever &mdash; echoes your byte and keeps the running sum in RAM</span>
         </label>
 
         <div class="field">
@@ -305,9 +312,9 @@
           <tr><th>OPERATION</th><th>GAS</th><th>ON ROBINHOOD CHAIN</th><th>NOTE</th></tr>
         </thead>
         <tbody>
-          <tr><td>Deploy the whole stack</td><td>~7,400,000</td><td>~0.00015 ETH</td><td>ONCE PER CHAIN</td></tr>
-          <tr><td>Mint a chip + launch its token</td><td>800,728</td><td>~0.0000161 ETH</td><td>5&times; CHEAPER</td></tr>
-          <tr><td>One clock cycle</td><td>68,275</td><td>~0.0000014 ETH</td><td>ANYONE PAYS, ANYONE EARNS</td></tr>
+          <tr><td>Deploy the whole stack</td><td>~9,000,000</td><td>~0.00024 ETH</td><td>ONCE PER CHAIN</td></tr>
+          <tr><td>Mint a chip + launch its token</td><td>829,552</td><td>~0.0000167 ETH</td><td>ROM, RAM AND TOKEN</td></tr>
+          <tr><td>One clock cycle</td><td>256,740</td><td>~0.0000052 ETH</td><td>ANYONE PAYS, ANYONE EARNS</td></tr>
         </tbody>
       </table>
     </div>
@@ -397,7 +404,7 @@
   <section id="isa" class="sec">
     <p class="pill"><span class="pill-n">&sect;&thinsp;05</span>INSTRUCTION SET</p>
     <div class="sec-head">
-      <h2 class="display display-2">Sixteen<br>opcodes.</h2>
+      <h2 class="display display-2">Twenty&#8209;nine<br><em>opcodes.</em></h2>
       <p class="sec-copy">
         12&#8209;bit words. Sixteen registers of four bits, an 8&#8209;bit program
         counter, 256 words of ROM. Every instruction completes in one block.
@@ -411,21 +418,34 @@
         </thead>
         <tbody>
           <tr><td>0</td><td><code>nop</code></td><td>&mdash;</td><td></td></tr>
-          <tr><td>1</td><td><code>ldi rd, #imm</code></td><td>rd &larr; imm</td><td></td></tr>
+          <tr><td>1</td><td><code>ldi rd, #imm</code></td><td>rd &larr; imm8</td><td></td></tr>
           <tr><td>2</td><td><code>mov rd, rs</code></td><td>rd &larr; rs</td><td></td></tr>
           <tr><td>3</td><td><code>add rd, rs</code></td><td>rd &larr; rd + rs</td><td>C Z</td></tr>
           <tr><td>4</td><td><code>adc rd, rs</code></td><td>rd &larr; rd + rs + C</td><td>C Z</td></tr>
           <tr><td>5</td><td><code>sub rd, rs</code></td><td>rd &larr; rd &minus; rs</td><td>C Z</td></tr>
-          <tr><td>6</td><td><code>nand rd, rs</code></td><td>rd &larr; ~(rd &amp; rs)</td><td>Z</td></tr>
-          <tr><td>7</td><td><code>xor rd, rs</code></td><td>rd &larr; rd ^ rs</td><td>Z</td></tr>
-          <tr><td>8</td><td><code>shr rd</code></td><td>rd &larr; rd &gt;&gt; 1</td><td>C Z</td></tr>
-          <tr><td>9</td><td><code>inc rd</code></td><td>rd &larr; rd + 1</td><td>C Z</td></tr>
-          <tr><td>A</td><td><code>jmp addr</code></td><td>pc &larr; addr</td><td></td></tr>
-          <tr><td>B</td><td><code>jz addr</code></td><td>if Z: pc &larr; addr</td><td></td></tr>
-          <tr><td>C</td><td><code>jc addr</code></td><td>if C: pc &larr; addr</td><td></td></tr>
-          <tr><td>D</td><td><code>jnz addr</code></td><td>if &not;Z: pc &larr; addr</td><td></td></tr>
-          <tr><td>E</td><td><code>out rd</code></td><td>output port &larr; rd</td><td></td></tr>
-          <tr><td>F</td><td><code>hlt</code></td><td>stop the processor</td><td></td></tr>
+          <tr><td>6</td><td><code>sbb rd, rs</code></td><td>rd &larr; rd &minus; rs &minus; C</td><td>C Z</td></tr>
+          <tr><td>7</td><td><code>and rd, rs</code></td><td>rd &larr; rd &amp; rs</td><td>C Z</td></tr>
+          <tr><td>8</td><td><code>or rd, rs</code></td><td>rd &larr; rd | rs</td><td>C Z</td></tr>
+          <tr><td>9</td><td><code>xor rd, rs</code></td><td>rd &larr; rd ^ rs</td><td>C Z</td></tr>
+          <tr><td>10</td><td><code>nand rd, rs</code></td><td>rd &larr; ~(rd &amp; rs)</td><td>C Z</td></tr>
+          <tr><td>11</td><td><code>not rd</code></td><td>rd &larr; ~rd</td><td>C Z</td></tr>
+          <tr><td>12</td><td><code>shl rd</code></td><td>rd &larr; rd &lt;&lt; 1</td><td>C Z</td></tr>
+          <tr><td>13</td><td><code>shr rd</code></td><td>rd &larr; rd &gt;&gt; 1</td><td>C Z</td></tr>
+          <tr><td>14</td><td><code>rol rd</code></td><td>rotate left through C</td><td>C Z</td></tr>
+          <tr><td>15</td><td><code>ror rd</code></td><td>rotate right through C</td><td>C Z</td></tr>
+          <tr><td>16</td><td><code>inc rd</code></td><td>rd &larr; rd + 1</td><td>C Z</td></tr>
+          <tr><td>17</td><td><code>dec rd</code></td><td>rd &larr; rd &minus; 1</td><td>C Z</td></tr>
+          <tr><td>18</td><td><code>cmp rd, rs</code></td><td>flags of rd &minus; rs only</td><td>C Z</td></tr>
+          <tr><td>19</td><td><code>ld rd, [rs]</code></td><td>rd &larr; RAM[rs] &mdash; two cycles</td><td></td></tr>
+          <tr><td>20</td><td><code>st [rd], rs</code></td><td>RAM[rd] &larr; rs</td><td></td></tr>
+          <tr><td>21</td><td><code>in rd</code></td><td>rd &larr; the byte from tick()</td><td></td></tr>
+          <tr><td>22</td><td><code>out rd</code></td><td>output port &larr; rd</td><td></td></tr>
+          <tr><td>23</td><td><code>jmp addr</code></td><td>pc &larr; addr</td><td></td></tr>
+          <tr><td>24</td><td><code>jz addr</code></td><td>if Z</td><td></td></tr>
+          <tr><td>25</td><td><code>jnz addr</code></td><td>if &not;Z</td><td></td></tr>
+          <tr><td>26</td><td><code>jc addr</code></td><td>if C</td><td></td></tr>
+          <tr><td>27</td><td><code>jnc addr</code></td><td>if &not;C</td><td></td></tr>
+          <tr><td>28</td><td><code>hlt</code></td><td>stop the processor</td><td></td></tr>
         </tbody>
       </table>
     </div>
@@ -472,11 +492,13 @@
           <div class="power-row">
             <button id="w-connect" class="btn btn-light btn-sm">CONNECT WALLET</button>
             <button id="w-tick" class="btn btn-dark btn-sm" disabled>POWER CHIP #1</button>
+            <label class="byte-label">BYTE <input id="w-byte" class="byte-in" type="number" min="0" max="255" value="0"></label>
           </div>
+          <p class="field-note">The byte rides along with your tick &mdash; it is what the program reads with <code>IN</code>.</p>
           <p class="field-note" id="w-status">not deployed yet &mdash; the button opens at launch</p>
           <details class="cli">
             <summary>or from the command line</summary>
-            <pre id="w-cli">cast send $FACTORY "tick(uint256)" 1 \
+            <pre id="w-cli">cast send $FACTORY "tick(uint256,uint8)" 1 165 \
   --rpc-url https://rpc.mainnet.chain.robinhood.com \
   --private-key $PRIVATE_KEY</pre>
           </details>
@@ -488,11 +510,11 @@
           <span class="ck">DEPLOYMENT</span>
         </div>
         <dl class="rows">
-          <div><dt>Status</dt><dd class="ok"><i class="dot dot-live"></i> LIVE</dd></div>
+          <div><dt>Status</dt><dd class="pending"><i class="dot"></i> RELAUNCH PENDING</dd></div>
           <div><dt>Network</dt><dd>ROBINHOOD CHAIN / 4663</dd></div>
-          <div><dt>Factory</dt><dd><a class="addr" href="https://robinhoodchain.blockscout.com/address/0xa13518ccd7d4d1dc15ca41f646290408af0384cd">0xa135…84cd</a></dd></div>
-          <div><dt>Mother chip</dt><dd>#1 &mdash; RH4 CPU (RH4)</dd></div>
-          <div><dt>Market</dt><dd><a class="addr" href="https://dexscreener.com/robinhood/0x19d7b8ca3002949a0961d7a42c7f914efdbd9942">WETH / RH4 &middot; 1%</a></dd></div>
+          <div><dt>Factory</dt><dd class="dim">&mdash;</dd></div>
+          <div><dt>Mother chip</dt><dd class="dim">&mdash;</dd></div>
+          <div><dt>Market</dt><dd class="dim">&mdash;</dd></div>
           <div><dt>Clock rate</dt><dd>10 HZ / 100 MS BLOCKS</dd></div>
         </dl>
       </div>
@@ -520,7 +542,7 @@
 </footer>
 
 <script src="config.js"></script>
-<script src="rh4-data.js"></script>
+<script src="rh8-data.js"></script>
 <script src="rh4.js"></script>
 </body>
 </html>

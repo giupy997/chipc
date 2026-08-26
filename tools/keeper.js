@@ -7,6 +7,9 @@
  *     --cpu 0x...      RH-4 singola (oppure RH4_ADDRESS)
  *     --factory 0x...  fabbrica di chip (oppure RH4_FACTORY)
  *     --chip N         quale chip tenere acceso, insieme a --factory
+ *     --input N        il byte da passare al processore a ogni tick
+ *                      (0-255, default 0). E' quello che il programma
+ *                      legge con IN.
  *     --rpc URL        default: mainnet Robinhood Chain
  *     --budget 0.05    tetto di spesa in ETH: raggiunto, si ferma
  *     --cycles N       ferma dopo N cicli portati a casa
@@ -117,13 +120,17 @@ const EMISSION_ABI = [
     ] },
 ];
 
+// La fabbrica a 8 bit: tick porta un byte, il pc e' a 10 bit.
 const FACTORY_ABI = [
   {
     type: "function",
     name: "tick",
-    inputs: [{ name: "id", type: "uint256" }],
+    inputs: [
+      { name: "id", type: "uint256" },
+      { name: "inPort", type: "uint8" },
+    ],
     outputs: [
-      { name: "pc_", type: "uint8" },
+      { name: "pc_", type: "uint16" },
       { name: "out_", type: "uint8" },
       { name: "halted_", type: "bool" },
     ],
@@ -134,7 +141,7 @@ const FACTORY_ABI = [
     name: "inspect",
     inputs: [{ name: "id", type: "uint256" }],
     outputs: [
-      { name: "pc", type: "uint8" },
+      { name: "pc", type: "uint16" },
       { name: "out", type: "uint8" },
       { name: "halted", type: "bool" },
       { name: "cycles", type: "uint256" },
@@ -149,8 +156,8 @@ const FACTORY_ABI = [
       { name: "id", type: "uint256", indexed: true },
       { name: "cycle", type: "uint256", indexed: true },
       { name: "sponsor", type: "address", indexed: true },
-      { name: "pc", type: "uint8" },
-      { name: "instr", type: "uint16" },
+      { name: "pc", type: "uint16" },
+      { name: "inPort", type: "uint8" },
       { name: "out", type: "uint8" },
       { name: "halted", type: "bool" },
     ],
@@ -188,7 +195,9 @@ async function main() {
 
   const cpu = factory || standalone;
   const abi = factory ? FACTORY_ABI : ABI;
-  const callArgs = factory ? [chipId] : [];
+  const inputByte = Number(args.input || 0) & 0xff;
+  const callArgs = factory ? [chipId, inputByte] : [];
+  const viewArgs = factory ? [chipId] : [];
 
   const budget = args.budget ? parseEther(String(args.budget)) : null;
   const maxCycles = args.cycles ? Number(args.cycles) : Infinity;
@@ -206,7 +215,7 @@ async function main() {
   const wallet = createWalletClient({ account, chain, transport: http(rpc), pollingInterval });
 
   const balance = await pub.getBalance({ address: account.address });
-  const start = await pub.readContract({ address: cpu, abi, functionName: "inspect", args: callArgs });
+  const start = await pub.readContract({ address: cpu, abi, functionName: "inspect", args: viewArgs });
 
   console.log("RH-4 keeper");
   console.log(`  rete        ${chain.name} (${chain.id}) via ${rpc}`);
@@ -369,7 +378,7 @@ async function main() {
       // meglio un giro di RPC in piu' che un crash: la ricevuta c'e' ma
       // l'evento no, quindi qualcosa non torna fra ABI e contratto
       console.log("\n  attenzione: nessun evento Cycle nella ricevuta, rileggo lo stato");
-      const s2 = await pub.readContract({ address: cpu, abi, functionName: "inspect", args: callArgs });
+      const s2 = await pub.readContract({ address: cpu, abi, functionName: "inspect", args: viewArgs });
       var pc = s2[0], out = s2[1], halted = s2[2];
     } else {
       var { pc, out, halted } = event.args;

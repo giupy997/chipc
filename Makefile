@@ -45,7 +45,9 @@ gates: src/RH4Gates.sol
 src/RH4Gates.sol: build/$(TOP).json tools/codegen.js tools/netlist.js
 	@node tools/codegen.js build/$(TOP).json src/RH4Gates.sol
 
-evm: src/RH4Gates.sol build/fib.slots.json build/forever.slots.json
+# i test della fabbrica 8 leggono build/echo8.slots8.json: da pulito deve
+# esistere prima che forge parta, o il fallimento sembra un bug dei contratti
+evm: src/RH4Gates.sol src/RH8Gates.sol build/fib.slots.json build/forever.slots.json build/echo8.hex8 build/test8.hex8
 	@forge build --sizes 2>/dev/null | grep -E '^\| RH4 ' || forge build --sizes
 	@forge test -vv
 
@@ -65,9 +67,15 @@ clean:
 # ---- RH-8: 8 bit, ingresso, RAM ------------------------------------------
 # La netlist e' troppo grande per essere srotolata in Yul, quindi diventa
 # dati e il contratto la interpreta. Vedi tools/codegen8.js.
-rh8: build/rh8.json src/RH8Gates.sol
+rh8: build/rh8.json src/RH8Gates.sol build/echo8.hex8 build/test8.hex8
 	@iverilog -g2005 -o build/tb_rh8.vvp rtl/rh8.v sim/tb_rh8.v && vvp build/tb_rh8.vvp
-	@forge test --match-contract RH8Test -vv 2>/dev/null | grep -E "gas per ciclo|PASS|FAIL"
+	@node tools/netsim8.js build/rh8.json build/test8.hex8 --inputs 165 --expect 165,44,255 --quiet
+	@node tools/netsim8.js build/rh8.json build/echo8.hex8 --inputs 1,2,3,250,255,0,42 --cycles 20000 --no-halt --quiet
+	@forge test --match-contract "RH8Test|ChipFactory8" 2>/dev/null | grep -E "PASS|FAIL|Suite"
+	@node tools/webgen8.js docs/rh8-data.js
+
+build/%.hex8: asm/%.asm tools/asm8.js
+	@node tools/asm8.js asm/$*.asm build/$*.hex8
 
 build/rh8.json: rtl/rh8.v synth/rh8.ys synth/not2nand.v
 	@yosys -q -s synth/rh8.ys

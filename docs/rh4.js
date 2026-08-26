@@ -1,14 +1,15 @@
 /**
- * rh4.js — the RH-4, running in your browser.
+ * rh4.js — the RH-8, running in your browser.
  *
  * This is not an animation of a processor. It is the processor: the same
- * netlist the contract evaluates on-chain, 1,029 NAND gates in topological
- * order, flip-flops latching together at the end of every cycle.
+ * netlist the contract interprets on-chain — 2,368 NAND gates in topological
+ * order, flip-flops latching together — plus its 256 bytes of RAM and the
+ * input port, both handled here exactly as the contract handles them.
  */
 (function () {
   "use strict";
 
-  const D = window.RH4_DATA;
+  const D = window.RH8_DATA;
 
   // ---------------------------------------------------------------- machine
 
@@ -18,6 +19,8 @@
       this.nets = new Uint8Array(D.nets);
       this.next = new Uint8Array(D.flopCount);
       this.heat = new Float32Array(D.gateCount);
+      this.ram = new Uint8Array(256);
+      this.inPort = 0; // il byte che lo sponsor passa a tick()
       this.reset();
     }
 
@@ -25,6 +28,7 @@
       this.nets.fill(0);
       this.nets[D.one] = 1;
       this.heat.fill(0);
+      this.ram.fill(0);
       this.cycle = 0;
       this.lastInstr = this.program.rom[0] || 0;
     }
@@ -46,11 +50,19 @@
     zero()   { return this.flop(D.zf); }
     halted() { return this.flop(D.halt) === 1; }
 
+    ramAddr()  { return this.field(D.ramAddr); }
+    ramWdata() { return this.field(D.ramWdata); }
+    ramWe()    { return this.flop(D.ramWe) === 1; }
+
     /** One clock tick. On-chain this is one block. */
     tick() {
       const v = this.nets;
       const word = this.program.rom[this.pc()] || 0;
-      for (let i = 0; i < 12; i++) v[D.instr[i]] = (word >> i) & 1;
+      for (let i = 0; i < 25; i++) v[D.instr[i]] = (word >> i) & 1;
+      for (let i = 0; i < 8; i++) v[D.inPort[i]] = (this.inPort >> i) & 1;
+      // l'indirizzo e' quello latchato dal ciclo scorso: la load a due cicli
+      const rdata = this.ram[this.ramAddr()];
+      for (let i = 0; i < 8; i++) v[D.ramRdata[i]] = (rdata >> i) & 1;
 
       // combinational cone, in the order the topological sort fixed
       const g = D.gates;
@@ -70,6 +82,8 @@
       for (let i = 0; i < D.flopCount; i++) nx[i] = v[f[2 * i]];
       for (let i = 0; i < D.flopCount; i++) v[f[2 * i + 1]] = nx[i];
 
+      if (this.ramWe()) this.ram[this.ramAddr()] = this.ramWdata();
+
       this.cycle++;
       this.lastInstr = word;
       return word;
@@ -79,32 +93,26 @@
   // ------------------------------------------------------------- disassembly
 
   const MNEMONIC = [
-    "nop", "ldi", "mov", "add", "adc", "sub", "nand", "xor",
-    "shr", "inc", "jmp", "jz", "jc", "jnz", "out", "hlt",
+    "nop", "ldi", "mov", "add", "adc", "sub", "sbb", "and",
+    "or", "xor", "nand", "not", "shl", "shr", "rol", "ror",
+    "inc", "dec", "cmp", "ld", "st", "in", "out", "jmp",
+    "jz", "jnz", "jc", "jnc", "hlt",
   ];
   const hex2 = (n) => "0x" + n.toString(16).padStart(2, "0");
-  const FORM = {
-    0: () => "",
-    1: (d, s) => `r${d}, #${s}`,
-    2: (d, s) => `r${d}, r${s}`,
-    3: (d, s) => `r${d}, r${s}`,
-    4: (d, s) => `r${d}, r${s}`,
-    5: (d, s) => `r${d}, r${s}`,
-    6: (d, s) => `r${d}, r${s}`,
-    7: (d, s) => `r${d}, r${s}`,
-    8: (d) => `r${d}`,
-    9: (d) => `r${d}`,
-    10: (d, s) => hex2((d << 4) | s),
-    11: (d, s) => hex2((d << 4) | s),
-    12: (d, s) => hex2((d << 4) | s),
-    13: (d, s) => hex2((d << 4) | s),
-    14: (d) => `r${d}`,
-    15: () => "",
-  };
+  const hex3 = (n) => "0x" + n.toString(16).padStart(3, "0");
 
   function disasm(word) {
-    const op = (word >> 8) & 0xf;
-    return `${MNEMONIC[op]} ${FORM[op]((word >> 4) & 0xf, word & 0xf)}`.trim();
+    const op = (word >>> 20) & 0x1f;
+    const rd = (word >>> 16) & 0xf;
+    const rs = (word >>> 12) & 0xf;
+    const m = MNEMONIC[op] || "?";
+    if (op === 0 || op === 28) return m;                       // nop, hlt
+    if (op === 1) return `${m} r${rd}, #${word & 0xff}`;        // ldi
+    if (op === 19) return `${m} r${rd}, [r${rs}]`;              // ld
+    if (op === 20) return `${m} [r${rd}], r${rs}`;              // st
+    if (op >= 23 && op <= 27) return `${m} ${hex3(word & 0x3ff)}`; // salti
+    if ((op >= 2 && op <= 10) || op === 18) return `${m} r${rd}, r${rs}`;
+    return `${m} r${rd}`;                                       // rd-only
   }
 
   // ------------------------------------------------------------------ the die
@@ -226,9 +234,9 @@
       : "";
 
     let leds = "";
-    for (let i = 0; i < 4; i++) {
-      const on = (o.out >> (3 - i)) & 1;
-      leds += `<rect x="${40 + i * 56}" y="176" width="44" height="44" ` +
+    for (let i = 0; i < 8; i++) {
+      const on = (o.out >> (7 - i)) & 1;
+      leds += `<rect x="${40 + i * 43}" y="176" width="35" height="35" ` +
         (on ? `fill="${MINT_HEX}"/>`
             : `fill="#14171a" stroke="${PANEL_LINE}" stroke-width="1.5"/>`);
     }
@@ -248,10 +256,10 @@
       text(380, 46, 10, PANEL_DIM, "#\u2014", "end") +
       badge +
       text(40, 134, 26, "#efeee6", o.name) +
-      text(40, 156, 10, PANEL_DIM, "1029 NAND / 79 FLIP-FLOPS") +
+      text(40, 156, 10, PANEL_DIM, "2368 NAND / 171 FLIP-FLOPS / 256 B RAM") +
       leds +
       row(250, "CYCLES", o.cycles) +
-      row(288, "PC", "0x" + o.pc.toString(16).padStart(2, "0")) +
+      row(288, "PC", "0x" + o.pc.toString(16).padStart(3, "0")) +
       row(326, "OUT", String(o.out)) +
       status +
       `</g></svg>`;
@@ -266,7 +274,7 @@
    * Finche' config.factory e' null il bottone resta spento e lo dice: meglio
    * un bottone onesto che uno che finge.
    */
-  const SELECTOR_TICK = "0xfc7b6aee"; // tick(uint256)
+  const SELECTOR_TICK = "0xe5bbf637"; // tick(uint256,uint8)
 
   class Wallet {
     constructor(cfg) {
@@ -366,7 +374,12 @@
       this.say("confirm in your wallet…");
       try {
         await this.ensureChain();
-        const data = SELECTOR_TICK + BigInt(this.chipId).toString(16).padStart(64, "0");
+        // il byte da dare in pasto al processore con questo ciclo
+        const byteEl = document.querySelector("#w-byte");
+        const inByte = Math.max(0, Math.min(255, Number(byteEl && byteEl.value) || 0));
+        const data = SELECTOR_TICK +
+          BigInt(this.chipId).toString(16).padStart(64, "0") +
+          BigInt(inByte).toString(16).padStart(64, "0");
         const hash = await this.provider.request({
           method: "eth_sendTransaction",
           params: [{ from: this.account, to: this.cfg.factory, data }],
@@ -451,8 +464,8 @@
 
   class UI {
     constructor() {
-      this.programName = "forever";
-      this.machine = new Machine(D.programs.forever);
+      this.programName = "echo8";
+      this.machine = new Machine(D.programs.echo8);
       this.die = new Die($("#die"));
       this.rate = RATES[0];
       this.running = true;
@@ -477,7 +490,7 @@
     buildLeds() {
       this.leds = [];
       const host = $("#leds");
-      for (let i = 3; i >= 0; i--) {
+      for (let i = 7; i >= 0; i--) {
         const led = el("div", "led");
         led.dataset.bit = String(i);
         host.appendChild(led);
@@ -580,6 +593,17 @@
       this.buildUpload();
       this.buildPair();
 
+      // il byte in ingresso: quello che uno sponsor passerebbe a tick()
+      const inEl = $("#f-inbyte");
+      if (inEl) {
+        const apply = () => {
+          const v = Math.max(0, Math.min(255, Number(inEl.value) || 0));
+          this.machine.inPort = v;
+        };
+        inEl.addEventListener("input", apply);
+        apply();
+      }
+
       const onInput = () => {
         // il ticker si normalizza mentre scrivi, come lo vuole il contratto
         const cleaned = safeTicker(this.tickerEl.value);
@@ -618,7 +642,7 @@
       if (!host) return;
 
       const SUPPLY = 1e9;
-      const GAS_PER_TICK = 68275;
+      const GAS_PER_TICK = 256740;
       const GWEI = 0.020166;          // Robinhood Chain, misurato
       const ethPerTick = GAS_PER_TICK * GWEI * 1e-9;
 
@@ -737,7 +761,9 @@
 
     switchProgram(name) {
       this.programName = name;
+      const inPort = this.machine.inPort;
       this.machine = new Machine(D.programs[name]);
+      this.machine.inPort = inPort;
       this.die.dirty = true;
       this.cardKey = null;
       this.buildListing();
@@ -783,10 +809,10 @@
       });
       const note = $("#f-prog-note");
       if (note) {
-        note.textContent = this.programName === "forever"
-          ? "runs forever — never reaches HLT"
-          : "halts after 49 cycles — the chip would stop for good";
-        note.classList.toggle("is-bad", this.programName !== "forever");
+        note.textContent = this.programName === "echo8"
+          ? "listens forever — echoes your byte and keeps the running sum in RAM"
+          : "the self-test: halts after 15 cycles — the chip would stop for good";
+        note.classList.toggle("is-bad", this.programName !== "echo8");
       }
     }
 
@@ -816,12 +842,12 @@
       this.die.draw(m);
 
       const out = m.out();
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 8; i++) {
         this.leds[i].classList.toggle("is-on", ((out >> i) & 1) === 1);
       }
 
       for (let r = 0; r < 16; r++) {
-        const text = m.reg(r).toString(16).toUpperCase();
+        const text = m.reg(r).toString(16).toUpperCase().padStart(2, "0");
         const { cell, val } = this.regCells[r];
         if (val.textContent !== text) {
           val.textContent = text;
@@ -844,7 +870,7 @@
       }
 
       this.put("#v-cycle", m.cycle.toLocaleString("en-US"));
-      this.put("#v-pc", hex2(pc));
+      this.put("#v-pc", hex3(pc));
       this.put("#v-out", String(out));
       this.put("#v-instr", disasm(m.lastInstr));
       this.put("#v-flags", `${m.carry() ? "C" : "·"}${m.zero() ? "Z" : "·"}`);
@@ -891,7 +917,7 @@
     const map = {
       gates: D.gateCount.toLocaleString("en-US"),
       flops: String(D.flopCount),
-      instructions: String(D.programs.forever.listing.length),
+      instructions: String(D.programs.echo8.listing.length),
     };
     document.querySelectorAll("[data-fact]").forEach((node) => {
       const v = map[node.dataset.fact];

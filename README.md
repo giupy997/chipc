@@ -7,7 +7,35 @@ Nessuna emulazione: il contratto valuta 1.029 porte NAND a ogni ciclo.
 Il clock non è un oscillatore. **Un blocco = un colpo di clock.**
 Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
 
-## In mainnet
+## La generazione a 8 bit
+
+Il rilancio avviene sulla **RH-8**: 8 bit, un ingresso, 256 byte di RAM.
+La prima generazione girava da sola e basta — un oggetto, non uno strumento.
+Questa prende un byte da chi chiama `tick(id, byte)` e ha memoria che resta
+fra un ciclo e l'altro.
+
+| | RH-4 | RH-8 |
+|---|---|---|
+| dati | 4 bit | 8 bit |
+| ingresso | — | un byte per tick |
+| RAM | — | 256 byte per chip |
+| porte NAND | 1.029 srotolate | 2.368 **interpretate** da una tabella |
+| gas per ciclo | 60k | 257k |
+| stato | 79 bit, uno slot | 171 bit, sempre uno slot |
+
+La netlist non si srotola piu' (sforerebbe i 24 kB): diventa dati e il
+contratto la scorre. Niente piu' tetto — lo stesso interprete reggerebbe
+una CPU da diecimila porte.
+
+```bash
+make rh8   # RTL, netlist, assembler, interprete, fabbrica: tutta la catena
+```
+
+Il programma di mainnet e' [`asm/echo8.asm`](asm/echo8.asm): eco del byte in
+ingresso e somma corrente in RAM. Verificato senza halt per 20.000 cicli
+sulla netlist e 90 dentro l'EVM.
+
+## Il primo deployment (abbandonato)
 
 Robinhood Chain (4663), dal 26 agosto 2026.
 

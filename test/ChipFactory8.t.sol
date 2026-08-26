@@ -5,6 +5,8 @@ import {Test, console} from "forge-std/Test.sol";
 import {ChipFactory8, IRH8GateArray} from "../src/ChipFactory8.sol";
 import {RH8GateArray} from "../src/RH8Gates.sol";
 import {ChipToken} from "../src/ChipToken.sol";
+import {Chip8Renderer} from "../src/Chip8Renderer.sol";
+import {IChip8Renderer} from "../src/ChipFactory8.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
@@ -167,6 +169,47 @@ contract ChipFactory8Test is Test {
         assertEq(pc, 0, "il processore non e' ripartito");
         assertEq(cycles, 8, "i cicli di vita sono stati azzerati");
         assertEq(factory.ramAt(id, 0x20), 0, "la RAM non e' stata azzerata");
+    }
+
+    /// Il programma di mainnet, quello vero assemblato da asm/echo8.asm,
+    /// dentro l'EVM: non si ferma, fa eco, accumula in RAM.
+    function test_echo8NonSiFermaEAscolta() public {
+        string memory raw = vm.readFile("build/echo8.slots8.json");
+        uint256[] memory parsed = vm.parseJsonUintArray(raw, ".slots");
+        uint256[128] memory rom;
+        for (uint256 i; i < 128; ++i) rom[i] = parsed[i];
+
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(rom, "Echo", "ECHO", "", LIQ_BPS, TARGET);
+
+        for (uint256 c; c < 90; ++c) {
+            factory.tick(id, 7);
+            vm.roll(block.number + 1);
+        }
+        (, uint8 out, bool halted, uint256 cycles, ) = factory.inspect(id);
+        assertFalse(halted, "il programma di mainnet si e' fermato");
+        assertEq(cycles, 90);
+        // 90 cicli / 9 per giro = 10 giri: l'accumulatore ha sentito 7 dieci volte
+        assertEq(factory.ramAt(id, 0x10), 70, "l'accumulatore in RAM non torna");
+        assertEq(out, 70, "l'ultima uscita non e' la somma");
+    }
+
+    /// L'NFT si disegna: logo come image, card viva come animation_url,
+    /// e le otto luci vengono dai bit veri.
+    function test_tokenURIConLogo() public {
+        factory.setRenderer(IChip8Renderer(address(new Chip8Renderer("https://rh4.example/"))));
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(
+            _program(), "RH4 CPU", "RH4X",
+            "ipfs://bafkreiabcdefghijklmnopqrstuvwxyz234567", LIQ_BPS, TARGET
+        );
+        for (uint256 c; c < 8; ++c) {
+            factory.tick(id, 0xA5);
+            vm.roll(block.number + 1);
+        }
+        string memory uri = factory.tokenURI(id);
+        assertGt(bytes(uri).length, 500);
+        vm.writeFile("build/tokenURI-rh8.txt", uri);
     }
 
     // ---- i numeri che decidono l'economia ------------------------------------
