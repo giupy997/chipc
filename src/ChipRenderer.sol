@@ -38,37 +38,86 @@ contract ChipRenderer {
     string private constant LINE = "#272a25";
     string private constant DIM = "#6f7669";
 
+    /**
+     * @dev Se il chip ha un logo, e' quello a fare da `image`: chi conia si
+     *      aspetta di vedere la propria immagine, non un pannello tecnico.
+     *      La card viva non si perde pero' — passa in `animation_url`, dove
+     *      continua a mostrare il processore che gira.
+     */
     function tokenURI(
         uint256 id,
         ChipFactory.Chip calldata chip,
-        uint256[16] calldata
+        uint256[16] calldata,
+        string calldata logo
     ) external view returns (string memory) {
-        uint256 state = chip.machine & ((uint256(1) << 79) - 1);
-        uint256 cycles = (chip.machine >> 80) & ((uint256(1) << 48) - 1);
-        bool halted = RH4State.halted(state);
-
-        string memory ticker = _label(chip.ticker);
-        string memory name = _label(chip.label);
-        if (bytes(name).length == 0) {
-            name = bytes(ticker).length != 0 ? ticker : string.concat("CHIP #", id.toString());
-        }
-
-        string memory json = string.concat(
-            '{"name":"', bytes(ticker).length != 0
-                ? string.concat(name, " (", ticker, ")")
-                : name,
-            '","description":"A real 4-bit processor living inside the chain. 1,029 NAND gates, 79 flip-flops, one clock tick per block. Nobody owns the clock: anyone can pay a cycle, and the sponsor is written into the Cycle event forever. A chip nobody advances is dead silicon.',
-            '"', _externalUrl(id),
-            ',"image":"data:image/svg+xml;base64,',
-            Base64.encode(bytes(_svg(id, name, ticker, state, cycles, halted))),
-            '","attributes":', _attributes(state, cycles, halted, chip),
-            "}"
-        );
-
         return string.concat(
             "data:application/json;base64,",
-            Base64.encode(bytes(json))
+            Base64.encode(bytes(_json(id, chip, logo)))
         );
+    }
+
+    /// @dev Spezzata in pezzi piccoli non per eleganza: con nome, sigla,
+    ///      stato, cicli, card e immagine tutti vivi insieme il compilatore
+    ///      va in stack too deep.
+    function _json(uint256 id, ChipFactory.Chip calldata chip, string calldata logo)
+        internal
+        view
+        returns (string memory)
+    {
+        string memory card = _card(id, chip);
+        return string.concat(
+            _head(id, chip, bytes(logo).length != 0 ? logo : card),
+            '","animation_url":"', card,
+            '","attributes":', _attributes(chip),
+            "}"
+        );
+    }
+
+    /// @dev La card viva del processore, come data URI.
+    function _card(uint256 id, ChipFactory.Chip calldata chip)
+        internal
+        pure
+        returns (string memory)
+    {
+        uint256 state = chip.machine & ((uint256(1) << 79) - 1);
+        return string.concat(
+            "data:image/svg+xml;base64,",
+            Base64.encode(bytes(_svg(
+                id,
+                _displayName(id, chip),
+                _label(chip.ticker),
+                state,
+                (chip.machine >> 80) & ((uint256(1) << 48) - 1),
+                RH4State.halted(state)
+            )))
+        );
+    }
+
+    function _head(uint256 id, ChipFactory.Chip calldata chip, string memory image)
+        internal
+        view
+        returns (string memory)
+    {
+        string memory ticker = _label(chip.ticker);
+        string memory name = _displayName(id, chip);
+        return string.concat(
+            '{"name":"',
+            bytes(ticker).length != 0 ? string.concat(name, " (", ticker, ")") : name,
+            '","description":"A real 4-bit processor living inside the chain. 1,029 NAND gates, 79 flip-flops, one clock tick per block. Nobody owns the clock: anyone can pay a cycle, and the sponsor is written into the Cycle event forever. A chip nobody advances is dead silicon.',
+            '"', _externalUrl(id),
+            ',"image":"', image
+        );
+    }
+
+    function _displayName(uint256 id, ChipFactory.Chip calldata chip)
+        internal
+        pure
+        returns (string memory)
+    {
+        string memory name = _label(chip.label);
+        if (bytes(name).length != 0) return name;
+        string memory ticker = _label(chip.ticker);
+        return bytes(ticker).length != 0 ? ticker : string.concat("CHIP #", id.toString());
     }
 
     /**
@@ -190,12 +239,14 @@ contract ChipRenderer {
 
     // ---- attributi ----------------------------------------------------------
 
-    function _attributes(
-        uint256 state,
-        uint256 cycles,
-        bool halted,
-        ChipFactory.Chip calldata chip
-    ) internal pure returns (string memory) {
+    function _attributes(ChipFactory.Chip calldata chip)
+        internal
+        pure
+        returns (string memory)
+    {
+        uint256 state = chip.machine & ((uint256(1) << 79) - 1);
+        uint256 cycles = (chip.machine >> 80) & ((uint256(1) << 48) - 1);
+        bool halted = RH4State.halted(state);
         return string.concat(
             '[{"trait_type":"Ticker","value":"', _label(chip.ticker),
             '"},{"trait_type":"Cycles","value":', cycles.toString(),

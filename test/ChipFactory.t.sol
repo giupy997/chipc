@@ -47,7 +47,7 @@ contract ChipFactoryTest is Test {
         returns (uint256 id)
     {
         vm.prank(who);
-        (id, ) = factory.mint(_program(prog), ticker, ticker, LIQ_BPS, TARGET);
+        (id, ) = factory.mint(_program(prog), ticker, ticker, "", LIQ_BPS, TARGET);
     }
 
     // ---- il chip e' un token ------------------------------------------------
@@ -216,10 +216,10 @@ contract ChipFactoryTest is Test {
         vm.deal(alice, 1 ether);
         vm.prank(alice);
         vm.expectRevert(ChipFactory.WrongPayment.selector);
-        factory.mint(_program("forever"), "A", "A", LIQ_BPS, TARGET);
+        factory.mint(_program("forever"), "A", "A", "", LIQ_BPS, TARGET);
 
         vm.prank(alice);
-        (uint256 id, ) = factory.mint{value: 0.01 ether}(_program("forever"), "A", "A", LIQ_BPS, TARGET);
+        (uint256 id, ) = factory.mint{value: 0.01 ether}(_program("forever"), "A", "A", "", LIQ_BPS, TARGET);
         assertEq(factory.ownerOf(id), alice);
         assertEq(address(factory).balance, 0.01 ether);
 
@@ -235,7 +235,7 @@ contract ChipFactoryTest is Test {
 
         vm.prank(alice);
         uint256 g0 = gasleft();
-        (uint256 id, ) = factory.mint(prog, "GAS CHIP", "GAS", LIQ_BPS, TARGET);
+        (uint256 id, ) = factory.mint(prog, "GAS CHIP", "GAS", "", LIQ_BPS, TARGET);
         uint256 gasMint = g0 - gasleft();
 
         factory.tick(id); // primo tick: slot freddi, non rappresentativo
@@ -260,7 +260,7 @@ contract ChipFactoryTest is Test {
 
         vm.prank(bob);
         vm.expectRevert(abi.encodeWithSelector(ChipFactory.TickerTaken.selector, first));
-        factory.mint(_program("forever"), "ALTRO NOME", "BHMT", LIQ_BPS, TARGET);
+        factory.mint(_program("forever"), "ALTRO NOME", "BHMT", "", LIQ_BPS, TARGET);
 
         assertFalse(factory.tickerAvailable("BHMT"));
         assertTrue(factory.tickerAvailable("LIBERA"));
@@ -277,13 +277,13 @@ contract ChipFactoryTest is Test {
         for (uint256 i; i < cattive.length; ++i) {
             vm.prank(alice);
             vm.expectRevert(ChipFactory.BadTicker.selector);
-            factory.mint(_program("forever"), "X", cattive[i], LIQ_BPS, TARGET);
+            factory.mint(_program("forever"), "X", cattive[i], "", LIQ_BPS, TARGET);
             assertFalse(factory.tickerAvailable(cattive[i]));
         }
 
         // queste invece vanno bene
         vm.prank(alice);
-        factory.mint(_program("forever"), "Un nome lungo quanto voglio", "RH-4", LIQ_BPS, TARGET);
+        factory.mint(_program("forever"), "Un nome lungo quanto voglio", "RH-4", "", LIQ_BPS, TARGET);
         assertEq(factory.chipByTicker("RH-4"), 1);
     }
 
@@ -295,6 +295,7 @@ contract ChipFactoryTest is Test {
             _program("forever"),
             "Behemoth Mark II",
             "BHMT2",
+            "",
             LIQ_BPS,
             TARGET
         );
@@ -310,7 +311,7 @@ contract ChipFactoryTest is Test {
     function test_ilTokenNasceColChip() public {
         vm.prank(alice);
         (uint256 id, address token) =
-            factory.mint(_program("forever"), "Behemoth", "BHMT", LIQ_BPS, TARGET);
+            factory.mint(_program("forever"), "Behemoth", "BHMT", "", LIQ_BPS, TARGET);
 
         ChipToken t = ChipToken(token);
         assertEq(t.name(), "Behemoth");
@@ -332,7 +333,7 @@ contract ChipFactoryTest is Test {
     function test_unCicloPagaIlSuoSponsor() public {
         vm.prank(alice);
         (uint256 id, address token) =
-            factory.mint(_program("forever"), "Behemoth", "BHMT", LIQ_BPS, TARGET);
+            factory.mint(_program("forever"), "Behemoth", "BHMT", "", LIQ_BPS, TARGET);
 
         (, uint256 reserveBefore, uint256 reward, uint256 cyclesLeft) = factory.emission(id);
         assertEq(cyclesLeft, TARGET, "la riserva non copre i cicli promessi");
@@ -352,7 +353,7 @@ contract ChipFactoryTest is Test {
     function test_riservaFinitaMaIlClockContinua() public {
         vm.prank(alice);
         (uint256 id, address token) =
-            factory.mint(_program("forever"), "Behemoth", "BHMT", LIQ_BPS, TARGET);
+            factory.mint(_program("forever"), "Behemoth", "BHMT", "", LIQ_BPS, TARGET);
 
         (, , uint256 reward, ) = factory.emission(id);
 
@@ -391,13 +392,13 @@ contract ChipFactoryTest is Test {
         vm.startPrank(alice);
 
         vm.expectRevert(ChipFactory.BadLiquidityShare.selector);
-        factory.mint(_program("forever"), "X", "AAA", 5_001, TARGET);
+        factory.mint(_program("forever"), "X", "AAA", "", 5_001, TARGET);
 
         vm.expectRevert(ChipFactory.TargetTooShort.selector);
-        factory.mint(_program("forever"), "X", "BBB", LIQ_BPS, 99_999);
+        factory.mint(_program("forever"), "X", "BBB", "", LIQ_BPS, 99_999);
 
         // i limiti esatti devono passare
-        factory.mint(_program("forever"), "X", "CCC", 5_000, 100_000);
+        factory.mint(_program("forever"), "X", "CCC", "", 5_000, 100_000);
         vm.stopPrank();
     }
 
@@ -405,7 +406,7 @@ contract ChipFactoryTest is Test {
     function test_zeroLiquiditaTuttoAiCicli() public {
         vm.prank(alice);
         (uint256 id, address token) =
-            factory.mint(_program("forever"), "Puro", "PURO", 0, TARGET);
+            factory.mint(_program("forever"), "Puro", "PURO", "", 0, TARGET);
 
         assertEq(IERC20(token).balanceOf(alice), 0);
         assertEq(IERC20(token).balanceOf(address(factory)), factory.TOKEN_SUPPLY());
@@ -421,7 +422,7 @@ contract ChipFactoryTest is Test {
     function test_chipNudoPoiTokenAgganciato() public {
         vm.prank(alice);
         (uint256 id, address token) =
-            factory.mint(_program("forever"), "Nudo", "NUDO", 0, 0);
+            factory.mint(_program("forever"), "Nudo", "NUDO", "", 0, 0);
         assertEq(token, address(0), "non doveva nascere nessun token");
 
         (address t0, , , ) = factory.emission(id);
@@ -455,7 +456,7 @@ contract ChipFactoryTest is Test {
     /// macinato cicli per guadagnarlo. Si aggancia una volta sola.
     function test_ilTokenSiAgganciaUnaVoltaSola() public {
         vm.prank(alice);
-        (uint256 id, ) = factory.mint(_program("forever"), "Nudo", "NUDO", 0, 0);
+        (uint256 id, ) = factory.mint(_program("forever"), "Nudo", "NUDO", "", 0, 0);
 
         ChipToken a = new ChipToken("A", "A", id, 1_000e18, address(this), 0, address(0));
         ChipToken b = new ChipToken("B", "B", id, 1_000e18, address(this), 0, address(0));
@@ -469,7 +470,7 @@ contract ChipFactoryTest is Test {
 
         // e un token non puo' servire due chip: si ruberebbero la riserva
         vm.prank(bob);
-        (uint256 altro, ) = factory.mint(_program("forever"), "Altro", "ALTRO", 0, 0);
+        (uint256 altro, ) = factory.mint(_program("forever"), "Altro", "ALTRO", "", 0, 0);
         vm.prank(bob);
         vm.expectRevert(abi.encodeWithSelector(ChipFactory.TokenInUse.selector, id));
         factory.attachToken(altro, address(a), 1e18);
@@ -477,7 +478,7 @@ contract ChipFactoryTest is Test {
 
     function test_soloIlProprietarioAggancia() public {
         vm.prank(alice);
-        (uint256 id, ) = factory.mint(_program("forever"), "Nudo", "NUDO", 0, 0);
+        (uint256 id, ) = factory.mint(_program("forever"), "Nudo", "NUDO", "", 0, 0);
         ChipToken t = new ChipToken("A", "A", id, 1_000e18, address(this), 0, address(0));
 
         vm.prank(bob);
@@ -493,7 +494,7 @@ contract ChipFactoryTest is Test {
     function test_laQuotaDiConioFinanziaLaMadre() public {
         vm.prank(alice);
         (uint256 madre, address token) =
-            factory.mint(_program("forever"), "Madre", "MADRE", LIQ_BPS, TARGET);
+            factory.mint(_program("forever"), "Madre", "MADRE", "", LIQ_BPS, TARGET);
 
         factory.setMother(madre);
         assertEq(factory.motherChip(), madre);
@@ -507,7 +508,7 @@ contract ChipFactoryTest is Test {
         deal(token, bob, 5_000e18);
         vm.startPrank(bob);
         IERC20(token).approve(address(factory), 1_000e18);
-        (uint256 figlio, ) = factory.mint(_program("forever"), "Figlio", "FIGLIO", LIQ_BPS, TARGET);
+        (uint256 figlio, ) = factory.mint(_program("forever"), "Figlio", "FIGLIO", "", LIQ_BPS, TARGET);
         vm.stopPrank();
 
         assertEq(figlio, madre + 1);
@@ -530,7 +531,7 @@ contract ChipFactoryTest is Test {
         factory.setMintPriceToken(1_000e18);
         vm.prank(alice);
         vm.expectRevert(ChipFactory.NoMother.selector);
-        factory.mint(_program("forever"), "X", "XXX", LIQ_BPS, TARGET);
+        factory.mint(_program("forever"), "X", "XXX", "", LIQ_BPS, TARGET);
     }
 
     /// Il bug che avrei lasciato: azzerare il premio a riserva vuota avrebbe
@@ -538,7 +539,7 @@ contract ChipFactoryTest is Test {
     function test_riservaRicaricataRipagaDiNuovo() public {
         vm.prank(alice);
         (uint256 id, address token) =
-            factory.mint(_program("forever"), "Madre", "MADRE", LIQ_BPS, TARGET);
+            factory.mint(_program("forever"), "Madre", "MADRE", "", LIQ_BPS, TARGET);
         (, , uint256 reward, ) = factory.emission(id);
 
         deal(token, address(factory), reward); // esattamente un ciclo
@@ -560,6 +561,72 @@ contract ChipFactoryTest is Test {
         assertEq(IERC20(token).balanceOf(bob), reward * 2, "la ricarica non ha ripagato");
     }
 
+    // ---- il logo ------------------------------------------------------------
+
+    /// Chi conia si aspetta di vedere la propria immagine, non un pannello
+    /// tecnico. Il logo prende il posto di `image`; la card viva non si
+    /// perde, passa in `animation_url`.
+    function test_ilLogoDiventaLImmagine() public {
+        factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(
+            _program("forever"), "RH4 CPU", "RH4",
+            "ipfs://bafkreiabcdefghijklmnopqrstuvwxyz234567", LIQ_BPS, TARGET
+        );
+        assertEq(factory.logo(id), "ipfs://bafkreiabcdefghijklmnopqrstuvwxyz234567");
+        vm.writeFile("build/tokenURI-logo.txt", factory.tokenURI(id));
+    }
+
+    /// Un chip senza logo torna alla card generata.
+    function test_senzaLogoRestaLaCard() public {
+        factory.setRenderer(IChipRenderer(address(new ChipRenderer(""))));
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(_program("forever"), "Nudo", "NUDO", "", LIQ_BPS, TARGET);
+        assertEq(bytes(factory.logo(id)).length, 0);
+        vm.writeFile("build/tokenURI-nologo.txt", factory.tokenURI(id));
+    }
+
+    /// Lo schema non e' un dettaglio estetico: `javascript:` e
+    /// `data:text/html` in certi visualizzatori diventano codice, e una
+    /// virgoletta romperebbe il JSON dei metadati.
+    function test_logoURIOstili() public {
+        string[6] memory cattivi = [
+            "javascript:alert(1)",
+            "data:text/html,<script>x</script>",
+            "http://insicuro.example/x.png",
+            'https://x.example/a".png',
+            "https://x.example/con spazio.png",
+            "ftp://x.example/a.png"
+        ];
+        for (uint256 i; i < cattivi.length; ++i) {
+            vm.prank(alice);
+            vm.expectRevert(ChipFactory.BadLogoURI.selector);
+            factory.mint(_program("forever"), "X", bytes32(uint256(0x41 + i) << 248), cattivi[i], LIQ_BPS, TARGET);
+        }
+
+        // questi invece passano
+        vm.prank(alice);
+        factory.mint(_program("forever"), "Buono", "BUONO", "https://x.example/a.png", LIQ_BPS, TARGET);
+    }
+
+    /// Il logo si puo' correggere: un URI rotto renderebbe l'NFT muto per
+    /// sempre. Ma solo il proprietario del chip.
+    function test_soloIlProprietarioCambiaIlLogo() public {
+        uint256 id = _mint(alice, "forever", "LOGO");
+
+        vm.prank(bob);
+        vm.expectRevert(ChipFactory.NotChipOwner.selector);
+        factory.setLogo(id, "https://x.example/b.png");
+
+        vm.prank(alice);
+        factory.setLogo(id, "https://x.example/b.png");
+        assertEq(factory.logo(id), "https://x.example/b.png");
+
+        vm.prank(alice);
+        vm.expectRevert(ChipFactory.BadLogoURI.selector);
+        factory.setLogo(id, "javascript:alert(1)");
+    }
+
     // ---- l'immagine ---------------------------------------------------------
 
     /// L'NFT non e' un puntatore a un PNG su un server: e' un SVG costruito
@@ -567,7 +634,7 @@ contract ChipFactoryTest is Test {
     function test_tokenURIEsceUnSvgValido() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
         vm.prank(alice);
-        (uint256 id, ) = factory.mint(_program("forever"), "Behemoth", "BHMT", LIQ_BPS, TARGET);
+        (uint256 id, ) = factory.mint(_program("forever"), "Behemoth", "BHMT", "", LIQ_BPS, TARGET);
 
         for (uint256 i; i < 20; ++i) {
             factory.tick(id);
@@ -584,7 +651,7 @@ contract ChipFactoryTest is Test {
     function test_tokenURIPortaAlSuoChip() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
         vm.prank(alice);
-        (uint256 id, ) = factory.mint(_program("forever"), "RH4 CPU", "RH4", LIQ_BPS, TARGET);
+        (uint256 id, ) = factory.mint(_program("forever"), "RH4 CPU", "RH4", "", LIQ_BPS, TARGET);
 
         string memory uri = factory.tokenURI(id);
         vm.writeFile("build/tokenURI-link.txt", uri);
@@ -596,7 +663,7 @@ contract ChipFactoryTest is Test {
     function test_senzaSitoNienteExternalUrl() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer(""))));
         vm.prank(alice);
-        (uint256 id, ) = factory.mint(_program("forever"), "RH4 CPU", "RH4", LIQ_BPS, TARGET);
+        (uint256 id, ) = factory.mint(_program("forever"), "RH4 CPU", "RH4", "", LIQ_BPS, TARGET);
         vm.writeFile("build/tokenURI-nolink.txt", factory.tokenURI(id));
     }
 
@@ -604,7 +671,7 @@ contract ChipFactoryTest is Test {
     function test_etichettaNonInietta() public {
         factory.setRenderer(IChipRenderer(address(new ChipRenderer("https://rh4.example/"))));
         vm.prank(alice);
-        (uint256 id, ) = factory.mint(_program("forever"), bytes32('<script>x</script>'), "EVIL", LIQ_BPS, TARGET);
+        (uint256 id, ) = factory.mint(_program("forever"), bytes32('<script>x</script>'), "EVIL", "", LIQ_BPS, TARGET);
         string memory uri = factory.tokenURI(id);
         vm.writeFile("build/tokenURI-hostile.txt", uri);
         assertGt(bytes(uri).length, 500);

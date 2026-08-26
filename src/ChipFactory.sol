@@ -15,8 +15,12 @@ interface IRH4GateArray {
 }
 
 interface IChipRenderer {
-    function tokenURI(uint256 id, ChipFactory.Chip calldata chip, uint256[16] calldata rom)
-        external view returns (string memory);
+    function tokenURI(
+        uint256 id,
+        ChipFactory.Chip calldata chip,
+        uint256[16] calldata rom,
+        string calldata logo
+    ) external view returns (string memory);
 }
 
 /**
@@ -94,6 +98,9 @@ contract ChipFactory is ERC721, Ownable {
     IRH4GateArray public immutable gates;
 
     mapping(uint256 => Chip) private _chips;
+    /// @dev Fuori dalla struct: un chip senza logo non paga niente per averne
+    ///      il posto. Vuoto = l'NFT mostra la card generata.
+    mapping(uint256 => string) private _logo;
     mapping(uint256 => uint256[ROM_SLOTS]) private _rom;
 
     /// @dev Sigla gia' presa -> id del chip che ce l'ha. Senza questo
@@ -107,6 +114,7 @@ contract ChipFactory is ERC721, Ownable {
 
     uint256 public totalChips;
     uint256 public mintPrice;
+    string private _contractURI;
 
     /// @notice Il chip madre: il primo, quello da cui discende la fabbrica.
     ///         Si fissa una volta sola e non si sposta piu'.
@@ -146,6 +154,8 @@ contract ChipFactory is ERC721, Ownable {
 
     /// @notice A un chip senza token ne e' stato agganciato uno.
     event TokenAttached(uint256 indexed id, address indexed token, uint256 rewardPerCycle);
+    /// @notice Il logo di un chip e' stato impostato o cambiato.
+    event LogoSet(uint256 indexed id, string uri);
     /// @notice Un ciclo ha pagato il suo sponsor.
     event Rewarded(uint256 indexed id, address indexed sponsor, uint256 amount);
     /// @notice La riserva di emissione e' finita: da qui il clock e' gratuito.
@@ -163,6 +173,7 @@ contract ChipFactory is ERC721, Ownable {
     error WrongPayment();
     error TickerTaken(uint256 existingChip);
     error BadTicker();
+    error BadLogoURI();
     error BadLiquidityShare();
     error TargetTooShort();
     error TokenAlreadySet();
@@ -191,11 +202,13 @@ contract ChipFactory is ERC721, Ownable {
         uint256[ROM_SLOTS] calldata words,
         bytes32 label,
         bytes32 ticker,
+        string calldata logoURI,
         uint16 liquidityBps,
         uint64 targetCycles
     ) external payable returns (uint256 id, address token) {
         if (msg.value != mintPrice) revert WrongPayment();
         if (!_validTicker(ticker)) revert BadTicker();
+        if (!_validLogoURI(logoURI)) revert BadLogoURI();
         _payMotherFee();
         if (liquidityBps > MAX_LIQUIDITY_BPS) revert BadLiquidityShare();
         // targetCycles == 0 vuol dire "niente token adesso": il chip nasce
@@ -215,11 +228,10 @@ contract ChipFactory is ERC721, Ownable {
         c.minter = msg.sender;
         c.bornBlock = uint64(block.number);
 
-        // scrivo solo le parole non nulle: una ROM da 42 istruzioni ne
-        // occupa tre su sedici, e uno SSTORE a zero e' 20.000 gas buttati
-        uint256[ROM_SLOTS] storage rom = _rom[id];
-        for (uint256 i; i < ROM_SLOTS; ++i) {
-            if (words[i] != 0) rom[i] = words[i];
+        _writeRom(id, words);
+        if (bytes(logoURI).length != 0) {
+            _logo[id] = logoURI;
+            emit LogoSet(id, logoURI);
         }
 
         if (targetCycles != 0) {
@@ -309,6 +321,16 @@ contract ChipFactory is ERC721, Ownable {
 
         IERC20(mt).safeTransferFrom(msg.sender, address(this), fee);
         emit MotherFee(totalChips + 1, msg.sender, fee);
+    }
+
+    /// @dev Scrive solo le parole non nulle: una ROM da 42 istruzioni ne
+    ///      occupa tre su sedici, e uno SSTORE a zero e' 20.000 gas buttati.
+    ///      Sta a parte perche' dentro mint() teneva vive troppe variabili.
+    function _writeRom(uint256 id, uint256[ROM_SLOTS] calldata words) internal {
+        uint256[ROM_SLOTS] storage rom = _rom[id];
+        for (uint256 i; i < ROM_SLOTS; ++i) {
+            if (words[i] != 0) rom[i] = words[i];
+        }
     }
 
     // ---- il clock ----------------------------------------------------------
@@ -439,6 +461,30 @@ contract ChipFactory is ERC721, Ownable {
         emit TokenAttached(id, token, rewardPerCycle);
     }
 
+    /**
+     * @notice Cambia il logo del chip.
+     * @dev Modificabile apposta: un URI rotto o un'immagine sparita
+     *      renderebbero l'NFT muto per sempre. Il rovescio e' che chi compra
+     *      deve sapere che l'immagine puo' cambiare sotto di lui — a
+     *      differenza della sigla e del token, che non si toccano piu'.
+     */
+    function setLogo(uint256 id, string calldata uri) external {
+        _requireChipOwner(id);
+        if (!_validLogoURI(uri)) revert BadLogoURI();
+        _logo[id] = uri;
+        emit LogoSet(id, uri);
+    }
+
+    function logo(uint256 id) external view returns (string memory) {
+        return _logo[id];
+    }
+
+    /// @notice Metadati della collezione, non del singolo chip. E' qui che
+    ///         vive il marchio della fabbrica.
+    function contractURI() external view returns (string memory) {
+        return _contractURI;
+    }
+
     // ---- lettura -----------------------------------------------------------
 
     function chip(uint256 id) external view returns (Chip memory) {
@@ -510,13 +556,14 @@ contract ChipFactory is ERC721, Ownable {
         _requireOwned(id);
         return address(renderer) == address(0)
             ? ""
-            : renderer.tokenURI(id, _chips[id], _rom[id]);
+            : renderer.tokenURI(id, _chips[id], _rom[id], _logo[id]);
     }
 
     // ---- amministrazione ---------------------------------------------------
 
     function setRenderer(IChipRenderer r) external onlyOwner { renderer = r; }
     function setMintPrice(uint256 p) external onlyOwner { mintPrice = p; }
+    function setContractURI(string calldata uri) external onlyOwner { _contractURI = uri; }
 
     function withdraw(address payable to) external onlyOwner {
         (bool ok, ) = to.call{value: address(this).balance}("");
@@ -587,6 +634,42 @@ contract ChipFactory is ERC721, Ownable {
         bytes memory out = new bytes(len);
         for (uint256 i; i < len; ++i) out[i] = raw[i];
         return string(out);
+    }
+
+    /**
+     * @dev Un URI di logo valido e' vuoto, oppure https:// o ipfs:// seguito
+     *      da soli caratteri ASCII stampabili senza virgolette ne' barre
+     *      rovesce.
+     *
+     *      I tre vincoli servono a tre cose diverse: lo schema tiene fuori
+     *      `javascript:` e `data:text/html`, che in certi visualizzatori
+     *      diventano codice; le virgolette e la barra rovescia romperebbero
+     *      il JSON dei metadati; e il resto tiene fuori spazi e caratteri di
+     *      controllo, che lo romperebbero comunque.
+     */
+    function _validLogoURI(string calldata s) internal pure returns (bool) {
+        bytes calldata b = bytes(s);
+        if (b.length == 0) return true;
+        if (b.length > 200) return false;
+
+        bool https = b.length >= 8;
+        if (https) {
+            bytes8 head = bytes8(b[:8]);
+            https = head == bytes8("https://");
+        }
+        bool ipfs = b.length >= 7;
+        if (ipfs) {
+            bytes7 head = bytes7(b[:7]);
+            ipfs = head == bytes7("ipfs://");
+        }
+        if (!https && !ipfs) return false;
+
+        for (uint256 i; i < b.length; ++i) {
+            uint8 ch = uint8(b[i]);
+            if (ch < 0x21 || ch > 0x7e) return false;   // spazi e controllo
+            if (ch == 0x22 || ch == 0x5c) return false; // " e \\
+        }
+        return true;
     }
 
     function _requireChipOwner(uint256 id) internal view {

@@ -15,6 +15,8 @@
  *     --label NOME     nome esteso del primo chip, max 32 caratteri
  *     --ticker SIGLA   sigla del primo chip: 1-8 fra A-Z, 0-9 e trattino,
  *                      unica in tutta la fabbrica
+ *     --logo URI       immagine del chip: https:// o ipfs://. Diventa
+ *                      l'`image` dell'NFT; senza, resta la card generata.
  *     --liquidity BPS  quota dell'offerta che va subito a chi conia, in
  *                      centesimi di punto (2000 = 20%). Max 5000.
  *     --target N       su quanti cicli spalmare la riserva. A 10 Hz:
@@ -195,7 +197,7 @@ async function main() {
       address: factoryAddr,
       abi: factoryAbi,
       functionName: "mint",
-      args: [slots.map((s) => BigInt(s)), label, ticker, liquidityBps, targetCycles],
+      args: [slots.map((s) => BigInt(s)), label, ticker, args.logo || "", liquidityBps, targetCycles],
     });
     const r = await pub.waitForTransactionReceipt({ hash });
     spent.total += r.gasUsed * r.effectiveGasPrice;
