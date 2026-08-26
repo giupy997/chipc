@@ -55,7 +55,7 @@ const ART = (name) => `out/${name}.sol/${name}.json`;
 function artifact(name) {
   const p = ART(name);
   if (!fs.existsSync(p)) {
-    console.error(`manca ${p} — compila prima con "make gates && forge build"`);
+    console.error(`manca ${p} — compila prima con "make rh8 && forge build"`);
     process.exit(2);
   }
   return JSON.parse(fs.readFileSync(p, "utf8"));
@@ -74,7 +74,7 @@ async function main() {
   const gasPrice = await pub.getGasPrice();
   const balance = await pub.getBalance({ address: account.address });
 
-  console.log("deploy della fabbrica di chip RH-4");
+  console.log("deploy della fabbrica di chip RH-8");
   console.log(`  rete        ${chain.name} (${chain.id}) via ${rpc}`);
   console.log(`  operatore   ${account.address}  (${formatEther(balance)} ETH)`);
   console.log(`  gas price   ${Number(gasPrice) / 1e9} gwei`);
