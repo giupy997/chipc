@@ -229,10 +229,11 @@ async function main() {
     // numero di blocco: quella transazione e' gia' in un blocco chiuso, e la
     // prossima non puo' che finire in uno successivo. Un giro di RPC in meno
     // per ciclo, ed e' quello che separa i 5 Hz dal ritmo della chain.
+    let bn = lastTickBlock;
     if (freshReceipt) {
       freshReceipt = false;
     } else {
-      const bn = await pub.getBlockNumber();
+      bn = await pub.getBlockNumber();
       if (bn <= lastTickBlock) {
         await sleep(25);
         continue;
