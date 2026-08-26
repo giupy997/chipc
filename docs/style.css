@@ -136,14 +136,12 @@ code {
 
 .logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
 
+/* il chip inciso al posto del riquadro di testo: e' il marchio vero */
 .logo-box {
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  display: block;
+  width: 30px;
+  height: 30px;
   border: var(--rule);
-  padding: 7px 6px;
-  line-height: 1;
   background: var(--paper);
 }
 
