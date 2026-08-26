@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1280" width="1280" height="1280">
+<defs>
+<clipPath id="body"><rect x="360" y="300" width="560" height="680" rx="16"/></clipPath>
+<clipPath id="die"><rect x="490" y="460" width="300" height="360"/></clipPath>
+<clipPath id="pins"><rect x="248" y="345" width="112" height="46" rx="4"/><rect x="920" y="345" width="112" height="46" rx="4"/><rect x="248" y="481" width="112" height="46" rx="4"/><rect x="920" y="481" width="112" height="46" rx="4"/><rect x="248" y="617" width="112" height="46" rx="4"/><rect x="920" y="617" width="112" height="46" rx="4"/><rect x="248" y="753" width="112" height="46" rx="4"/><rect x="920" y="753" width="112" height="46" rx="4"/><rect x="248" y="889" width="112" height="46" rx="4"/><rect x="920" y="889" width="112" height="46" rx="4"/></clipPath>
+</defs>
+<rect width="1280" height="1280" fill="#efeee6"/>
+
+<rect x="248" y="345" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="920" y="345" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="248" y="481" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="920" y="481" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="248" y="617" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="920" y="617" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="248" y="753" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="920" y="753" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="248" y="889" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+<rect x="920" y="889" width="112" height="46" rx="4" fill="#111110" stroke="#111110" stroke-width="0"/>
+
+<rect x="490" y="460" width="300" height="360" fill="#efeee6"/>
+
+<g clip-path="url(#die)" fill="none" stroke="#111110" stroke-width="14" stroke-linecap="butt" stroke-linejoin="miter">
+<path d="M 590 460 V 486 H 544 V 736"/>
+<path d="M 690 460 V 494 H 736 V 736"/>
+<path d="M 490 580 H 516 V 544 H 736"/>
+<path d="M 490 700 H 524 V 736 H 736"/>
+<path d="M 590 820 V 794 H 544 V 544"/>
+<path d="M 690 820 V 786 H 736 V 544"/>
+<path d="M 790 580 H 764 V 544 H 544"/>
+<path d="M 790 700 H 756 V 736 H 544"/>
+</g>
+<rect x="575" y="451" width="30" height="18" fill="#111110"/>
+<rect x="675" y="451" width="30" height="18" fill="#111110"/>
+<rect x="481" y="565" width="18" height="30" fill="#111110"/>
+<rect x="481" y="685" width="18" height="30" fill="#111110"/>
+<rect x="575" y="811" width="30" height="18" fill="#111110"/>
+<rect x="675" y="811" width="30" height="18" fill="#111110"/>
+<rect x="781" y="565" width="18" height="30" fill="#111110"/>
+<rect x="781" y="685" width="18" height="30" fill="#111110"/>
+<rect x="544" y="544" width="192" height="192" fill="none" stroke="#111110" stroke-width="20"/>
+<rect x="565" y="565" width="150" height="150" fill="#1f7a4c"/>
+<rect x="490" y="460" width="300" height="360" fill="none" stroke="#111110" stroke-width="26"/>
+<rect x="360" y="300" width="560" height="680" rx="16" fill="none" stroke="#111110" stroke-width="34"/>
+<path d="M 556 300 A 84 84 0 0 0 724 300 Z" fill="#efeee6"/>
+<path d="M 556 300 A 84 84 0 0 0 724 300" fill="none" stroke="#111110" stroke-width="34"/>
+</svg>
