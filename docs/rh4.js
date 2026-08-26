@@ -395,6 +395,22 @@
     return n;
   };
 
+  /**
+   * Con cosa un chip puo' essere accoppiato. La fabbrica non lo sa e non gli
+   * serve saperlo: un chip conosce solo il proprio token. La coppia si decide
+   * dopo, quando si apre il pool.
+   *
+   * `depth` e' il fondo del pool di riferimento con WETH, misurato sulla
+   * chain: senza quello non si sa quanto vale un'unita' in ETH, e il range
+   * finirebbe piazzato su un cambio inventato.
+   */
+  const PAIRS = {
+    weth: { label: "WETH", note: "priced in ether directly" },
+    nvda: { label: "NVDA", note: "NVIDIA · ~0.086 ETH a share" },
+    sndk: { label: "SNDK", note: "SanDisk · reference pool is empty — no usable price", bad: true },
+    spcx: { label: "SPCX", note: "SpaceX · ~0.056 ETH a share" },
+  };
+
   const RATES = [
     { hz: 10, label: "10 HZ", note: "one tick per block" },
     { hz: 40, label: "40 HZ", note: "4× fast-forward" },
@@ -530,6 +546,7 @@
       });
       this.drawEmission();
       this.buildUpload();
+      this.buildPair();
 
       const onInput = () => {
         // il ticker si normalizza mentre scrivi, come lo vuole il contratto
@@ -587,6 +604,7 @@
         `<div class="em-row"><span>Earned by cycles</span><span>${fmt(reserve)} ${this.tickerEl.value || "TOKENS"}</span></div>` +
         `<div class="em-row"><span>Per clock cycle</span><span>${fmt(perCycle)}</span></div>` +
         `<div class="em-row"><span>Cost of one tick</span><span>${ethPerTick.toPrecision(3)} ETH</span></div>` +
+        `<div class="em-row"><span>Trades against</span><span>${(PAIRS[this.pair || "weth"] || PAIRS.weth).label}</span></div>` +
         `<div class="em-break">Ticking pays for itself once the token is worth about ` +
         `<b>${fmt(breakEvenMcap)} ETH</b> fully diluted. Below that the chip stalls ` +
         `until someone thinks it is worth running.</div>`;
@@ -664,6 +682,25 @@
         });
       }
       drop.addEventListener("drop", (e) => accept(e.dataTransfer?.files?.[0]));
+    }
+
+    /** Selettore della coppia. Non tocca la mint: informa il passo del pool. */
+    buildPair() {
+      const note = $("#f-pair-note");
+      if (!note) return;
+      this.pair = "weth";
+
+      document.querySelectorAll("[data-pair]").forEach((b) => {
+        b.addEventListener("click", () => {
+          this.pair = b.dataset.pair;
+          document.querySelectorAll("[data-pair]").forEach((x) =>
+            x.classList.toggle("is-on", x === b));
+          const p = PAIRS[this.pair];
+          note.textContent = p.note;
+          note.classList.toggle("is-bad", Boolean(p.bad));
+          this.drawEmission();
+        });
+      });
     }
 
     switchProgram(name) {
