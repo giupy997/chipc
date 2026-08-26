@@ -7,6 +7,28 @@ Nessuna emulazione: il contratto valuta 1.029 porte NAND a ogni ciclo.
 Il clock non è un oscillatore. **Un blocco = un colpo di clock.**
 Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
 
+## La narrativa
+
+**La chain non puo' sostituire i chip fisici — ci gira sopra.** Ogni ciclo
+della RH-8 viene rieseguito da ogni validatore: il calcolo on-chain e'
+silicio moltiplicato per la ridondanza, mai un'alternativa al silicio.
+
+Quello che la chain ha, e il datacenter mai avra', e' un'altra proprieta':
+**un chip fisico non puo' provare cosa ha fatto. Questo si.** Ogni ciclo e'
+pubblico, deterministico, rieseguibile da chiunque, per sempre.
+
+La strada dichiarata (sezione "The point" del sito):
+
+1. **Ora** — un processore vivo, ogni ciclo firmato e inciso
+2. **Poi** — batching, chip componibili, una rete neurale sintetizzata in NAND
+3. **Il traguardo** — il co-processore verificabile: il processore gira
+   off-chain a velocita' piena, il risultato si pubblica con una cauzione, e
+   una disputa si bisechera' fino al singolo ciclo conteso, rigiocato dentro
+   il gate array. La chain smette di essere il motore e diventa il tribunale.
+
+Il mattone duro di quel tribunale — `step()`, pura e deterministica — non e'
+roadmap: e' costruito e verificato contro il silicio su quattro livelli.
+
 ## La generazione a 8 bit
 
 Il rilancio avviene sulla **RH-8**: 8 bit, un ingresso, 256 byte di RAM.

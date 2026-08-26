@@ -26,10 +26,10 @@
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
     <span class="ticker-set">
-      <b>2,368 NAND GATES</b><b>171 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>256 BYTES OF RAM</b><b>NO EMULATION</b><b>ONE BYTE IN, EVERY TICK</b>
+      <b>2,368 NAND GATES</b><b>171 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>256 BYTES OF RAM</b><b>NO EMULATION</b><b>ONE BYTE IN, EVERY TICK</b><b>OFF&#8209;CHAIN SPEED / ON&#8209;CHAIN TRUTH</b>
     </span>
     <span class="ticker-set">
-      <b>2,368 NAND GATES</b><b>171 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>256 BYTES OF RAM</b><b>NO EMULATION</b><b>ONE BYTE IN, EVERY TICK</b>
+      <b>2,368 NAND GATES</b><b>171 FLIP&#8209;FLOPS</b><b>ONE BLOCK / ONE CLOCK TICK</b><b>CHAIN ROBINHOOD // 4663</b><b>256 BYTES OF RAM</b><b>NO EMULATION</b><b>ONE BYTE IN, EVERY TICK</b><b>OFF&#8209;CHAIN SPEED / ON&#8209;CHAIN TRUTH</b>
     </span>
   </div>
 </div>
@@ -46,6 +46,7 @@
     <a href="#build">Fabrication</a>
     <a href="#isa">Instruction set</a>
     <a href="#clock">Clock</a>
+    <a href="#road">The point</a>
   </nav>
   <a class="btn btn-dark btn-sm" href="https://github.com/giupy997/chipc">Source <span class="arr">&#8599;</span></a>
 </header>
@@ -522,8 +523,71 @@
   </section>
 
   <!-- =================================================== credit -->
+  <!-- =================================================== the point -->
+  <section id="road" class="sec">
+    <p class="pill"><span class="pill-n">&sect;&thinsp;07</span>THE POINT</p>
+    <div class="sec-head">
+      <h2 class="display display-2">Not faster silicon.<br><em>Provable silicon.</em></h2>
+      <p class="sec-copy">
+        A blockchain cannot replace physical chips &mdash; it <em>runs</em> on
+        physical chips. Every cycle the RH&#8209;8 executes is re&#8209;executed
+        by every validator on the network: on&#8209;chain compute is not an
+        alternative to silicon, it is silicon times redundancy. Anyone
+        promising to replace GPUs with a chain is selling physics that does
+        not exist. What the chain has, and the datacenter never will, is a
+        different property entirely.
+      </p>
+    </div>
+
+    <div class="note">
+      <span class="ck"><i class="sq sq-mint"></i> THE PROPERTY</span>
+      <h3>A physical chip cannot prove what it did. This one can.</h3>
+      <p>
+        An AI answers, a computation returns a number &mdash; and you take
+        someone&rsquo;s word for it. Verifiability is the one thing the chain
+        adds to silicon: every cycle here is public, deterministic, and
+        re&#8209;executable by anyone, forever. The question is never
+        <em>how fast</em> it computed &mdash; it is whether anyone can check
+        that it did.
+      </p>
+    </div>
+
+    <ol class="steps">
+      <li>
+        <span class="step-n">NOW</span>
+        <h3>A live processor</h3>
+        <p>Every cycle paid for, signed and engraved. A machine whose entire
+        history &mdash; every byte it was ever fed &mdash; is auditable down
+        to the gate.</p>
+      </li>
+      <li>
+        <span class="step-n">NEXT</span>
+        <h3>Compose and batch</h3>
+        <p>Many cycles per transaction, chips wired into chips, and a neural
+        network synthesised to NAND &mdash; inference running gate&#8209;level
+        inside the chain.</p>
+      </li>
+      <li>
+        <span class="step-n">GOAL</span>
+        <h3>The verifiable co&#8209;processor</h3>
+        <p>The processor runs off&#8209;chain at full speed. The result is
+        posted with a bond. A dispute bisects to the single contested cycle
+        and replays it inside the gate array &mdash; the chain stops being
+        the engine and becomes <em>the court</em>.</p>
+      </li>
+    </ol>
+
+    <p class="footnote">
+      The hard primitive of that court &mdash; a pure, deterministic
+      <code>step()</code> that executes exactly one cycle &mdash; is not a
+      roadmap item. It is built, and verified against the silicon on four
+      independent layers: RTL simulation, the synthesised netlist, the
+      interpreter alone, and a minted chip.
+    </p>
+  </section>
+
   <section class="sec sec-last">
-    <p class="pill"><span class="pill-n">&sect;&thinsp;07</span>THE DESIGN</p>
+    <p class="pill"><span class="pill-n">&sect;&thinsp;08</span>THE DESIGN</p>
     <div class="sec-head">
       <h2 class="display display-2">Ours,<br><em>end to end.</em></h2>
       <p class="sec-copy">
