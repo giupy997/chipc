@@ -571,7 +571,7 @@
 
       // parametri economici del chip che si sta disegnando
       this.liqBps = 2000;
-      this.spanSeconds = 31536000; // un anno
+      this.spanSeconds = 7776000; // 90 giorni, come il chip #1
 
       document.querySelectorAll("[data-liq]").forEach((b) => {
         b.addEventListener("click", () => {

@@ -20,7 +20,9 @@
  *     --liquidity BPS  quota dell'offerta che va subito a chi conia, in
  *                      centesimi di punto (2000 = 20%). Max 5000.
  *     --target N       su quanti cicli spalmare la riserva. A 10 Hz:
- *                      25.920.000 = 30 giorni, 315.360.000 = un anno.
+ *                      77.760.000 = 90 giorni (default). Allungare abbassa
+ *                      il premio per ciclo E alza il costo totale in gas di
+ *                      chi volesse prosciugare la riserva: e' l'anti-bot.
  *     --owner 0x...    chi comanda la fabbrica (default: chi deploya).
  *                      Utile per deployare da un wallet caldo e lasciare i
  *                      poteri a uno freddo o a un multisig.
@@ -191,7 +193,7 @@ async function main() {
     }
 
     const liquidityBps = Number(args.liquidity ?? 2000);
-    const targetCycles = BigInt(args.target ?? 25_920_000); // 30 giorni a 10 Hz
+    const targetCycles = BigInt(args.target ?? 77_760_000); // 90 giorni a 10 Hz
 
     const hash = await wallet.writeContract({
       address: factoryAddr,
