@@ -13,7 +13,22 @@
  *     --interval MS    spaziatura minima fra un tick e il successivo
  *     --gas N          limite di gas per tick (default 120000)
  *     --poll MS        ogni quanto interrogare l'RPC (default 40)
+ *     --sweep-to DOVE  dove mandare i token guadagnati: `factory` per
+ *                      rimetterli nella riserva, `burn` per bruciarli, o un
+ *                      indirizzo. Senza, restano al keeper.
+ *     --sweep-every N  ogni quanti cicli spazzare (default 100)
  *     --dry-run        guarda e racconta, non manda niente
+ *
+ * ------------------------------------------------------------------------
+ *  Perche' esiste --sweep-to
+ * ------------------------------------------------------------------------
+ * Un tick paga chi lo chiama. Se il keeper e' l'unico a girare, in poco
+ * tempo il wallet di chi ha lanciato il progetto si ritrova l'intera
+ * riserva: da fuori e' indistinguibile da un accumulo prima di scappare.
+ *
+ * `--sweep-to factory` rimette i token da dove sono usciti. Il chip continua
+ * a girare, il gas lo paghi tu, e l'offerta non si sposta in tasca a
+ * nessuno — esce solo quando a ticchettare e' qualcun altro davvero.
  *
  * `tick()` e' aperto a chiunque, quindi questo keeper non ha nessun diritto
  * speciale: e' solo il primo a pagare. Se qualcun altro tocca il clock nello
@@ -35,6 +50,7 @@ const {
   parseEventLogs,
 } = require("viem");
 const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
+const { getAddress } = require("viem");
 
 const ABI = [
   {
@@ -81,6 +97,26 @@ const ABI = [
  * Stesse chiamate, firma diversa: la RH-4 singola ha `tick()`, la fabbrica
  * ha `tick(uint256 id)`. Il resto del keeper non deve accorgersene.
  */
+const ERC20_ABI = [
+  { type: "function", name: "balanceOf", stateMutability: "view",
+    inputs: [{ type: "address" }], outputs: [{ type: "uint256" }] },
+  { type: "function", name: "transfer", stateMutability: "nonpayable",
+    inputs: [{ type: "address" }, { type: "uint256" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "symbol", stateMutability: "view",
+    inputs: [], outputs: [{ type: "string" }] },
+];
+
+const EMISSION_ABI = [
+  { type: "function", name: "emission", stateMutability: "view",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [
+      { name: "token", type: "address" },
+      { name: "reserveLeft", type: "uint256" },
+      { name: "rewardPerCycle", type: "uint256" },
+      { name: "cyclesLeft", type: "uint256" },
+    ] },
+];
+
 const FACTORY_ABI = [
   {
     type: "function",
@@ -194,7 +230,42 @@ async function main() {
     process.exit(1);
   }
 
-  const stats = { sent: 0, landed: 0, lost: 0, spent: 0n, t0: Date.now() };
+  // --- dove finiscono i token guadagnati ---
+  const BURN = "0x000000000000000000000000000000000000dEaD";
+  let sweepTo = null;
+  let chipToken = null;
+  const sweepEvery = Number(args["sweep-every"] || 100);
+
+  if (args["sweep-to"]) {
+    const dest = String(args["sweep-to"]).toLowerCase();
+    if (dest === "factory") sweepTo = cpu;
+    else if (dest === "burn") sweepTo = BURN;
+    else {
+      try {
+        sweepTo = getAddress(args["sweep-to"]);
+      } catch {
+        console.error(`--sweep-to non valido: "${args["sweep-to"]}" (usa factory, burn, o un indirizzo 0x…)`);
+        process.exit(2);
+      }
+    }
+    if (!factory) {
+      console.error("--sweep-to funziona solo con --factory: serve sapere qual e' il token del chip");
+      process.exit(2);
+    }
+    [chipToken] = await pub.readContract({
+      address: cpu, abi: EMISSION_ABI, functionName: "emission", args: [chipId],
+    });
+    if (chipToken === "0x0000000000000000000000000000000000000000") {
+      console.error(`il chip #${chipId} non ha un token: niente da spazzare`);
+      process.exit(1);
+    }
+    const sym = await pub.readContract({ address: chipToken, abi: ERC20_ABI, functionName: "symbol" });
+    const where = sweepTo === cpu ? "la riserva" : sweepTo === BURN ? "il fuoco" : sweepTo;
+    console.log(`  ricavato    ${sym} -> ${where}, ogni ${sweepEvery} cicli`);
+    console.log();
+  }
+
+  const stats = { sent: 0, landed: 0, lost: 0, spent: 0n, t0: Date.now(), swept: 0n };
   let running = true;
   let freshReceipt = false;
   let lastTickBlock = start[4];
@@ -209,6 +280,9 @@ async function main() {
     if (stats.landed) {
       console.log(`  costo per ciclo        ${formatEther(stats.spent / BigInt(stats.landed))} ETH`);
       console.log(`  frequenza tenuta       ${(stats.landed / secs).toFixed(2)} Hz`);
+    }
+    if (stats.swept > 0n) {
+      console.log(`  restituiti             ${formatEther(stats.swept)} token`);
     }
   };
 
@@ -312,6 +386,32 @@ async function main() {
     if (halted) {
       console.log("\n\nil processore ha incontrato HLT. Il clock si ferma qui.");
       break;
+    }
+
+    // Spazzata periodica: una transazione ogni N cicli invece che a ogni
+    // ciclo, altrimenti il trasferimento costerebbe piu' del tick.
+    if (sweepTo && stats.landed % sweepEvery === 0) {
+      try {
+        const bal = await pub.readContract({
+          address: chipToken, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address],
+        });
+        if (bal > 0n) {
+          const h = await wallet.writeContract({
+            address: chipToken, abi: ERC20_ABI, functionName: "transfer",
+            args: [sweepTo, bal], nonce,
+          });
+          nonce++;
+          const r = await pub.waitForTransactionReceipt({ hash: h, pollingInterval, timeout: 60_000 });
+          stats.spent += r.gasUsed * r.effectiveGasPrice;
+          stats.swept += bal;
+          lastTickBlock = r.blockNumber;
+          freshReceipt = true;
+          console.log(`\n  spazzati ${formatEther(bal)} verso ${sweepTo}`);
+        }
+      } catch (e) {
+        console.log(`\n  spazzata fallita: ${short(e)}`);
+        nonce = await pub.getTransactionCount({ address: account.address });
+      }
     }
 
     if (interval) await sleep(interval);
