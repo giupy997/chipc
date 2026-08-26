@@ -4,10 +4,12 @@
 
 [build]
   publish = "docs"
-
-# Sito statico: non c'e' niente da compilare. La netlist per il browser
-# (docs/rh4-data.js) e' generata da `make site` e committata.
+  # Sito statico: non c'e' niente da compilare. La netlist per il browser
+  # (docs/rh4-data.js) e' generata da `make site` e committata.
   command = ""
+  # Le funzioni stanno fuori da docs/: non vanno servite come file statici,
+  # Netlify le monta come endpoint (vedi il `config.path` dentro pin.mjs).
+  functions = "netlify/functions"
 
 [[headers]]
   for = "/*"

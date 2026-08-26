@@ -529,6 +529,7 @@
         });
       });
       this.drawEmission();
+      this.buildUpload();
 
       const onInput = () => {
         // il ticker si normalizza mentre scrivi, come lo vuole il contratto
@@ -589,6 +590,80 @@
         `<div class="em-break">Ticking pays for itself once the token is worth about ` +
         `<b>${fmt(breakEvenMcap)} ETH</b> fully diluted. Below that the chip stalls ` +
         `until someone thinks it is worth running.</div>`;
+    }
+
+    /**
+     * Il caricamento del logo.
+     *
+     * Il contratto salva un URI, non l'immagine: il file va prima su IPFS e
+     * solo dopo l'URI entra nella mint. Il pinning passa da una funzione
+     * server perche' la chiave di Pinata nel browser non puo' stare —
+     * chiunque la userebbe per riempire l'account di qualcun altro.
+     */
+    buildUpload() {
+      const drop = $("#f-drop");
+      const input = $("#f-file");
+      const thumb = $("#f-thumb");
+      const text = $("#f-drop-text");
+      const note = $("#f-logo-note");
+      if (!drop) return;
+
+      this.logoURI = "";
+
+      const say = (msg, state) => {
+        note.textContent = msg;
+        note.classList.toggle("is-bad", state === "bad");
+        note.classList.toggle("is-busy", state === "busy");
+      };
+
+      const accept = async (file) => {
+        if (!file) return;
+        if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) {
+          return say("only PNG, JPEG, GIF or WebP — SVG can carry scripts", "bad");
+        }
+        if (file.size > 1024 * 1024) {
+          return say(`${Math.round(file.size / 1024)} kB is over the 1 MB limit`, "bad");
+        }
+
+        // anteprima subito, senza aspettare la rete: se il file e' sbagliato
+        // te ne accorgi prima di caricarlo
+        thumb.src = URL.createObjectURL(file);
+        thumb.hidden = false;
+        text.hidden = true;
+        drop.classList.add("is-set");
+        this.cardKey = null;
+
+        say("pinning to IPFS…", "busy");
+        try {
+          const body = new FormData();
+          body.append("file", file);
+          const res = await fetch("/api/pin", { method: "POST", body });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+          this.logoURI = data.uri;
+          say(data.uri);
+        } catch (e) {
+          this.logoURI = "";
+          say(`upload failed: ${e.message}`, "bad");
+        }
+      };
+
+      drop.addEventListener("click", () => input.click());
+      input.addEventListener("change", () => accept(input.files[0]));
+
+      for (const ev of ["dragenter", "dragover"]) {
+        drop.addEventListener(ev, (e) => {
+          e.preventDefault();
+          drop.classList.add("is-over");
+        });
+      }
+      for (const ev of ["dragleave", "drop"]) {
+        drop.addEventListener(ev, (e) => {
+          e.preventDefault();
+          drop.classList.remove("is-over");
+        });
+      }
+      drop.addEventListener("drop", (e) => accept(e.dataTransfer?.files?.[0]));
     }
 
     switchProgram(name) {
