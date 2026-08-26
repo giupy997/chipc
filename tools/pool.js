@@ -10,6 +10,12 @@
  *     --fdv-start N   FDV in ETH a cui parte il range   (default 5)
  *     --fdv-end N     FDV in ETH a cui finisce          (default 50)
  *     --fee N         fee tier in centesimi di bps: 500 | 3000 | 10000 (def.)
+ *     --quote NOME    con cosa accoppiare: weth (default), nvda, sndk, spcx,
+ *                     oppure un indirizzo. Gli FDV restano espressi in ETH:
+ *                     la conversione passa dal pool quote/WETH.
+ *     --rate N        forza il cambio ETH per unita' di quote, invece di
+ *                     leggerlo dalla chain. Serve quando il pool di
+ *                     riferimento e' troppo sottile per dire un prezzo.
  *     --dry-run       calcola tutto e non manda niente
  *
  * ------------------------------------------------------------------------
@@ -51,10 +57,27 @@ const V3_FACTORY = "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA";
 const NPM = "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3";
 const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
 
+/**
+ * Titoli tokenizzati su Robinhood Chain, tutti a 18 decimali (verificato).
+ *
+ * Attenzione: su questa chain esistono parecchi impostori con le stesse
+ * sigle. Questi sono quelli ufficiali, riconoscibili dal nome che finisce
+ * con "• Robinhood Token".
+ */
+const QUOTES = {
+  weth: WETH,
+  nvda: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", // NVIDIA
+  sndk: "0xB90A19fF0Af67f7779afF50A882A9CfF42446400", // SanDisk
+  spcx: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa", // SpaceX
+};
+
 const TOTAL_SUPPLY = 1_000_000_000; // il ChipToken ne conia sempre un miliardo
 const MIN_TICK = -887272;
 const MAX_TICK = 887272;
 const SPACING = { 500: 10, 3000: 60, 10000: 200 };
+
+/** Sotto questa profondita' il pool di riferimento non dice un prezzo vero. */
+const MIN_QUOTE_DEPTH = 50000000000000000n; // 0,05 WETH
 
 // ---------------------------------------------------------------- tick math
 
@@ -171,6 +194,21 @@ const ERC20_ABI = [
     inputs: [{ name: "a", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "symbol", stateMutability: "view",
     inputs: [], outputs: [{ type: "string" }] },
+  { type: "function", name: "decimals", stateMutability: "view",
+    inputs: [], outputs: [{ type: "uint8" }] },
+];
+
+const POOL_ABI = [
+  { type: "function", name: "slot0", stateMutability: "view", inputs: [],
+    outputs: [
+      { name: "sqrtPriceX96", type: "uint160" }, { name: "tick", type: "int24" },
+      { name: "observationIndex", type: "uint16" },
+      { name: "observationCardinality", type: "uint16" },
+      { name: "observationCardinalityNext", type: "uint16" },
+      { name: "feeProtocol", type: "uint8" }, { name: "unlocked", type: "bool" },
+    ] },
+  { type: "function", name: "liquidity", stateMutability: "view", inputs: [],
+    outputs: [{ type: "uint128" }] },
 ];
 
 const FACTORY_ABI = [
@@ -189,6 +227,55 @@ const CHIP_ABI = [
       { name: "cyclesLeft", type: "uint256" },
     ] },
 ];
+
+/**
+ * Quanti ETH vale un'unita' del token di quotazione.
+ *
+ * Senza questo il range andrebbe espresso in unita' del quote — "FDV da 5 a
+ * 50 azioni NVIDIA" non dice niente a nessuno. Passando dal pool quote/WETH
+ * i numeri restano leggibili in ETH qualunque sia la coppia.
+ */
+async function ethPerQuote(pub, quote) {
+  if (quote.toLowerCase() === WETH.toLowerCase()) return 1;
+
+  const [a, b] = quote.toLowerCase() < WETH.toLowerCase() ? [quote, WETH] : [WETH, quote];
+  let best = null;
+  for (const fee of [500, 3000, 10000]) {
+    const addr = await pub.readContract({
+      address: V3_FACTORY, abi: FACTORY_ABI, functionName: "getPool", args: [a, b, fee],
+    });
+    if (addr === "0x0000000000000000000000000000000000000000") continue;
+    const liq = await pub.readContract({ address: addr, abi: POOL_ABI, functionName: "liquidity" });
+    // il pool piu' liquido e' quello di cui fidarsi per il prezzo
+    if (!best || liq > best.liq) best = { addr, liq, fee };
+  }
+  if (!best || best.liq === 0n) {
+    throw new Error("nessun pool quote/WETH con liquidita': non so quanto vale in ETH");
+  }
+
+  // Un pool vuoto ha comunque uno slot0, e quel prezzo e' inventato. Senza
+  // questo controllo il range finirebbe piazzato su un cambio che non e' mai
+  // stato scambiato da nessuno.
+  const depth = await pub.readContract({
+    address: WETH, abi: ERC20_ABI, functionName: "balanceOf", args: [best.addr],
+  });
+  if (depth < MIN_QUOTE_DEPTH) {
+    throw new Error(
+      `il pool di riferimento ha solo ${formatEther(depth)} WETH: troppo poco ` +
+      `per dire un prezzo.\n  Se sai tu quanto vale, passalo con --rate <ETH per unita'>.`
+    );
+  }
+
+  const [sqrt] = await pub.readContract({
+    address: best.addr, abi: POOL_ABI, functionName: "slot0",
+  });
+  // price = token1 per token0
+  const price = (Number(sqrt) / 2 ** 96) ** 2;
+  const wethIsToken0 = a.toLowerCase() === WETH.toLowerCase();
+  // se WETH e' token0, price = quote per WETH, quindi si inverte
+  const eth = wethIsToken0 ? 1 / price : price;
+  return { eth, pool: best.addr, fee: best.fee, depth };
+}
 
 // -------------------------------------------------------------------- main
 
@@ -239,34 +326,67 @@ async function main() {
   const balance = await pub.readContract({
     address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address],
   });
-  const amount = args.amount ? parseUnits(String(args.amount), 18) : balance;
-  if (amount === 0n) {
-    console.error("non hai token da mettere nel range");
-    process.exit(1);
-  }
+  // In dry-run il saldo non deve fermare niente: serve a decidere prima di
+  // avere i token in mano, non dopo.
+  const amount = args.amount
+    ? parseUnits(String(args.amount), 18)
+    : balance !== 0n ? balance : parseUnits(String(TOTAL_SUPPLY * 0.2), 18);
+
   if (amount > balance) {
-    console.error(`saldo insufficiente: hai ${formatEther(balance)} ${symbol}`);
-    process.exit(1);
+    const msg = `saldo insufficiente: hai ${formatEther(balance)} ${symbol}, ne servono ${formatEther(amount)}`;
+    if (!dryRun) {
+      console.error(msg);
+      process.exit(1);
+    }
+    console.log(`  ATTENZIONE  ${msg}`);
+  }
+
+  // --- con cosa accoppiamo ---
+  const qArg = String(args.quote || "weth").toLowerCase();
+  const quoteAddr = QUOTES[qArg] || (qArg.startsWith("0x") ? qArg : null);
+  if (!quoteAddr) {
+    console.error(`quote sconosciuto: ${qArg} (usa ${Object.keys(QUOTES).join(", ")} o un indirizzo)`);
+    process.exit(2);
+  }
+  const quote = getAddress(quoteAddr);
+  const quoteSymbol = await pub.readContract({ address: quote, abi: ERC20_ABI, functionName: "symbol" });
+  const quoteDecimals = await pub.readContract({ address: quote, abi: ERC20_ABI, functionName: "decimals" });
+  if (quoteDecimals !== 18) {
+    console.error(`${quoteSymbol} ha ${quoteDecimals} decimali: i conti del range assumono 18`);
+    process.exit(2);
+  }
+
+  // Gli FDV restano in ETH anche accoppiando con un titolo: si converte.
+  let conv, rate;
+  if (args.rate) {
+    rate = Number(args.rate);
+    conv = { forced: true };
+  } else {
+    conv = await ethPerQuote(pub, quote);
+    rate = typeof conv === "number" ? conv : conv.eth;
   }
 
   // --- ordinamento e range ---
-  const weth = getAddress(WETH);
-  const ourIsToken0 = token.toLowerCase() < weth.toLowerCase();
-  const [token0, token1] = ourIsToken0 ? [token, weth] : [weth, token];
+  const ourIsToken0 = token.toLowerCase() < quote.toLowerCase();
+  const [token0, token1] = ourIsToken0 ? [token, quote] : [quote, token];
 
   // Il prezzo in v3 e' sempre token1 per token0. Il nostro riferimento e'
   // invece l'FDV in ETH, quindi la conversione cambia con l'ordinamento.
+  // FDV in ETH -> FDV in unita' di quote -> prezzo per token
+  const qStart = fdvStart / rate;
+  const qEnd = fdvEnd / rate;
+
   let tickLower, tickUpper, initTick;
   if (ourIsToken0) {
-    // prezzo = ETH per token, cresce con l'FDV
-    tickLower = floorToSpacing(tickAtPrice(fdvStart / TOTAL_SUPPLY), spacing);
-    tickUpper = floorToSpacing(tickAtPrice(fdvEnd / TOTAL_SUPPLY), spacing);
+    // prezzo = quote per token, cresce con l'FDV
+    tickLower = floorToSpacing(tickAtPrice(qStart / TOTAL_SUPPLY), spacing);
+    tickUpper = floorToSpacing(tickAtPrice(qEnd / TOTAL_SUPPLY), spacing);
     if (tickUpper <= tickLower) tickUpper = tickLower + spacing;
     initTick = tickLower; // il pool parte in fondo: la posizione e' tutta token
   } else {
-    // prezzo = token per ETH, DEcresce con l'FDV
-    tickLower = floorToSpacing(tickAtPrice(TOTAL_SUPPLY / fdvEnd), spacing);
-    tickUpper = floorToSpacing(tickAtPrice(TOTAL_SUPPLY / fdvStart), spacing);
+    // prezzo = token per quote, DEcresce con l'FDV
+    tickLower = floorToSpacing(tickAtPrice(TOTAL_SUPPLY / qEnd), spacing);
+    tickUpper = floorToSpacing(tickAtPrice(TOTAL_SUPPLY / qStart), spacing);
     if (tickUpper <= tickLower) tickUpper = tickLower + spacing;
     initTick = tickUpper; // il pool parte in cima: la posizione e' tutta token
   }
@@ -282,9 +402,18 @@ async function main() {
   console.log(`  wallet      ${account.address}`);
   console.log(`  token       ${symbol}  ${token}`);
   console.log(`  in gioco    ${formatEther(amount)} ${symbol} (${(Number(formatEther(amount)) / TOTAL_SUPPLY * 100).toFixed(1)}% dell'offerta)`);
-  console.log(`  ETH da te   0 — lo mettono i compratori`);
-  console.log(`  coppia      ${ourIsToken0 ? `${symbol}/WETH` : `WETH/${symbol}`}, fee ${fee / 10000}%`);
-  console.log(`  range       FDV da ${fdvStart} a ${fdvEnd} ETH`);
+  console.log(`  ${quoteSymbol} da te${" ".repeat(Math.max(0, 6 - quoteSymbol.length))} 0 — lo mettono i compratori`);
+  console.log(`  coppia      ${ourIsToken0 ? `${symbol}/${quoteSymbol}` : `${quoteSymbol}/${symbol}`}, fee ${fee / 10000}%`);
+  if (rate !== 1) {
+    console.log(
+      `  cambio      1 ${quoteSymbol} = ${rate.toPrecision(6)} ETH  ` +
+      (conv.forced
+        ? "(forzato con --rate)"
+        : `(pool ${conv.pool.slice(0, 10)}…, ${formatEther(conv.depth)} WETH di fondo)`)
+    );
+  }
+  console.log(`  range       FDV da ${fdvStart} a ${fdvEnd} ETH` +
+    (rate !== 1 ? `  =  da ${qStart.toPrecision(4)} a ${qEnd.toPrecision(4)} ${quoteSymbol}` : ""));
   console.log(`  tick        [${tickLower}, ${tickUpper}], pool inizializzato a ${initTick}`);
 
   const existing = await pub.readContract({
@@ -360,8 +489,8 @@ async function main() {
     console.log(`  explorer    ${chain.blockExplorers.default.url}/address/${pool}`);
   }
   console.log(`  chart       https://dexscreener.com/robinhood/${pool.toLowerCase()}`);
-  console.log("\nla posizione e' un NFT Uniswap nel tuo wallet: l'ETH che si");
-  console.log("accumula man mano che comprano e' tuo, si ritira da li'.");
+  console.log(`\nla posizione e' un NFT Uniswap nel tuo wallet: i ${quoteSymbol} che si`);
+  console.log("accumulano man mano che comprano sono tuoi, si ritirano da li'.");
 }
 
 main().catch((e) => {
