@@ -1,0 +1,28 @@
+# rh8.ys — dall'RTL a una netlist di soli NAND + flip-flop D.
+#
+# Il vincolo non e' il silicio, e' l'EVM: ogni gate diventera' qualche
+# istruzione di Yul srotolata, e i flip-flop diventeranno i bit di una
+# bitmap in storage. Meno tipi di cella ci sono, piu' corto e' il codegen.
+
+read_verilog rtl/rh8.v
+hierarchy -check -top rh8
+
+# sintesi generica: proc/opt/fsm/memory/techmap fino alle celle a gate singolo
+synth -top rh8 -flatten
+
+# un solo tipo di flip-flop: D con fronte di salita, init 0.
+# Niente enable, niente reset: l'enable diventa un mux davanti al dato,
+# e il reset non serve perche' lo stato iniziale e' tutto zeri.
+dfflegalize -cell $_DFF_P_ 0
+
+# mappatura combinatoria su NAND
+abc -g NAND
+opt_clean -purge
+
+# gli inverter residui diventano NAND con i due ingressi in corto
+techmap -map synth/not2nand.v
+opt_clean -purge
+
+stat
+write_json build/rh8.json
+write_verilog -noattr build/rh8_netlist.v
