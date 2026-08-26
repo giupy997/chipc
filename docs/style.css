@@ -20,8 +20,10 @@
   --panel-line: #272a25;
   --panel-dim:  #6f7669;
 
-  --display: "Archivo Black", "Archivo", Helvetica, Arial, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  /* Il marchio e' un'incisione ottocentesca: un grottesco pesante le
+     litigava contro. Un serif editoriale ci sta d'accordo. */
+  --display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --gutter: clamp(16px, 4vw, 56px);
   --maxw: 1400px;
@@ -40,9 +42,9 @@ body {
     linear-gradient(to bottom, rgba(17, 17, 16, 0.045) 1px, transparent 1px);
   background-size: 68px 68px;
   color: var(--ink);
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.65;
+  font-family: var(--display);
+  font-size: 17px;
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -102,17 +104,19 @@ code {
 }
 
 .ticker b {
-  font-weight: 500;
-  padding: 0 26px;
+  font-weight: 400;
+  padding: 0 2px;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
 }
+/* I quadratini verdi erano il tell piu' evidente: al loro posto un
+   filetto verticale, come su un nastro di quotazioni. */
 .ticker b::before {
   content: "";
-  width: 6px; height: 6px;
-  background: var(--mint);
-  margin-right: 14px;
+  width: 1px; height: 11px;
+  background: rgba(239, 238, 230, 0.32);
+  margin-right: 24px;
 }
 
 @keyframes slide {
@@ -146,9 +150,10 @@ code {
 }
 
 .logo-word {
-  font-family: var(--display);
-  font-size: 19px;
-  letter-spacing: -0.01em;
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .nav-links {
@@ -183,18 +188,17 @@ code {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
-  padding: 14px 26px;
+  padding: 15px 28px;
   border: var(--rule);
-  box-shadow: 5px 5px 0 var(--ink);
   cursor: pointer;
-  transition: transform 0.08s, box-shadow 0.08s;
+  transition: background 0.14s, color 0.14s;
 }
-.btn:hover  { transform: translate(2px, 2px); box-shadow: 3px 3px 0 var(--ink); }
-.btn:active { transform: translate(5px, 5px); box-shadow: 0 0 0 var(--ink); }
+.btn-light:hover { background: var(--ink); color: var(--paper); }
+.btn-dark:hover  { background: var(--paper); color: var(--ink); }
 
 .btn-dark  { background: var(--ink); color: var(--paper); }
 .btn-light { background: var(--paper); color: var(--ink); }
-.btn-sm    { padding: 9px 16px; font-size: 11px; box-shadow: 3px 3px 0 var(--ink); }
+.btn-sm    { padding: 10px 18px; font-size: 11px; }
 
 /* ================================================================ hero == */
 
@@ -214,22 +218,23 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .tag { color: var(--ink); margin-bottom: 22px; }
 
 .issue {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  font-family: var(--display);
+  font-size: 15px;
+  font-style: italic;
   color: var(--dim);
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 18px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 .issue b {
+  font-family: var(--display);
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 400;
   color: var(--ink);
-  background: var(--amber);
-  border: var(--rule);
-  padding: 4px 9px;
-  font-weight: 600;
+  border-bottom: 2px solid var(--amber);
+  padding-bottom: 1px;
 }
 
 /* the display face — filled line then outlined line */
@@ -237,27 +242,19 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .display {
   font-family: var(--display);
   font-weight: 400;
-  letter-spacing: -0.035em;
-  text-transform: uppercase;
+  letter-spacing: -0.015em;
 }
+.display em { font-style: italic; font-weight: 300; }
 
 .hero .display {
   /* dimensionato per stare nella colonna sinistra: la parola piu' lunga
      e' BLOCKSPACE. e a 72px misura ~490px contro i ~556px disponibili */
-  font-size: clamp(38px, 5.2vw, 72px);
-  line-height: 0.94;
+  font-size: clamp(44px, 6.4vw, 92px);
+  line-height: 1.02;
   margin-bottom: 26px;
 }
 
-.fill { color: var(--ink); }
 
-.outline { color: var(--ink); }
-@supports (-webkit-text-stroke: 1px #000) {
-  .outline {
-    -webkit-text-stroke: 2px var(--ink);
-    color: transparent;
-  }
-}
 
 .lede {
   max-width: 46ch;
@@ -300,7 +297,6 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .console {
   background: var(--panel);
   border: var(--rule);
-  box-shadow: 8px 8px 0 var(--ink);
   color: var(--paper);
   display: flex;
   flex-direction: column;
@@ -427,14 +423,15 @@ main { max-width: var(--maxw); margin: 0 auto; }
 
 .cell .ck { color: var(--dim); }
 
+/* Il numerone contornato era una citazione diretta. Un numero piccolo in
+   corsivo dice la stessa cosa senza gridarla. */
 .ghost {
   position: absolute;
-  top: 6px; right: 14px;
+  top: 22px; right: 20px;
   font-family: var(--display);
-  font-size: 62px;
-  line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 1.5px rgba(17, 17, 16, 0.13);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--dim);
   pointer-events: none;
 }
 
@@ -462,12 +459,24 @@ main { max-width: var(--maxw); margin: 0 auto; }
 }
 .sec-last { border-bottom: none; }
 
+/* Dal riquadro brutalista alla dicitura da rivista: un filetto che
+   attraversa la pagina e la sezione scritta sopra, non dentro una scatola. */
 .pill {
-  display: inline-block;
-  border: var(--rule);
-  padding: 6px 12px;
-  margin-bottom: 30px;
-  background: var(--paper);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 34px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(17, 17, 16, 0.28);
+  color: var(--dim);
+}
+.pill-n {
+  font-family: var(--display);
+  font-size: 15px;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
 }
 
 .sec-head {
@@ -480,10 +489,9 @@ main { max-width: var(--maxw); margin: 0 auto; }
 @media (max-width: 860px) { .sec-head { grid-template-columns: 1fr; align-items: start; } }
 
 .display-2 {
-  font-size: clamp(30px, 4.6vw, 58px);
-  line-height: 0.98;
-  letter-spacing: -0.035em;
-  text-transform: none;
+  font-size: clamp(32px, 4.8vw, 60px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
 }
 
 .sec-copy {
@@ -562,7 +570,6 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .card {
   border: var(--rule);
   background: var(--paper);
-  box-shadow: 6px 6px 0 var(--ink);
   display: flex;
   flex-direction: column;
 }
@@ -670,10 +677,10 @@ main { max-width: var(--maxw); margin: 0 auto; }
 
 .band-set em {
   font-family: var(--display);
-  font-style: normal;
-  font-size: clamp(24px, 3.4vw, 42px);
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(26px, 3.6vw, 46px);
+  letter-spacing: -0.01em;
   padding: 0 26px;
   white-space: nowrap;
 }
@@ -833,7 +840,7 @@ main { max-width: var(--maxw); margin: 0 auto; }
   flex-wrap: wrap;
 }
 
-.f-word { font-family: var(--display); font-size: 17px; letter-spacing: -0.01em; }
+.f-word { font-family: var(--mono); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; }
 
 .f-mid, .f-link {
   font-family: var(--mono);
@@ -890,12 +897,8 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .field-note.is-bad { color: #b4432b; }
 
 .btn-block { width: 100%; }
-.btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  box-shadow: 3px 3px 0 var(--ink);
-}
-.btn:disabled:hover { transform: none; box-shadow: 3px 3px 0 var(--ink); }
+.btn:disabled { cursor: not-allowed; opacity: 0.45; }
+.btn:disabled:hover { background: var(--ink); color: var(--paper); }
 
 .chipcard { gap: 16px; }
 
