@@ -371,12 +371,44 @@
           method: "eth_sendTransaction",
           params: [{ from: this.account, to: this.cfg.factory, data }],
         });
-        this.say(`sent — ${hash.slice(0, 10)}…`);
+        this.say(`sent — ${hash.slice(0, 10)}… waiting`);
+        await this.report(hash);
       } catch (e) {
         this.say(short(e), true);
       } finally {
         this.tickBtn.disabled = false;
       }
+    }
+
+    /**
+     * Aspetta la ricevuta e dice com'e' andata.
+     *
+     * Senza questo il bottone diceva "sent" e taceva: una transazione che
+     * fallisce perche' qualcun altro ha gia' ticchettato quel blocco costa
+     * gas e non lascia traccia a schermo. Chi clicca deve sapere se il ciclo
+     * l'ha preso lui.
+     */
+    async report(hash) {
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 500));
+        let receipt;
+        try {
+          receipt = await this.provider.request({
+            method: "eth_getTransactionReceipt",
+            params: [hash],
+          });
+        } catch {
+          continue;
+        }
+        if (!receipt) continue;
+
+        if (receipt.status === "0x1") {
+          return this.say("cycle is yours — you are in the Cycle event for it");
+        }
+        // one tick per block: quasi sempre vuol dire che ti hanno battuto
+        return this.say("someone ticked that block first — the cycle went to them", true);
+      }
+      this.say("still pending — check your wallet");
     }
   }
 
