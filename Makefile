@@ -1,7 +1,7 @@
 TOP  := rh4
 PROG := forever
 
-.PHONY: all rom sim synth gatesim gatesim-forever gates evm site deploy clean
+.PHONY: all rom sim synth gatesim gatesim-forever gates evm site deploy clean rh8
 
 all: sim gatesim gatesim-forever evm site
 
@@ -61,3 +61,16 @@ deploy: evm build/$(PROG).slots.json
 
 clean:
 	@rm -rf build out cache src/RH4Gates.sol
+
+# ---- RH-8: 8 bit, ingresso, RAM ------------------------------------------
+# La netlist e' troppo grande per essere srotolata in Yul, quindi diventa
+# dati e il contratto la interpreta. Vedi tools/codegen8.js.
+rh8: build/rh8.json src/RH8Gates.sol
+	@iverilog -g2005 -o build/tb_rh8.vvp rtl/rh8.v sim/tb_rh8.v && vvp build/tb_rh8.vvp
+	@forge test --match-contract RH8Test -vv 2>/dev/null | grep -E "gas per ciclo|PASS|FAIL"
+
+build/rh8.json: rtl/rh8.v synth/rh8.ys synth/not2nand.v
+	@yosys -q -s synth/rh8.ys
+
+src/RH8Gates.sol: build/rh8.json tools/codegen8.js tools/netlist.js
+	@node tools/codegen8.js build/rh8.json src/RH8Gates.sol
