@@ -212,6 +212,27 @@ contract ChipFactory8Test is Test {
         vm.writeFile("build/tokenURI-rh8.txt", uri);
     }
 
+    /// Il 60% alla liquidita' passa, il 61% no.
+    function test_tettoLiquiditaAl60() public {
+        vm.prank(alice);
+        factory.mint(_program(), "L60", "L60", "", 6_000, TARGET);
+
+        vm.prank(alice);
+        vm.expectRevert(ChipFactory8.BadLiquidityShare.selector);
+        factory.mint(_program(), "L61", "L61", "", 6_001, TARGET);
+    }
+
+    /// owner() del token = proprietario dell'NFT del chip, e segue i
+    /// trasferimenti. E' una vista per gli explorer, non un potere.
+    function test_ownerDelTokenSegueIlChip() public {
+        (uint256 id, address token) = _mint(alice, "OWN");
+        assertEq(ChipToken(token).owner(), alice);
+
+        vm.prank(alice);
+        factory.transferFrom(alice, bob, id);
+        assertEq(ChipToken(token).owner(), bob, "owner() non segue l'NFT");
+    }
+
     // ---- i numeri che decidono l'economia ------------------------------------
 
     function test_gasConioETick() public {

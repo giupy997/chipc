@@ -86,7 +86,9 @@ contract ChipFactory8 is ERC721, Ownable {
 
     uint256 public constant TICKER_MAX = 8;
     uint256 public constant TOKEN_SUPPLY = 1_000_000_000e18;
-    uint256 public constant MAX_LIQUIDITY_BPS = 5_000;
+    /// @dev Fino al 60% dell'offerta puo' andare alla liquidita'. Oltre,
+    ///      l'emissione via cicli diventerebbe una nota a margine.
+    uint256 public constant MAX_LIQUIDITY_BPS = 6_000;
     uint256 public constant MIN_TARGET_CYCLES = 100_000;
 
     struct Chip {

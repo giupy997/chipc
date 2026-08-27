@@ -19,11 +19,26 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * Il che vuol dire una cosa sola: l'unico modo di ottenere questi token,
  * oltre a comprarli, e' tenere acceso il processore.
  */
+interface IChipOwner {
+    function ownerOf(uint256 id) external view returns (address);
+}
+
 contract ChipToken is ERC20 {
     /// @notice Il chip a cui questo token appartiene.
     uint256 public immutable chipId;
     /// @notice La fabbrica che custodisce la riserva di emissione.
     address public immutable factory;
+
+    /**
+     * @notice Il proprietario del token e' chi possiede l'NFT del chip.
+     * @dev Esiste per gli explorer: senza un owner() dimostrabile, la
+     *      verifica di proprieta' su Blockscout e simili e' impossibile per
+     *      un token deployato da una factory. Non conferisce NESSUN potere
+     *      sul token — niente mint, niente pause, niente fee: e' una vista.
+     */
+    function owner() external view returns (address) {
+        return IChipOwner(factory).ownerOf(chipId);
+    }
 
     constructor(
         string memory name_,
