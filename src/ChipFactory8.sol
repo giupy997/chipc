@@ -67,6 +67,23 @@ contract ChipFactory8 is ERC721, Ownable {
     /// RAM: 256 byte, trentadue per slot.
     uint256 private constant RAM_SLOTS = 8;
 
+    /**
+     * @dev Su una chain Orbit `block.number` NON e' il blocco locale: e' il
+     *      blocco della chain madre, che avanza ogni ~12 secondi. Usarlo per
+     *      il gate del clock trasformava "un tick per blocco" in un tick
+     *      ogni 12 secondi — 0,08 Hz invece di 10, e un'emissione da 90
+     *      giorni in una da 29 anni. Il blocco L2 vero lo dice il precompile
+     *      ArbSys; il ripiego su block.number serve solo ai test locali,
+     *      dove il precompile non esiste.
+     */
+    address private constant ARB_SYS = address(100);
+
+    function _l2BlockNumber() internal view returns (uint256) {
+        (bool ok, bytes memory d) =
+            ARB_SYS.staticcall(abi.encodeWithSignature("arbBlockNumber()"));
+        return ok && d.length == 32 ? abi.decode(d, (uint256)) : block.number;
+    }
+
     uint256 public constant TICKER_MAX = 8;
     uint256 public constant TOKEN_SUPPLY = 1_000_000_000e18;
     uint256 public constant MAX_LIQUIDITY_BPS = 5_000;
@@ -159,7 +176,7 @@ contract ChipFactory8 is ERC721, Ownable {
         c.label = label;
         c.ticker = ticker;
         c.minter = msg.sender;
-        c.bornBlock = uint64(block.number);
+        c.bornBlock = uint64(_l2BlockNumber());
 
         _writeRom(id, words);
         if (bytes(logoURI).length != 0) {
@@ -224,7 +241,7 @@ contract ChipFactory8 is ERC721, Ownable {
         if (c.bornBlock == 0) revert NoSuchChip();
 
         uint256 m = c.machine;
-        if (block.number <= m >> SHIFT_BLOCK) revert OneTickPerBlock();
+        if (_l2BlockNumber() <= m >> SHIFT_BLOCK) revert OneTickPerBlock();
 
         uint256 s = m & STATE_MASK;
         if (RH8State.halted(s)) revert AlreadyHalted();
@@ -235,10 +252,7 @@ contract ChipFactory8 is ERC721, Ownable {
         uint256 ramData = _ramRead(id, RH8State.ramAddr(s));
 
         uint256 next = gates.step(s, instr, inPort, ramData);
-        uint256 cycle;
-        unchecked { cycle = ((m >> SHIFT_CYCLES) & MASK40) + 1; }
-
-        c.machine = next | (cycle << SHIFT_CYCLES) | (block.number << SHIFT_BLOCK);
+        uint256 cycle = _advance(c, m, next);
 
         if (RH8State.ramWe(next)) {
             _ramWrite(id, RH8State.ramAddr(next), RH8State.ramWdata(next));
@@ -254,6 +268,16 @@ contract ChipFactory8 is ERC721, Ownable {
         if (halted_) emit Halt(id, cycle);
 
         _reward(id, c, cycle);
+    }
+
+    /// @dev Avanza contatore e blocco in un helper: dentro tick() le
+    ///      variabili vive erano gia' al limite dello stack.
+    function _advance(Chip storage c, uint256 m, uint256 next)
+        internal
+        returns (uint256 cycle)
+    {
+        unchecked { cycle = ((m >> SHIFT_CYCLES) & MASK40) + 1; }
+        c.machine = next | (cycle << SHIFT_CYCLES) | (_l2BlockNumber() << SHIFT_BLOCK);
     }
 
     function _reward(uint256 id, Chip storage c, uint256 cycle) internal {
