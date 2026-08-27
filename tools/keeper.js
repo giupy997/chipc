@@ -14,7 +14,9 @@
  *     --budget 0.05    tetto di spesa in ETH: raggiunto, si ferma
  *     --cycles N       ferma dopo N cicli portati a casa
  *     --interval MS    spaziatura minima fra un tick e il successivo
- *     --gas N          limite di gas per tick (default 120000)
+ *     --gas N          limite di gas per tick (default 400000: un tick
+ *                      della RH-8 ne consuma ~257k, e un limite troppo basso
+ *                      fa fallire OGNI tx per out-of-gas)
  *     --poll MS        ogni quanto interrogare l'RPC (default 40)
  *     --sweep-to DOVE  dove mandare i token guadagnati: `factory` per
  *                      rimetterli nella riserva, `burn` per bruciarli, o un
@@ -202,7 +204,7 @@ async function main() {
   const budget = args.budget ? parseEther(String(args.budget)) : null;
   const maxCycles = args.cycles ? Number(args.cycles) : Infinity;
   const interval = args.interval ? Number(args.interval) : 0;
-  const gasLimit = BigInt(args.gas || 120000);
+  const gasLimit = BigInt(args.gas || 400000);
 
   // viem interroga la ricevuta ogni 4 secondi di suo: su una chain da 100 ms
   // vorrebbe dire quaranta blocchi persi a ogni tick. Qui si va molto piu'
@@ -363,9 +365,13 @@ async function main() {
     freshReceipt = true;
 
     if (receipt.status !== "success") {
-      // Quasi sempre OneTickPerBlock: un altro sponsor ha pagato quel ciclo.
       stats.lost++;
-      console.log(`  blocco ${receipt.blockNumber}: ciclo andato a qualcun altro`);
+      if (receipt.gasUsed >= gasLimit) {
+        // gas esaurito: colpa nostra, non di un altro sponsor
+        console.log(`  blocco ${receipt.blockNumber}: OUT OF GAS (${receipt.gasUsed}/${gasLimit}) — alza --gas`);
+      } else {
+        console.log(`  blocco ${receipt.blockNumber}: ciclo andato a qualcun altro`);
+      }
       continue;
     }
 
