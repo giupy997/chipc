@@ -29,6 +29,15 @@ La strada dichiarata (sezione "The point" del sito):
 Il mattone duro di quel tribunale — `step()`, pura e deterministica — non e'
 roadmap: e' costruito e verificato contro il silicio su quattro livelli.
 
+## Perche' "4"
+
+Il progetto e' nato processore a 4 bit e il nome e' rimasto, come resta il
+numero a una 911. Ma il 4 ha smesso presto di contare i bit: **conta i
+quattro livelli di verifica** che ogni generazione di silicio deve superare
+prima della mainnet — simulazione RTL, netlist sintetizzata, interprete da
+solo, chip coniato — tutti d'accordo ciclo per ciclo. I bit cresceranno a
+ogni generazione. Le prove restano quattro.
+
 ## La generazione a 8 bit
 
 Il rilancio avviene sulla **RH-8**: 8 bit, un ingresso, 256 byte di RAM.
