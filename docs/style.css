@@ -206,7 +206,7 @@ main { max-width: var(--maxw); margin: 0 auto; }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
   gap: clamp(28px, 4vw, 64px);
   align-items: start;
   padding: clamp(36px, 5vw, 72px) var(--gutter) clamp(40px, 6vw, 80px);

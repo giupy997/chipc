@@ -133,8 +133,9 @@
       const w = this.canvas.clientWidth;
       if (!w) return;
 
-      // keep the cells roughly square and legible whatever the panel width
-      this.cols = Math.max(24, Math.min(56, Math.round(w / 13)));
+      // Celle piu' fitte: con 2.368 porte il pannello a celle larghe
+      // diventava una torre che schiacciava tutto il resto dell'eroe.
+      this.cols = Math.max(40, Math.min(96, Math.round(w / 8)));
       this.rows = Math.ceil(D.gateCount / this.cols);
       this.cell = w / this.cols;
 
