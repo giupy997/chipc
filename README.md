@@ -14,17 +14,21 @@ when someone pays for it.
 
 ## Live on mainnet
 
-Robinhood Chain (chain id 4663), since 27 August 2026.
+Robinhood Chain (chain id 4663), since 28 August 2026.
 
 | | |
 |---|---|
 | Site | https://rh4cpu.tech |
-| ChipFactory8 | `0x8429c2c06442c01d916c1286573d0948efcea0ea` |
+| ChipFactory8 | `0x560da98cf01bd2c401f42e0d1ecab439b6539f67` |
 | RH8GateArray | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
-| Chip8Renderer | `0xAa432a98935CA6fb7159514876cC57aEF191B4B1` |
+| Chip8Renderer | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
 | Chip #1, the mother | rh4.cpu (`RH4`) — running `echo8`, forever |
-| RH4 token | `0xE031CA34143B579aE3B38a523830379f19a904fC` |
-| Market | `0x0eF8320E8D6203013B77d63f52102E11c0b95407` (WETH/RH4 1%) |
+| RH4 token | `0xCc94d9a27006B1556EF5dB40dDce1c4F5a1bF40C` |
+| Market | `0x5394Ba005834Ba041165AfBA965444e839fEAf09` (WETH/RH4 1%) |
+
+Every chip NFT links back to the site (`external_url` →
+`https://rh4cpu.tech/?chip=N`) and chip #1 carries the project logo as its
+`image`, both baked into the renderer on-chain.
 
 60% of the supply seeds the market, 400M sit in the factory as the cycle
 reserve — **5.14 RH4 per cycle, sized for 90 days of full clock**. The pool
