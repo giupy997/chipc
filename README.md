@@ -1,384 +1,198 @@
-# RH-4 — un processore 4-bit che gira dentro la Robinhood Chain
+# RH-4 — a real processor that lives inside Robinhood Chain
 
-Un vero processore descritto in Verilog, sintetizzato a **soli NAND e flip-flop**,
-destinato a essere eseguito gate per gate dentro un contratto sulla Robinhood Chain.
-Nessuna emulazione: il contratto valuta 1.029 porte NAND a ogni ciclo.
+**https://rh4cpu.tech**
 
-Il clock non è un oscillatore. **Un blocco = un colpo di clock.**
-Robinhood Chain fa un blocco ogni ~100 ms → il processore gira a **~10 Hz**.
+A real processor written in Verilog, synthesised down to **nothing but NAND
+gates and flip-flops**, executed gate by gate inside a contract on Robinhood
+Chain. No emulation: every `tick()` walks all **2,368 NAND gates** of the
+current generation, latches its **171 flip-flops**, and touches its
+**256 bytes of RAM** — exactly as the silicon would.
 
-## La narrativa
+The clock is not an oscillator. **One block = one clock edge.** Robinhood
+Chain closes a block every ~100 ms, so the processor runs at **~10 Hz** —
+when someone pays for it.
 
-**La chain non puo' sostituire i chip fisici — ci gira sopra.** Ogni ciclo
-della RH-8 viene rieseguito da ogni validatore: il calcolo on-chain e'
-silicio moltiplicato per la ridondanza, mai un'alternativa al silicio.
+## Live on mainnet
 
-Quello che la chain ha, e il datacenter mai avra', e' un'altra proprieta':
-**un chip fisico non puo' provare cosa ha fatto. Questo si.** Ogni ciclo e'
-pubblico, deterministico, rieseguibile da chiunque, per sempre.
+Robinhood Chain (chain id 4663), since 27 August 2026.
 
-La strada dichiarata (sezione "The point" del sito):
+| | |
+|---|---|
+| Site | https://rh4cpu.tech |
+| ChipFactory8 | `0x8429c2c06442c01d916c1286573d0948efcea0ea` |
+| RH8GateArray | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
+| Chip8Renderer | `0xAa432a98935CA6fb7159514876cC57aEF191B4B1` |
+| Chip #1, the mother | rh4.cpu (`RH4`) — running `echo8`, forever |
+| RH4 token | `0xE031CA34143B579aE3B38a523830379f19a904fC` |
+| Market | `0x0eF8320E8D6203013B77d63f52102E11c0b95407` (WETH/RH4 1%) |
 
-1. **Ora** — un processore vivo, ogni ciclo firmato e inciso
-2. **Poi** — batching, chip componibili, una rete neurale sintetizzata in NAND
-3. **Il traguardo** — il co-processore verificabile: il processore gira
-   off-chain a velocita' piena, il risultato si pubblica con una cauzione, e
-   una disputa si bisechera' fino al singolo ciclo conteso, rigiocato dentro
-   il gate array. La chain smette di essere il motore e diventa il tribunale.
+60% of the supply seeds the market, 400M sit in the factory as the cycle
+reserve — **5.14 RH4 per cycle, sized for 90 days of full clock**. The pool
+opened as a single-sided range order: 600M RH4 in, **zero ETH**. The buy side
+is built by buyers.
 
-Il mattone duro di quel tribunale — `step()`, pura e deterministica — non e'
-roadmap: e' costruito e verificato contro il silicio su quattro livelli.
+## Why "4"
 
-## Perche' "4"
+The project was born as a 4-bit processor and the name stayed, the way a 911
+keeps its number. But the 4 stopped counting bits almost immediately: **it
+counts the four independent proofs** every generation of silicon must pass
+before it breathes on mainnet —
 
-Il progetto e' nato processore a 4 bit e il nome e' rimasto, come resta il
-numero a una 911. Ma il 4 ha smesso presto di contare i bit: **conta i
-quattro livelli di verifica** che ogni generazione di silicio deve superare
-prima della mainnet — simulazione RTL, netlist sintetizzata, interprete da
-solo, chip coniato — tutti d'accordo ciclo per ciclo. I bit cresceranno a
-ogni generazione. Le prove restano quattro.
+1. RTL simulation (iverilog)
+2. gate-level simulation of the synthesised netlist (`tools/netsim8.js`)
+3. the on-chain interpreter, alone (`forge test`)
+4. a chip minted from a real factory
 
-## La generazione a 8 bit
+— all four required to agree **cycle for cycle**. The bits will grow with
+each generation. The proofs stay four.
 
-Il rilancio avviene sulla **RH-8**: 8 bit, un ingresso, 256 byte di RAM.
-La prima generazione girava da sola e basta — un oggetto, non uno strumento.
-Questa prende un byte da chi chiama `tick(id, byte)` e ha memoria che resta
-fra un ciclo e l'altro.
+## The point
+
+**A blockchain cannot replace physical chips — it runs on them.** Every
+cycle the RH-8 executes is re-executed by every validator: on-chain compute
+is silicon times redundancy, never an alternative to silicon. Anyone
+promising to replace GPUs with a chain is selling physics that does not
+exist.
+
+What the chain has, and the datacenter never will, is a different property:
+**a physical chip cannot prove what it did. This one can.** Every cycle is
+public, deterministic, and re-executable by anyone, forever.
+
+The declared road (the "roadmap" section of the site):
+
+1. **R1 — the launchpad opens.** Minting from the browser: pick a program,
+   upload a logo, choose the market your chip trades against — ETH or
+   tokenised stocks. Pure software; the factory already accepts every mint.
+2. **R2 — the court.** The first protocol upgrade. Processors run off-chain
+   at full speed; results post with a bond; a dispute bisects to one cycle
+   and replays it inside the deployed gate array. Off-chain speed, on-chain
+   truth. The hard primitive of that court — a pure, deterministic `step()`
+   that executes exactly one cycle — is not roadmap: it is deployed.
+3. **R3 — wider silicon.** RH-16, RH-32, RH-64, more RAM, many cycles per
+   transaction. Each generation is new silicon beside the old, never a rug
+   under it: same token, four proofs, every time.
+4. **R4 — silicon for AI.** A neural network synthesised to NAND, inference
+   running gate-level inside the chain, and AI agents as sponsors. Not
+   faster answers — answers you can check.
+
+## The 8-bit generation
+
+The first generation ran on its own and that was all — an object, not an
+instrument. The RH-8 takes **a byte from whoever calls `tick(id, byte)`**
+and has **memory that persists between cycles**.
 
 | | RH-4 | RH-8 |
 |---|---|---|
-| dati | 4 bit | 8 bit |
-| ingresso | — | un byte per tick |
-| RAM | — | 256 byte per chip |
-| porte NAND | 1.029 srotolate | 2.368 **interpretate** da una tabella |
-| gas per ciclo | 60k | 257k |
-| stato | 79 bit, uno slot | 171 bit, sempre uno slot |
+| data width | 4 bit | 8 bit |
+| input | — | one byte per tick |
+| RAM | — | 256 bytes per chip |
+| instruction word | 12 bit | 25 bit |
+| opcodes | 16 | 29 |
+| NAND gates | 1,029 unrolled in Yul | 2,368 **interpreted** from a table |
+| architectural state | 79 bits, one slot | 171 bits, still one slot |
+| gas per cycle | ~60k | ~257k |
 
-La netlist non si srotola piu' (sforerebbe i 24 kB): diventa dati e il
-contratto la scorre. Niente piu' tetto — lo stesso interprete reggerebbe
-una CPU da diecimila porte.
+The netlist is no longer unrolled into code (it would blow past the 24 kB
+contract limit): it becomes **data**, and the contract walks it — eight
+gates per loop iteration, one exact `MLOAD` each. The same interpreter would
+carry a ten-thousand-gate CPU without touching the bytecode ceiling.
+
+Two honest design choices carried over from real hardware:
+
+- **ROM and RAM live in the contract, not in the netlist.** The processor
+  asks — it exposes an address, the contract answers. In gates this costs
+  zero; 256 bytes as flip-flops would have been two thousand gates more.
+- **A `ld` takes two cycles.** The address latches in one cycle, the data
+  arrives the next — like the silicon it is.
+
+One Orbit-chain scar worth knowing: on Robinhood Chain `block.number` is the
+**parent chain's** block height (~12 s), not the L2 block. The one-tick-per-
+block gate reads the real L2 height from the ArbSys precompile — using
+`block.number` would have quietly turned a 90-day emission into 29 years.
+
+## Every chip launches its own token — and cycles are the only way to earn it
+
+Minting a chip (an ERC-721 that *is* a processor: its own ROM, RAM and
+state) also deploys a `ChipToken`: **fixed supply, one billion, and no
+`mint` function anywhere** — no one can print more, not the operator, not
+the chip's owner, not the factory.
+
+The supply splits once, at birth:
+
+| | where it goes |
+|---|---|
+| liquidity slice (up to 60%) | straight to the minter, to open the market |
+| everything else | stays in the factory, leaves **one cycle at a time** |
+
+There is no second path. Apart from buying them, **the only way to obtain a
+chip's tokens is to keep its processor alive**. The factory's `withdraw()`
+moves ETH only — the reserve provably cannot be taken out except through
+`tick()`. Which yields the property the whole thing stands on:
+
+> **A chip runs as fast as the market thinks it deserves.**
+
+If the token is worth more than the gas of a tick, someone calls it. If it
+is not, the chip stalls — the honest outcome. When the reserve runs dry the
+clock does **not** stop: it continues free. The chip's `owner()` view on the
+token follows the NFT, so explorers always know who the chip belongs to.
+
+The lifetime cycle counter is **monotonic**: `restart()` reboots the
+processor and clears the RAM, but what the chip has ground through history
+stays. Otherwise "this chip has executed N cycles" would mean nothing.
+
+## The clock is the scarce thing, not the chip
+
+`tick(id, byte)` is open to anyone — **not the owner, anyone** — once per
+block per chip. Whoever pays is engraved in the `Cycle` event as that
+cycle's sponsor, and the byte they send is what the program reads with `in`.
 
 ```bash
-make rh8   # RTL, netlist, assembler, interprete, fabbrica: tutta la catena
+export PRIVATE_KEY=0x…   # never in chat, never in shell history
+RH4_FACTORY=0x8429c2c06442c01d916c1286573d0948efcea0ea \
+  node tools/keeper.js --chip 1 --input 0 --sweep-to factory --budget 0.01
 ```
 
-Il programma di mainnet e' [`asm/echo8.asm`](asm/echo8.asm): eco del byte in
-ingresso e somma corrente in RAM. Verificato senza halt per 20.000 cicli
-sulla netlist e 90 dentro l'EVM.
+The keeper has no special rights; it is merely the first to pay. It stops on
+`--budget` (ETH), `--cycles`, or a `hlt` — and `--sweep-to factory` returns
+everything it mined to the reserve on **every** exit path, so running the
+clock accumulates nothing.
 
-## Il primo deployment (abbandonato)
+## Measured, not estimated
 
-Robinhood Chain (4663), dal 26 agosto 2026.
-
-| | |
-|---|---|
-| RH4GateArray | `0x7f6272273EBd9EB1C7491dCBf959C2750c98ec2D` |
-| ChipRenderer | `0x48a367c644ffd4d881657ac58a376c1bd5955339` |
-| ChipFactory | `0xa13518ccd7d4d1dc15ca41f646290408af0384cd` |
-| chip #1, la madre | RH4 CPU (`RH4`) |
-| token | `0x2b858a1E61Bb118aA7991435e46F9647e7e087Ab` |
-| pool | `0x19D7b8cA3002949A0961D7a42c7F914efdbd9942` (WETH/RH4 1%) |
-
-Emissione su 6.048.000 cicli — sette giorni di clock pieno a 10 Hz — con il
-20% dell'offerta andato alla liquidita' e il resto distribuito un ciclo alla
-volta. Il pool e' aperto con un range order a un lato solo: 200M RH4 dentro,
-**zero ETH**.
-
-Il silicio (`RH4GateArray`) e' condiviso: e' `pure`, senza stato e senza
-padrone, e ogni fabbrica futura su questa chain puo' riusarlo invece di
-ripagarne 3,7 milioni di gas.
-
-## Stato
-
-| fase | stato |
-|---|---|
-| ISA + RTL Verilog | fatto |
-| assembler | fatto |
-| simulazione RTL | fatto — Fibonacci OK in 49 cicli |
-| sintesi NAND + DFF | fatto — 1.029 NAND, 79 flip-flop |
-| simulazione gate-level | fatto — identica all'RTL, ciclo per ciclo |
-| codegen Yul | fatto — 1.029 gate srotolati |
-| contratto + test | fatto — 18.192 byte, 60k gas/ciclo, Fibonacci OK on-chain |
-| programma di mainnet | fatto — `forever.asm`, periodo 8,7 minuti, mai un HLT |
-| keeper | fatto — 10,04 Hz misurati su anvil a 100 ms |
-| sito | fatto — `docs/`, il processore gira nel browser |
-| fabbrica di chip | fatto — ERC-721, SVG on-chain, token per chip, chip madre, 37 test |
-| deploy in mainnet | da fare |
-
-```bash
-make sim               # simulazione RTL (iverilog)
-make synth             # sintesi a NAND + flip-flop (yosys)
-make gatesim           # netlist sintetizzata su Fibonacci
-make gatesim-forever   # netlist sintetizzata sul programma di mainnet
-make gates             # netlist -> src/RH4Gates.sol (Yul srotolato)
-make evm               # compila il contratto e lo prova end-to-end (forge)
-make                   # tutto in fila
-```
-
-Serve `brew install yosys icarus-verilog`, [foundry](https://getfoundry.sh),
-`npm install`, `forge install foundry-rs/forge-std --no-git` e
-`forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git`.
-
-## Il sito
-
-`docs/` è il sito, servito da GitHub Pages. Non è un video del processore: è il
-processore. `tools/webgen.js` impacchetta la stessa netlist che gira dentro
-l'EVM — 1.029 NAND in ordine topologico — e il browser di chi guarda la esegue
-gate per gate, a 10 Hz come la chain.
-
-```bash
-make site                  # rigenera docs/rh4-data.js dalla netlist
-python3 -m http.server -d docs 8123
-```
-
-Il pannello mostra la porta di uscita, i 16 registri, il PC che cammina sul
-listato e "il die": un quadrato per NAND, che si accende quando la sua uscita
-commuta.
-
-## ISA
-
-Parola di istruzione da **12 bit**, esecuzione **single-cycle**: ogni istruzione
-si completa in un blocco.
-
-```
- [11:8] opcode   [7:4] rd   [3:0] rs        (rs = immediato a 4 bit per LDI)
- [11:8] opcode   [7:0] addr                 (per i salti)
-```
-
-| op | mnemonico | effetto | flag |
-|----|-----------|---------|------|
-| 0 | `nop` | — | |
-| 1 | `ldi rd, #imm` | `rd ← imm` | |
-| 2 | `mov rd, rs` | `rd ← rs` | |
-| 3 | `add rd, rs` | `rd ← rd + rs` | C Z |
-| 4 | `adc rd, rs` | `rd ← rd + rs + C` | C Z |
-| 5 | `sub rd, rs` | `rd ← rd − rs` | C=borrow, Z |
-| 6 | `nand rd, rs` | `rd ← ~(rd & rs)` | Z |
-| 7 | `xor rd, rs` | `rd ← rd ^ rs` | Z |
-| 8 | `shr rd` | `rd ← rd >> 1` | C=bit espulso, Z |
-| 9 | `inc rd` | `rd ← rd + 1` | C Z |
-| A | `jmp addr` | `pc ← addr` | |
-| B | `jz addr` | se Z: `pc ← addr` | |
-| C | `jc addr` | se C: `pc ← addr` | |
-| D | `jnz addr` | se ¬Z: `pc ← addr` | |
-| E | `out rd` | porta di uscita ← `rd` | |
-| F | `hlt` | ferma il processore | |
-
-16 registri da 4 bit (`r0`–`r15`), PC a 8 bit, ROM da 256 parole.
-
-## Le due scelte che contano
-
-**La ROM sta fuori dalla netlist.** Il processore riceve `instr` già letta; è il
-contratto a fare `ROM[pc]`. Costa zero gate e rende il programma sostituibile
-senza risintetizzare nulla.
-
-**Niente reset.** Lo stato di reset è "tutti zeri", che è già come nasce una
-bitmap in storage. Un port di reset sarebbe solo gate e routing sprecati.
-
-## Perché lo stato entra in uno slot
-
-Tutti i flip-flop del design:
-
-```
- register file  16 × 4 bit   64
- pc                           8
- porta di uscita              4
- carry, zero, halted          3
- ───────────────────────────────
-                             79 bit
-```
-
-**79 bit → un singolo slot di storage da 256 bit.** L'intero stato architetturale
-del processore è una `SSTORE` per ciclo. È il motivo per cui il costo per tick
-resta basso nonostante si valutino mille porte logiche.
-
-## Dentro l'EVM
-
-Ogni net del processore è una parola di memoria da 32 byte con dentro uno 0 o
-un 1. Sprecone sui bit, ma un `mload` costa 3 gas e non serve nessuno shift per
-isolare il bit: sui 1.029 gate è il compromesso che vince.
-
-Un NAND diventa una riga sola:
-
-```
-mstore(0x1a40, iszero(and(mload(0x0c60), mload(0x1220))))
-```
-
-I flip-flop invece non esistono come codice. A inizio ciclo la parola di stato
-si spalma sui net delle Q, a fine ciclo si ricampionano tutte le D e si
-ricompone la parola: i flop commutano insieme, come nel silicio.
-
-**Nell'EVM non c'è propagazione, c'è una sequenza.** Per questo `netlist.js`
-ordina i gate topologicamente prima che `codegen.js` li emetta.
-
-### Numeri misurati
-
-| | |
-|---|---|
-| bytecode runtime | **18.192 byte** (margine 6.384 sul limite di 24.576) |
-| gas per ciclo | **~60.100** (39.088 di esecuzione + 21.000 di base tx) |
-| slot di storage toccati per ciclo | 1 letto, 1 scritto |
-
-Un contratto solo, niente split in bank via `delegatecall`.
-
-### Costo del clock
-
-A 0,0202 gwei sulla Robinhood Chain, un ciclo costa ~1,21e-6 ETH.
-
-| ritmo | costo |
-|---|---|
-| Fibonacci intero (49 cicli) | ~0,00006 ETH |
-| 1 Hz, un giorno | ~0,10 ETH |
-| 10 Hz (ogni blocco), un giorno | ~1,05 ETH |
-
-Per questo `tick()` è permissionless e chi lo chiama paga: il clock si
-autofinanzia e lo sponsor di ogni ciclo resta scritto nell'evento `Cycle`.
-
-## Il programma che gira in mainnet
-
-[`asm/forever.asm`](asm/forever.asm) non contiene `hlt`, e non può contenerlo:
-se la RH-4 si ferma, si ferma per sempre — solo l'operatore può resettarla.
-Tre movimenti in loop, tutti leggibili sulle 4 uscite:
-
-| movimento | uscita | durata |
+| operation | gas | on Robinhood Chain |
 |---|---|---|
-| scanner | `1 2 4 8 8 4 2 1`, un bit che rimbalza | 16 rimbalzi |
-| contatore | `0 1 2 … 14 15`, in salita | 16 passaggi |
-| rumore | LFSR a 4 bit, `1 2 4 9 3 6 13 10 5 …` | 256 uscite |
+| deploy the whole stack, once per chain | ~9M | ~0.00024 ETH |
+| mint a chip + launch its token | 829,552 | ~0.0000167 ETH |
+| one clock cycle (sponsor pays) | 256,740 | ~0.0000052 ETH |
 
-L'LFSR ha prese sui bit 3 e 2 (x⁴+x³+1): periodo 15, passa per tutti i valori
-tranne lo zero. Lo zero è l'unico stato assorbente e non viene mai raggiunto,
-quindi il rumore non si spegne.
+The shared gate array (`pure`, stateless, ownerless — any future factory can
+reuse it) costs +1,301 gas per cycle over a standalone build, about 2%.
+Paying the sponsor adds ~6,900 more. That is the whole price of making chips
+cheap and their tokens earnable.
 
-**Periodo dell'intero programma: 5.238 cicli, cioè 8,7 minuti a 10 Hz.**
+## The mainnet program
 
-Il rischio vero non è un bug di calcolo, è un `hlt` accidentale: per questo
-`make gatesim-forever` gira 20.000 cicli sulla netlist e `test_foreverNonSiFermaMai`
-ne gira 5.300 dentro l'EVM, entrambi pretendendo che il processore non si fermi.
+[`asm/echo8.asm`](asm/echo8.asm) has no `hlt`, and cannot have one: if the
+mother chip ever halts it halts forever. It echoes the sponsor's byte and
+keeps a running sum in RAM — nine instructions, verified halt-free for
+20,000 cycles on the synthesised netlist and 90 inside the EVM before
+deployment.
 
-## Il clock
+## Opening a market without ETH
 
-`tick()` è aperto a chiunque. Il keeper non ha nessun diritto speciale: è solo
-il primo a pagare. Se un altro sponsor tocca il clock nello stesso blocco la
-nostra transazione fallisce — ed è esattamente ciò che deve succedere, quel
-ciclo l'ha pagato lui.
-
-```bash
-export PRIVATE_KEY=0x…                        # mai in chat, mai da riga di comando
-node tools/deploy.js --program build/forever.slots.json
-RH4_ADDRESS=0x… node tools/keeper.js --budget 0.01
-```
-
-Il keeper si ferma da solo su `--budget` (ETH), `--cycles`, o se il processore
-incontra un `hlt`. Il tetto di spesa non è un vezzo: a 10 Hz continui il clock
-brucia circa 1 ETH al giorno, e un keeper senza budget lasciato acceso è un
-rubinetto aperto.
-
-Misurato contro anvil configurato come la chain vera (blocchi da 100 ms):
-
-```
-  cicli portati a casa   80
-  persi (altro sponsor)  0
-  frequenza tenuta       10.04 Hz
-```
-
-Un blocco, un ciclo. Ci sono voluti due accorgimenti per arrivarci: il polling
-di viem è a 4 secondi di default (quaranta blocchi persi per tick), e lo stato
-nuovo si legge dall'evento `Cycle` dentro la ricevuta invece di richiamare
-`inspect()`. Con tre round-trip per ciclo si stava a 5 Hz.
-
-## La fabbrica di chip
-
-Una RH-4 che sta per conto suo costa **4.091.584 gas** di deploy, perche' si
-porta dietro i 18 kB dei gate srotolati. Farne una per utente sarebbe assurdo.
-
-Quindi il silicio si deploya **una volta sola per tutta la chain**:
-
-```
-RH4GateArray     16,7 kB   le 1.029 NAND. `pure`, senza stato, senza padrone.
-   ^
-   | staticcall
-   |
-ChipFactory       9,4 kB   ERC-721. Ogni chip: 79 bit di stato + la sua ROM.
-ChipRenderer      6,6 kB   l'SVG dell'NFT, disegnato dai bit veri.
-```
-
-Coniare un chip nudo costa **~250.000 gas** invece di 4,09 milioni: 16 volte
-meno. Con il token integrato si sale a **822.987**, perche' si deploya anche un
-ERC-20. Il prezzo per ciclo e' +1.301 gas per la staticcall al silicio (2%) e
-~6.900 per pagare lo sponsor.
-
-| | gas | su Robinhood Chain |
-|---|---|---|
-| deploy dell'intero stack, una volta | ~7,4 M | ~0,00015 ETH |
-| coniare un chip + lanciare il token | 822.987 | ~0,0000166 ETH |
-| coniare un chip nudo (token dopo) | ~250.000 | ~0,0000050 ETH |
-| un ciclo di clock (paga lo sponsor) | 68.275 | ~0,0000014 ETH |
-
-### Nome e sigla
-
-Al conio si sceglie un **nome** (fino a 32 caratteri, libero) e una **sigla**
-(1-8 caratteri fra `A-Z`, `0-9` e trattino). Sono due cose diverse: il nome e'
-descrittivo, la sigla e' identita'.
-
-**La sigla e' unica in tutta la fabbrica.** Senza unicita' chiunque potrebbe
-coniare un chip con la sigla di un altro, ed e' un invito all'inganno. La
-maiuscola e' obbligatoria per la stessa ragione: `RH4` e `rh4` non devono
-poter convivere. `tickerAvailable(sigla)` dice gratis se e' libera.
-
-Attenzione a una cosa che il vocabolario confonde: quella sigla e' **metadato
-del chip**, non il simbolo di un ERC-20. Tutti i chip stanno nella stessa
-collezione ERC-721 (`RH-4 Chip` / `CHIP`). Un chip non e' un token scambiabile
-con una sua liquidita': e' un NFT con sopra scritta una sigla.
-
-### Ogni chip ha il suo token, e i cicli sono l'unico modo di guadagnarlo
-
-Al conio nasce un `ChipToken` con il nome e la sigla scelti: **offerta fissa,
-un miliardo, e nessuna `mint`** — quel contratto non ha modo di stamparne
-altri, ne' per l'operatore ne' per il proprietario del chip.
-
-L'offerta si divide in due:
-
-| | dove va |
-|---|---|
-| fetta di liquidita' (max 50%) | subito a chi conia, per farci il mercato |
-| tutto il resto | resta alla fabbrica, esce **un ciclo alla volta** |
-
-Non c'e' una seconda strada. A parte comprarli, **l'unico modo di ottenere i
-token di un chip e' tenere acceso il suo processore**.
-
-Ne segue la proprieta' che regge tutto:
-
-> **Un chip gira alla velocita' che il mercato pensa che meriti.**
-
-Se il token vale piu' del gas di un tick, qualcuno lo chiama e il processore
-resta acceso. Se non vale, si ferma — ed e' l'esito onesto. L'emissione non e'
-governata da nessuno: nessuno puo' stampare piu' in fretta di quanto la chain
-chiuda i blocchi.
-
-Quando la riserva finisce il clock **non** si ferma: continua gratis. Un chip
-senza piu' token da distribuire e' ancora un processore acceso.
-
-### Aprire il mercato senza mettere ETH
-
-In Uniswap v3 una posizione interamente da un lato del prezzo corrente
-contiene **solo** quel token. Quindi il pool si apre mettendo dentro soltanto
-i token della fetta di liquidita' e **zero ETH**: man mano che qualcuno compra,
-i token si convertono in ETH dentro la posizione.
-
-**L'ETH della liquidita' lo mettono i compratori.** La posizione e' un NFT
-Uniswap nel tuo wallet, e l'ETH che ci si accumula e' tuo.
+In Uniswap v3, a position entirely on one side of the current price holds
+**only** that token. So a chip's market opens with just the liquidity slice
+and **zero ETH**: as people buy, tokens convert to ETH inside the position,
+which is an NFT in the minter's wallet.
 
 ```bash
 RH4_FACTORY=0x… node tools/pool.js --chip 1 --dry-run
 RH4_FACTORY=0x… node tools/pool.js --chip 1 --fdv-start 5 --fdv-end 50
 ```
 
-Il prezzo che si paga: all'inizio non esiste lato acquisto. Chi vuole vendere
-puo' farlo solo contro l'ETH accumulato fino a quel momento.
-
-**Indirizzi Uniswap su Robinhood Chain** — non sono quelli canonici, a quelli
-ci sono stub vuoti da 2109 byte:
+Chips can also pair against tokenised stocks (`--quote nvda|sndk|spcx`).
+The canonical Uniswap addresses on this chain are empty stubs; the real
+ones, recovered from a live pool and verified:
 
 | | |
 |---|---|
@@ -386,129 +200,49 @@ ci sono stub vuoti da 2109 byte:
 | NonfungiblePositionManager | `0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3` |
 | WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` |
 
-Ricavati leggendo `factory()` da un pool vivo e risalendo a chi lo mintava,
-poi verificati: il manager si chiama "Uniswap V3 Positions NFT-V1" e la sua
-`factory()` e `WETH9()` combaciano.
+## The site is the processor
 
-Provato su un fork della chain vera: 200M token dentro, **0 WETH**, tick
-esattamente sul bordo del range, posizione nel wallet.
+`docs/` is the site. It is not a video of the processor — `tools/webgen8.js`
+packs the very netlist the contract interprets, and the visitor's browser
+executes it gate by gate at 10 Hz, RAM and input port handled exactly as the
+contract handles them. Type a byte into the IN port and watch the program
+chew it.
 
-### Il chip madre
-
-Il primo chip coniato e' anche il primo token del launchpad. `setMother(id)`
-lo designa — **una volta sola**, perche' se il proprietario potesse spostarla
-"madre" smetterebbe di voler dire qualcosa.
-
-Da li' `setMintPriceToken(quota)` fa pagare il conio di ogni chip nuovo in
-token della madre. E qui c'e' il punto, che esce gratis dall'architettura:
-
-> La riserva di un chip **e'** il saldo che la fabbrica ha del suo token.
-
-Quindi la quota di conio non finisce in tasca a nessuno: **allunga la vita del
-clock della madre**, cioe' paga chi la tiene accesa. Coniare un chip nuovo
-finanzia chi fa girare il primo.
-
-La quota parte da zero: il conio resta libero finche' non la si accende.
-
-⚠️ Da dire chiaro: se l'unico uso del token madre fosse coniare chip, e
-l'unico uso dei chip fosse avere un token, sarebbe un giro chiuso. Il
-contrappeso e' che ogni chip vale per conto suo — e' un processore vero, con
-il suo token e i suoi sponsor — e la madre non e' l'unica fonte di valore.
-Il meccanismo regge se i chip figli interessano a qualcuno; non li fa
-interessare da solo.
-
-### Token creato altrove (pools.trade e simili)
-
-Un launchpad vuole creare il **proprio** contratto token: `UERC20Factory` non
-creera' mai un `ChipToken`. Non serve che lo faccia. La fabbrica non ha bisogno
-di *creare* il token, le basta sapere qual e' e avere una riserva da
-distribuire.
-
-```
-mint(..., targetCycles: 0)     -> chip nudo, senza token
-  ...lanci il token dove vuoi...
-attachToken(id, token, reward) -> lo agganci
-transfer(factory, riserva)     -> la riserva e' il saldo della fabbrica
-```
-
-Si aggancia **una volta sola**: se il proprietario potesse cambiare il token
-dopo, chi ha macinato cicli per guadagnarlo si ritroverebbe in mano la cosa
-sbagliata. E un token non puo' servire due chip, altrimenti si mangerebbero la
-riserva a vicenda.
-
-⚠️ Attenzione a `pools-launch/launch.js` cosi' com'e': passa
-`amount: SUPPLY` alla strategy, cioe' manda **tutto** il miliardo nel pool.
-Per finanziare i cicli va lasciata fuori una quota.
-
-### Il clock e' la cosa scarsa, non il chip
-
-Fabbricare un processore costa spiccioli. Tenerlo **acceso** no: un ciclo per
-blocco, e ogni ciclo lo deve pagare qualcuno.
-
-`tick(id)` e' aperto a chiunque — **non al proprietario, a chiunque** — e chi
-paga resta inciso nell'evento `Cycle` come sponsor di quel ciclo. Un chip che
-nessuno fa avanzare e' silicio morto in storage.
-
-Il contatore dei cicli e' **monotono per tutta la vita del chip**: `restart()`
-fa ripartire il processore ma non azzera quanto ha macinato. Altrimenti
-"questo chip ha eseguito N cicli" non vorrebbe dire niente.
-
-### L'NFT si disegna da solo
-
-Niente IPFS, niente server: `tokenURI` costruisce un SVG a partire dai 79 bit
-veri del processore. Le quattro luci sono la porta di uscita in quell'istante,
-il conteggio e' quello che gli sponsor hanno pagato. **L'immagine cambia da
-sola** — un chip fermo e un chip acceso non si somigliano.
-
-Le etichette passano da un filtro: un chip chiamato `<script>` non puo'
-iniettare markup dentro l'SVG.
-
-### Provare prima di coniare
-
-Un chip che incontra `hlt` si ferma per sempre, e resta un NFT morto.
-`previewProgram(rom, n)` e' una `view`: via `eth_call` non costa niente e dice
-se il programma si ferma, prima che qualcuno ci spenda dei soldi.
+## Building the whole chain of proofs
 
 ```bash
-PRIVATE_KEY=0x... node tools/deploy-factory.js --dry-run
-PRIVATE_KEY=0x... node tools/deploy-factory.js --mint build/forever.slots.json \
-    --label "RH4 CPU" --ticker RH4
-RH4_FACTORY=0x... node tools/keeper.js --chip 1 --budget 0.01
+make rh8    # RTL sim, synthesis, netlist sim, codegen, forge tests: all four proofs
 ```
 
-## Struttura
+Requires `brew install yosys icarus-verilog`, [foundry](https://getfoundry.sh),
+`npm install`, `forge install foundry-rs/forge-std --no-git` and
+`forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git`.
 
 ```
-rtl/rh4.v            il processore
-asm/fib.asm          Fibonacci a 4 bit: 1 1 2 3 5 8 13
-tools/asm.js         assembler → build/rom.hex + build/rom.json
-tools/netlist.js     carica la netlist yosys, ordina i NAND topologicamente
-asm/forever.asm      il programma di mainnet: non finisce mai
-tools/netsim.js      simulatore gate-level (oracolo per il codegen)
-tools/codegen.js     netlist → src/RH4Gates.sol
-tools/deploy.js      mette il processore sulla chain
-tools/keeper.js      tiene il clock
-tools/chain.js       config della chain, chiave da PRIVATE_KEY
-sim/tb_rh4.v         testbench RTL
-synth/rh4.ys         script di sintesi
-synth/not2nand.v     un NOT è un NAND con gli ingressi in corto
-src/RH4Gates.sol     GENERATO — i 1.029 gate in Yul
-src/RH4State.sol     GENERATO — dove stanno i bit dentro la parola di stato
-src/RH4.sol          la RH-4 singola: clock, ROM, eventi
-src/RH4GateArray.sol il silicio condiviso, uno per chain
-src/ChipFactory.sol  la fabbrica: ERC-721 + clock permissionless
-src/ChipRenderer.sol l'SVG degli NFT, on-chain
-tools/deploy-factory.js  mette in piedi i tre contratti
-tools/keeper.js      tiene acceso un processore (singolo o chip)
-tools/pool.js        apre il mercato con un range order a un lato solo
-test/                22 test: RH-4 singola e fabbrica
+rtl/rh8.v              the processor — 29 opcodes, IN port, RAM interface
+asm/echo8.asm          the mainnet program: never halts, always listens
+tools/asm8.js          assembler → build/*.slots8.json
+tools/netlist.js       loads the yosys netlist, sorts the NANDs topologically
+tools/netsim8.js       gate-level simulator (the oracle for the codegen)
+tools/codegen8.js      netlist → src/RH8Gates.sol (interpreted gate table)
+tools/webgen8.js       netlist → docs/rh8-data.js (the browser machine)
+tools/deploy-factory8.js  puts the factory on the chain
+tools/keeper.js        keeps a clock, sweeps everything it mines
+tools/pool.js          opens the market: single-sided v3 range order
+src/RH8Gates.sol       GENERATED — do not edit; make regenerates it
+src/ChipFactory8.sol   the factory: ERC-721, ROM, RAM, permissionless clock
+src/ChipToken.sol      fixed supply, no mint, owner() follows the chip NFT
+src/Chip8Renderer.sol  the NFT draws itself on-chain from the real 171 bits
+test/                  57 tests across both generations
 ```
 
-`src/RH4Gates.sol` è generato: non va toccato a mano. Si rigenera con
-`make gates` ogni volta che cambia `rtl/rh4.v`.
+The first generation — `rtl/rh4.v`, its unrolled 1,029-gate Yul build and
+its tests — remains in the repo, verified and intact. It is the ancestor,
+not the product.
 
-La catena di verifica ha tre anelli e tutti e tre devono dire la stessa cosa,
-**ciclo per ciclo**: simulazione RTL (iverilog) → simulazione della netlist
-sintetizzata (`netsim.js`) → esecuzione dentro l'EVM (`forge test`). Il test
-Solidity non verifica il contratto contro se stesso: verifica che il contratto
-si comporti come l'hardware.
+## ISA, briefly
+
+25-bit words, sixteen 8-bit registers, a 10-bit PC, 1,024 words of ROM,
+single-cycle execution (except `ld`, two honest cycles). Twenty-nine
+opcodes: the full table is on the site, under § 05. There is a `nand` in
+the instruction set because the processor is NANDs — it seemed rude not to.
