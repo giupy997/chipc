@@ -282,6 +282,30 @@ async function main() {
   let lastTickBlock = start[4];
   let nonce = await pub.getTransactionCount({ address: account.address });
 
+  // La spazzata periodica scatta ogni N cicli: se il keeper esce prima —
+  // per --cycles, budget o Ctrl-C — quello che ha minato gli resterebbe in
+  // tasca, ed e' esattamente cio' che --sweep-to promette di evitare.
+  const finalSweep = async () => {
+    if (!sweepTo || dryRun) return;
+    try {
+      const bal = await pub.readContract({
+        address: chipToken, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address],
+      });
+      if (bal === 0n) return;
+      const h = await wallet.writeContract({
+        address: chipToken, abi: ERC20_ABI, functionName: "transfer",
+        args: [sweepTo, bal], nonce,
+      });
+      nonce++;
+      const r = await pub.waitForTransactionReceipt({ hash: h, pollingInterval, timeout: 60_000 });
+      stats.spent += r.gasUsed * r.effectiveGasPrice;
+      stats.swept += bal;
+      console.log(`\n  spazzata finale: ${formatEther(bal)} verso ${sweepTo}`);
+    } catch (e) {
+      console.log(`\n  spazzata finale fallita: ${short(e)} — rilancia con --sweep-to per riprovare`);
+    }
+  };
+
   const summary = () => {
     const secs = (Date.now() - stats.t0) / 1000;
     console.log("\n--- riepilogo ---");
@@ -432,6 +456,7 @@ async function main() {
     if (interval) await sleep(interval);
   }
 
+  await finalSweep();
   summary();
 }
 
