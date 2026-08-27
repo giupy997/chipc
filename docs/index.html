@@ -8,13 +8,13 @@
 <meta property="og:title" content="RH-4 — silicon × blockspace">
 <meta property="og:description" content="1,029 NAND gates. 79 flip-flops. One block, one clock tick. 10 Hz on Robinhood Chain.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="brand/logo.jpg">
+<meta property="og:image" content="brand/banner.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="brand/logo.jpg">
+<meta name="twitter:image" content="brand/banner.jpg">
 <meta name="theme-color" content="#efeee6">
-<link rel="icon" type="image/png" sizes="32x32" href="brand/icon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="brand/icon-16.png">
-<link rel="apple-touch-icon" href="brand/icon-256.png">
+<link rel="icon" type="image/png" sizes="32x32" href="brand/icon4-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="brand/icon4-16.png">
+<link rel="apple-touch-icon" href="brand/icon4-256.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,7 +37,7 @@
 <!-- ===================================================== nav -->
 <header class="nav">
   <a class="logo" href="#top">
-    <img class="logo-box" src="brand/icon-64.png" alt="" width="30" height="30">
+    <img class="logo-box" src="brand/icon4-64.png" alt="" width="30" height="30">
     <span class="logo-word">RH&#8209;4.CPU</span>
   </a>
   <nav class="nav-links">
@@ -58,13 +58,14 @@
   <section class="hero">
 
     <div class="hero-copy">
-      <p class="tag"><i class="sq"></i> A REAL PROCESSOR, ON CHAIN</p>
+      <div class="hero-head">
+        <h1 class="display">
+          A real processor,<br><em class="em-mint">on chain.</em>
+        </h1>
+        <img class="hero-logo" src="brand/logo4.png" alt="RH-4" width="180" height="180">
+      </div>
 
-      <p class="issue">Opening issue <b>01</b></p>
-
-      <h1 class="display">
-        Silicon &times;<br><em>blockspace.</em>
-      </h1>
+      <p class="tag kicker"><i class="sq"></i> NO EMULATION &middot; NAND BY NAND</p>
 
       <p class="lede">
         <span data-fact="gates">2,368</span> NAND gates,
@@ -79,11 +80,12 @@
         <a class="btn btn-light" href="#build">Read the datasheet</a>
       </div>
 
-      <dl class="specs">
-        <div class="spec"><dt>Chain</dt><dd>ROBINHOOD / 4663</dd></div>
-        <div class="spec"><dt>Clock</dt><dd>ONE TICK PER BLOCK</dd></div>
-        <div class="spec"><dt>Status</dt><dd class="ok">LIVE &middot; CHIP #1 LISTENING</dd></div>
-      </dl>
+      <div class="hero-stats">
+        <div class="hstat"><span class="ck">GATES</span><span class="hstat-v" data-fact="gates">2,368</span></div>
+        <div class="hstat"><span class="ck">FLIP&#8209;FLOPS</span><span class="hstat-v" data-fact="flops">171</span></div>
+        <div class="hstat"><span class="ck">CLOCK</span><span class="hstat-v">1 BLOCK</span></div>
+      </div>
+      <p class="hero-status"><span class="ok">LIVE</span> &middot; CHAIN 4663 &middot; CHIP #1 LISTENING</p>
     </div>
 
     <!-- the live instrument -->

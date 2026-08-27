@@ -247,11 +247,10 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .display em { font-style: italic; font-weight: 300; }
 
 .hero .display {
-  /* dimensionato per stare nella colonna sinistra: la parola piu' lunga
-     e' BLOCKSPACE. e a 72px misura ~490px contro i ~556px disponibili */
-  font-size: clamp(44px, 6.4vw, 92px);
-  line-height: 1.02;
-  margin-bottom: 26px;
+  /* "A real processor," deve stare su una riga accanto al logo */
+  font-size: clamp(38px, 4.6vw, 66px);
+  line-height: 1.04;
+  margin-bottom: 10px;
 }
 
 
@@ -1053,3 +1052,58 @@ main { max-width: var(--maxw); margin: 0 auto; }
   color: var(--dim);
 }
 .rows .pending { color: var(--ink); font-weight: 600; }
+
+/* ======================================== eroe, stile del mockup ======== */
+
+.hero-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* il logo isometrico accanto al titolo; sotto i 700px scende sotto */
+.hero-logo {
+  flex: 0 0 auto;
+  width: clamp(110px, 12vw, 180px);
+  height: auto;
+  /* il JPG porta il suo panna: multiply lo fonde nel nostro senza bordi */
+  mix-blend-mode: multiply;
+}
+@media (max-width: 700px) { .hero-head { flex-direction: column; } }
+
+.em-mint { font-style: italic; font-weight: 300; color: var(--mint-deep); }
+
+.kicker { margin: 6px 0 22px; color: var(--ink-2); }
+
+/* i riquadri GATES / FLIP-FLOPS / CLOCK del mockup, su panna */
+.hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+}
+.hstat {
+  border: var(--rule);
+  background: var(--paper);
+  padding: 12px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 118px;
+}
+.hstat .ck { color: var(--dim); }
+.hstat-v {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--mint-deep);
+  font-variant-numeric: tabular-nums;
+}
+.hero-status {
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--dim);
+}
