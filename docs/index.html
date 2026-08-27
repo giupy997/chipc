@@ -193,7 +193,7 @@
       <div class="card">
         <div class="card-head">
           <span class="ck">REGISTER FILE</span>
-          <span class="ck ck-dim">16 &times; 4 BITS</span>
+          <span class="ck ck-dim">16 &times; 8 BITS</span>
         </div>
         <div id="registers" class="registers"></div>
       </div>
@@ -305,7 +305,7 @@
         </div>
         <div id="chip-preview" class="chip-preview"></div>
         <p class="field-note">
-          No IPFS, no server. <code>tokenURI</code> builds this from the real 79
+          No IPFS, no server. <code>tokenURI</code> builds this from the real 171
           bits, so a stopped chip and a chip someone keeps alive do not look
           alike.
         </p>
@@ -371,7 +371,7 @@
       <li>
         <span class="step-n">01</span>
         <h3>Verilog</h3>
-        <p>A 12&#8209;bit instruction word, single&#8209;cycle execution, our own ISA &mdash; not a clone of the 4004.</p>
+        <p>A 25&#8209;bit instruction word, single&#8209;cycle execution, our own ISA &mdash; not a clone of anything.</p>
       </li>
       <li>
         <span class="step-n">02</span>
@@ -397,12 +397,12 @@
 
     <div class="note">
       <span class="ck"><i class="sq sq-mint"></i> VERIFICATION</span>
-      <h3>Three simulations have to agree, cycle for cycle.</h3>
+      <h3>Four proofs have to agree, cycle for cycle.</h3>
       <p>
-        RTL simulation, gate&#8209;level simulation of the synthesised netlist, and
-        execution inside the EVM. The Solidity test suite does not check the
-        contract against itself &mdash; it checks that the contract behaves like
-        the hardware.
+        RTL simulation, gate&#8209;level simulation of the synthesised netlist, the
+        interpreter alone, and a minted chip inside a real factory. The Solidity
+        test suite does not check the contract against itself &mdash; it checks
+        that the contract behaves like the hardware.
       </p>
     </div>
   </section>
@@ -413,8 +413,10 @@
     <div class="sec-head">
       <h2 class="display display-2">Twenty&#8209;nine<br><em>opcodes.</em></h2>
       <p class="sec-copy">
-        12&#8209;bit words. Sixteen registers of four bits, an 8&#8209;bit program
-        counter, 256 words of ROM. Every instruction completes in one block.
+        25&#8209;bit words. Sixteen registers of eight bits, a 10&#8209;bit program
+        counter, 1,024 words of ROM and 256 bytes of RAM. Every instruction
+        completes in one block &mdash; except <code>ld</code>, which takes two
+        honest cycles, like the silicon it is.
       </p>
     </div>
 
