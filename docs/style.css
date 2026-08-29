@@ -642,7 +642,7 @@ main { max-width: var(--maxw); margin: 0 auto; }
 
 .line {
   display: grid;
-  grid-template-columns: 3ch 4ch 1fr;
+  grid-template-columns: 3ch 7ch 1fr;
   gap: 14px;
   padding: 0 16px;
   white-space: nowrap;
