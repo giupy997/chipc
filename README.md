@@ -64,11 +64,12 @@ public, deterministic, and re-executable by anyone, forever.
 
 The declared road (the "roadmap" section of the site):
 
-1. **R1 — the launchpad opens.** Minting from the browser: pick a program,
-   upload a logo, choose the market your chip trades against — ETH or
-   tokenised stocks. And the same doors open to machines: an MCP server so
-   AI agents can mint, power and read chips of their own. Pure software;
-   the factory already accepts every mint, whoever — or whatever — sends it.
+1. **R1 — the launchpad opens.** Minting from the browser: write your
+   program in the workbench — or pick one — upload a logo, choose the market
+   your chip trades against — ETH or tokenised stocks. And the same doors
+   open to machines: an MCP server so AI agents can mint, power and read
+   chips of their own. Pure software; the factory already accepts every
+   mint, whoever — or whatever — sends it.
 2. **R2 — the court.** The first protocol upgrade. Processors run off-chain
    at full speed; results post with a bond; a dispute bisects to one cycle
    and replays it inside the deployed gate array. Off-chain speed, on-chain

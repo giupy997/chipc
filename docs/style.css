@@ -658,6 +658,35 @@ main { max-width: var(--maxw); margin: 0 auto; }
 }
 .line.is-pc .addr, .line.is-pc .word { color: var(--ink); }
 
+/* workbench teaser */
+.workbench { margin-top: 28px; }
+.wb-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.tag-incoming {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.16em; background: var(--ink); color: var(--mint);
+  padding: 5px 11px; white-space: nowrap;
+}
+.wb-editor {
+  margin-top: 18px; border: var(--rule);
+  background: var(--panel); color: var(--paper);
+  font-family: var(--mono); font-size: 12.5px;
+}
+.wb-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-bottom: 1px solid var(--panel-line);
+  color: var(--panel-dim);
+}
+.wb-bar span { width: 8px; height: 8px; border-radius: 50%; background: var(--panel-line); display: inline-block; }
+.wb-bar b { margin-left: 8px; font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em; }
+.wb-editor pre {
+  margin: 0; padding: 14px 16px; line-height: 1.85;
+  overflow-x: auto; color: #c9c8bf;
+}
+.wb-run {
+  padding: 10px 16px; border-top: 1px solid var(--panel-line);
+  color: var(--mint); font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em;
+}
+
 /* ================================================================ band == */
 
 .band {

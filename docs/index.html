@@ -208,6 +208,32 @@
         <div id="listing" class="listing"></div>
       </div>
     </div>
+
+    <div class="note workbench">
+      <div class="wb-head">
+        <span class="ck"><i class="sq sq-mint"></i> THE WORKBENCH</span>
+        <span class="tag-incoming">INCOMING</span>
+      </div>
+      <h3>Write your own program. Right here.</h3>
+      <p>
+        The same assembler that built <code>echo8</code> is moving into the
+        browser: type RH&#8209;8 assembly, press RUN, and watch your code walk
+        the 2,368 gates &mdash; registers, RAM and LEDs, live. And when the
+        launchpad opens, the program you wrote here is the one you mint:
+        your code, burned into a chip of its own.
+      </p>
+      <div class="wb-editor" aria-hidden="true">
+        <div class="wb-bar"><span></span><span></span><span></span><b>untitled.asm</b></div>
+        <pre>start:
+  in   r0          ; read the sponsor's byte
+  ldi  r1, #0x2a
+  add  r0, r1      ; your byte, plus the answer
+  out  r0
+  st   [r1], r0    ; keep it in RAM
+  jmp  start</pre>
+        <div class="wb-run">RUN ON THE DIE &mdash; SOON</div>
+      </div>
+    </div>
   </section>
 
 
@@ -613,12 +639,13 @@
       <li>
         <span class="step-n">R1</span>
         <h3>The launchpad opens</h3>
-        <p>Minting from the browser: pick a program, upload a logo, choose
-        what your chip trades against &mdash; ETH or tokenised stocks
-        (NVDA, SNDK, SPCX). And the same doors open to machines: an MCP
-        server so AI agents can mint, power and read chips of their own.
-        No contract changes; the factory already accepts every mint,
-        whoever &mdash; or whatever &mdash; sends it.</p>
+        <p>Minting from the browser: write your program in the workbench
+        &mdash; or pick one &mdash; upload a logo, choose what your chip
+        trades against: ETH or tokenised stocks (NVDA, SNDK, SPCX). And the
+        same doors open to machines: an MCP server so AI agents can mint,
+        power and read chips of their own. No contract changes; the factory
+        already accepts every mint, whoever &mdash; or whatever &mdash;
+        sends it.</p>
       </li>
       <li>
         <span class="step-n">R2</span>
