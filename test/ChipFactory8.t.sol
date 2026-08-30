@@ -233,6 +233,83 @@ contract ChipFactory8Test is Test {
         assertEq(ChipToken(token).owner(), bob, "owner() non segue l'NFT");
     }
 
+    // ---- token nato altrove (launchpad) --------------------------------------
+
+    /// Un chip nudo + un token qualsiasi: la riserva si finanzia PRIMA,
+    /// l'aggancio dopo, e da li' il mining funziona come coi nostri token.
+    function test_agganciaTokenDiUnLaunchpad() public {
+        vm.prank(alice);
+        (uint256 id, address none) = factory.mint(_program(), "PONS", "PONS", "", 0, 0);
+        assertEq(none, address(0), "un chip nudo non deve avere token");
+
+        ChipToken ext = new ChipToken("Altrove", "ALT", 999, 1_000_000e18, address(this), 1_000_000e18, address(this));
+        ext.transfer(address(factory), 400_000e18);
+
+        vm.prank(alice);
+        factory.attachToken(id, address(ext), 5e18);
+
+        vm.prank(bob);
+        factory.tick(id, 0);
+        assertEq(ext.balanceOf(bob), 5e18, "lo sponsor non e' stato pagato col token esterno");
+
+        (address t, uint256 left, uint256 reward, ) = factory.emission(id);
+        assertEq(t, address(ext));
+        assertEq(left, 400_000e18 - 5e18);
+        assertEq(reward, 5e18);
+    }
+
+    /// La trappola disinnescata: senza riserva l'aggancio deve fallire,
+    /// perche' un tick a riserva vuota spegnerebbe l'emissione per sempre.
+    function test_nienteAggancioARisevaVuota() public {
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(_program(), "VUOTO", "VUOTO", "", 0, 0);
+        ChipToken ext = new ChipToken("Altrove", "ALT2", 999, 1_000_000e18, address(this), 1_000_000e18, address(this));
+
+        vm.prank(alice);
+        vm.expectRevert(ChipFactory8.ReserveNotFunded.selector);
+        factory.attachToken(id, address(ext), 5e18);
+    }
+
+    function test_aggancioUnaVoltaSola() public {
+        (uint256 id, address token) = _mint(alice, "GIA");
+        assertTrue(token != address(0));
+
+        ChipToken ext = new ChipToken("Altrove", "ALT3", 999, 1_000_000e18, address(this), 1_000_000e18, address(this));
+        ext.transfer(address(factory), 1e18);
+
+        vm.prank(alice);
+        vm.expectRevert(ChipFactory8.TokenAlreadySet.selector);
+        factory.attachToken(id, address(ext), 1e18);
+    }
+
+    function test_unTokenNonServeDueChip() public {
+        vm.prank(alice);
+        (uint256 a, ) = factory.mint(_program(), "UNO", "UNO", "", 0, 0);
+        vm.prank(alice);
+        (uint256 b, ) = factory.mint(_program(), "DUE", "DUE", "", 0, 0);
+
+        ChipToken ext = new ChipToken("Altrove", "ALT4", 999, 1_000_000e18, address(this), 1_000_000e18, address(this));
+        ext.transfer(address(factory), 2e18);
+
+        vm.prank(alice);
+        factory.attachToken(a, address(ext), 1e18);
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(ChipFactory8.TokenInUse.selector, a));
+        factory.attachToken(b, address(ext), 1e18);
+    }
+
+    function test_soloIlProprietarioAggancia8() public {
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(_program(), "MIO", "MIO", "", 0, 0);
+        ChipToken ext = new ChipToken("Altrove", "ALT5", 999, 1_000_000e18, address(this), 1_000_000e18, address(this));
+        ext.transfer(address(factory), 1e18);
+
+        vm.prank(bob);
+        vm.expectRevert(ChipFactory8.NotChipOwner.selector);
+        factory.attachToken(id, address(ext), 1e18);
+    }
+
     // ---- i numeri che decidono l'economia ------------------------------------
 
     function test_gasConioETick() public {

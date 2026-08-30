@@ -122,6 +122,7 @@ contract ChipFactory8 is ERC721, Ownable {
 
     event ChipMinted(uint256 indexed id, address indexed minter, bytes32 indexed ticker, bytes32 label);
     event TokenLaunched(uint256 indexed id, address indexed token, uint256 toLiquidity, uint256 reserve, uint256 rewardPerCycle);
+    event TokenAttached(uint256 indexed id, address indexed token, uint256 reserve, uint256 rewardPerCycle);
     event Cycle(uint256 indexed id, uint256 indexed cycle, address indexed sponsor, uint16 pc, uint8 inPort, uint8 out, bool halted);
     event Output(uint256 indexed id, uint256 indexed cycle, uint8 value);
     event Halt(uint256 indexed id, uint256 indexed cycle);
@@ -142,6 +143,10 @@ contract ChipFactory8 is ERC721, Ownable {
     error BadLiquidityShare();
     error TargetTooShort();
     error MotherAlreadySet();
+    error NoToken();
+    error TokenAlreadySet();
+    error TokenInUse(uint256 servingChip);
+    error ReserveNotFunded();
 
     constructor(IRH8GateArray gateArray, address owner_)
         ERC721("RH Chip", "CHIP")
@@ -360,6 +365,43 @@ contract ChipFactory8 is ERC721, Ownable {
         if (!_validLogoURI(uri)) revert BadLogoURI();
         _logo[id] = uri;
         emit LogoSet(id, uri);
+    }
+
+    /**
+     * @notice Aggancia a un chip nudo un token lanciato altrove.
+     *
+     * Serve quando il token lo crea un launchpad, che vuole per forza
+     * distribuire il proprio contratto: la fabbrica non ha bisogno di
+     * *creare* il token, le basta sapere qual e' e avere qualcosa da
+     * distribuire. La riserva e' il saldo che questo contratto ha di quel
+     * token — e deve esserci GIA', prima dell'aggancio: `_reward` spegne
+     * l'emissione per sempre alla prima riserva vuota, quindi un tick fra
+     * l'aggancio e il finanziamento ucciderebbe il mining sul nascere.
+     * Prima si trasferisce la riserva, poi si aggancia.
+     *
+     * @dev Si puo' fare **una volta sola**. Se il proprietario potesse
+     *      cambiare il token dopo, chi ha macinato cicli per guadagnarlo si
+     *      ritroverebbe in mano la cosa sbagliata. E un token non puo'
+     *      servire due chip: si mangerebbero la riserva a vicenda.
+     */
+    function attachToken(uint256 id, address token, uint96 rewardPerCycle) external {
+        _requireChipOwner(id);
+        if (token == address(0) || rewardPerCycle == 0) revert NoToken();
+
+        Chip storage c = _chips[id];
+        if (c.token != address(0)) revert TokenAlreadySet();
+
+        uint256 used = chipByToken[token];
+        if (used != 0) revert TokenInUse(used);
+
+        uint256 reserve = IERC20(token).balanceOf(address(this));
+        if (reserve == 0) revert ReserveNotFunded();
+
+        c.token = token;
+        c.rewardPerCycle = rewardPerCycle;
+        chipByToken[token] = id;
+
+        emit TokenAttached(id, token, reserve, rewardPerCycle);
     }
 
     // ---- lettura -----------------------------------------------------------

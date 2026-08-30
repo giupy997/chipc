@@ -228,12 +228,18 @@ async function main() {
       functionName: "emission",
       args: [1n],
     });
-    console.log(`  token         ${token}`);
-    console.log(`    liquidita'  ${liquidityBps / 100}% a te, subito`);
-    console.log(`    riserva     ${(Number(reserve) / 1e18).toLocaleString()} token`);
-    console.log(`    per ciclo   ${(Number(reward) / 1e18).toLocaleString()} token`);
-    console.log(`    durata      ${(Number(targetCycles) / 10 / 3600).toFixed(1)} ore di clock a 10 Hz`);
-    console.log(`  chip #1 coniato  ${args.label || "Genesis"} (${args.ticker || "RH4"})  ${r.gasUsed} gas`);
+    if (targetCycles === 0n) {
+      console.log(`  chip #1 coniato NUDO  ${args.label || "Genesis"} (${args.ticker || "RH4"})  ${r.gasUsed} gas`);
+      console.log(`    nessun token: lancialo sul launchpad, finanzia la riserva,`);
+      console.log(`    poi aggancialo con  node tools/attach8.js`);
+    } else {
+      console.log(`  token         ${token}`);
+      console.log(`    liquidita'  ${liquidityBps / 100}% a te, subito`);
+      console.log(`    riserva     ${(Number(reserve) / 1e18).toLocaleString()} token`);
+      console.log(`    per ciclo   ${(Number(reward) / 1e18).toLocaleString()} token`);
+      console.log(`    durata      ${(Number(targetCycles) / 10 / 3600).toFixed(1)} ore di clock a 10 Hz`);
+      console.log(`  chip #1 coniato  ${args.label || "Genesis"} (${args.ticker || "RH4"})  ${r.gasUsed} gas`);
+    }
   }
 
   const explorer = chain.blockExplorers?.default.url;
