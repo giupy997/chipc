@@ -14,17 +14,16 @@ when someone pays for it.
 
 ## Live on mainnet
 
-Robinhood Chain (chain id 4663), since 28 August 2026.
+Robinhood Chain (chain id 4663). **Launching — the token address, market and
+factory are published all at once at launch**, so everyone gets them at the
+same moment. Any address circulating before then is a fake.
 
 | | |
 |---|---|
 | Site | https://rh4cpu.tech |
-| ChipFactory8 | `0x560da98cf01bd2c401f42e0d1ecab439b6539f67` |
 | RH8GateArray | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
 | Chip8Renderer | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
 | Chip #1, the mother | rh4.cpu (`RH4`) — running `echo8`, forever |
-| RH4 token | `0xCc94d9a27006B1556EF5dB40dDce1c4F5a1bF40C` |
-| Market | `0x5394Ba005834Ba041165AfBA965444e839fEAf09` (WETH/RH4 1%) |
 
 Every chip NFT links back to the site (`external_url` →
 `https://rh4cpu.tech/?chip=N`) and chip #1 carries the project logo as its
