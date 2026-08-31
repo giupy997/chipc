@@ -372,8 +372,16 @@ async function main() {
       stats.sent++;
       nonce++;
     } catch (err) {
+      const msg = short(err);
+      // Portafoglio a secco: riprovare non lo riempie. Ci si ferma con la
+      // spazzata (un transfer costa meno di un tick, di solito passa ancora).
+      if (/exceeds the balance|insufficient funds/i.test(msg)) {
+        console.log(`  ETH finiti sul keeper: ${msg}`);
+        console.log(`  ricarica ${account.address} e riparti.`);
+        break;
+      }
       // nonce fuori sincrono, RPC che sbuffa: si risincronizza e si riprova
-      console.log(`  invio fallito: ${short(err)}`);
+      console.log(`  invio fallito: ${msg}`);
       nonce = await pub.getTransactionCount({ address: account.address });
       await sleep(250);
       continue;
