@@ -14,13 +14,14 @@ when someone pays for it.
 
 ## Live on mainnet
 
-Robinhood Chain (chain id 4663). **Launching — the token address, market and
-factory are published all at once at launch**, so everyone gets them at the
-same moment. Any address circulating before then is a fake.
+Robinhood Chain (chain id 4663), live since 31 August 2026.
 
 | | |
 |---|---|
 | Site | https://rh4cpu.tech |
+| RH4 token | `0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B` |
+| Market | [pons](https://www.ponsfamily.com/launchpad/0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B) — bonding curve, locked LP at graduation |
+| ChipFactory8 | `0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b` |
 | RH8GateArray | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
 | Chip8Renderer | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
 | Chip #1, the mother | rh4.cpu (`RH4`) — running `echo8`, forever |
