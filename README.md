@@ -29,10 +29,12 @@ Every chip NFT links back to the site (`external_url` →
 `https://rh4cpu.tech/?chip=N`) and chip #1 carries the project logo as its
 `image`, both baked into the renderer on-chain.
 
-60% of the supply seeds the market, 400M sit in the factory as the cycle
-reserve — **5.14 RH4 per cycle, sized for 90 days of full clock**. The pool
-opened as a single-sided range order: 600M RH4 in, **zero ETH**. The buy side
-is built by buyers.
+The token launches on [pons](https://www.ponsfamily.com/launchpad) — the
+launchpad where Robinhood Chain trades: bonding curve, graduation at 4.2 ETH
+raised, liquidity locked from graduation on. The developer buy never touches
+the developer's pocket: it becomes the **mining reserve**, sealed into the
+factory at launch, and it leaves one clock cycle at a time — sized for 90
+days of full clock.
 
 ## Why "4"
 
@@ -185,27 +187,29 @@ keeps a running sum in RAM — nine instructions, verified halt-free for
 20,000 cycles on the synthesised netlist and 90 inside the EVM before
 deployment.
 
-## Opening a market without ETH
+## The market lives on pons
 
-In Uniswap v3, a position entirely on one side of the current price holds
-**only** that token. So a chip's market opens with just the liquidity slice
-and **zero ETH**: as people buy, tokens convert to ETH inside the position,
-which is an NFT in the minter's wallet.
+The token trades on [pons](https://www.ponsfamily.com/launchpad),
+pump-style on Robinhood Chain: a bonding curve until 4.2 ETH is raised,
+then graduation into a pool whose liquidity is locked. Pairs with ETH or
+tokenised stocks. The factory does not care who created the token — a naked
+chip adopts it once, forever:
 
 ```bash
-RH4_FACTORY=0x… node tools/pool.js --chip 1 --dry-run
-RH4_FACTORY=0x… node tools/pool.js --chip 1 --fdv-start 5 --fdv-end 50
+# fund the reserve AND attach, in the only safe order (fund first):
+RH4_FACTORY=0x… node tools/attach8.js --chip 1 --token 0x… --reserve 250000000 --target 77760000 --dry-run
 ```
 
-Chips can also pair against tokenised stocks (`--quote nvda|sndk|spcx`).
-The canonical Uniswap addresses on this chain are empty stubs; the real
-ones, recovered from a live pool and verified:
+The attach refuses an unfunded reserve by design: `_reward` retires the
+emission forever on the first empty-reserve tick, so the reserve must be in
+the factory before the clock can find it. Once in, there is no way out but
+`tick()` — the anti-rug is the same as ever, just funded by the developer
+buy instead of a mint-time split.
 
-| | |
-|---|---|
-| V3 Factory | `0x1f7d7550B1b028f7571E69A784071F0205FD2EfA` |
-| NonfungiblePositionManager | `0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3` |
-| WETH | `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73` |
+The factory can still open a factory-native market for chips that want one
+(`tools/pool.js`, a single-sided Uniswap v3 range order — zero ETH in, the
+buy side built by buyers). The two paths coexist; pons is where the mother
+trades.
 
 ## The site is the processor
 
