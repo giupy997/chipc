@@ -1,7 +1,8 @@
 /**
  * config.js — dove sta la fabbrica.
  *
- * Ripartenza, 31 agosto 2026. Gli indirizzi pubblici (token, mercato)
+ * Ripartenza (30/70), 31 agosto 2026. 70% al pubblico su pons, 30% (il
+ * dev buy) sigillato in fabbrica come riserva di mining. Gli indirizzi pubblici (token, mercato)
  * si annunciano tutti insieme al lancio: qui c'e' solo cio' che serve
  * al bottone POWER — la fabbrica del chip #1.
  *
@@ -15,7 +16,7 @@ window.RH4_CONFIG = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   explorer: "https://robinhoodchain.blockscout.com",
 
-  factory: "0xd73c9a8ffe2c40deba8bc0ba6bc5b61db7ce86eb",
+  factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
   defaultChip: 1,
 };

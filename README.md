@@ -31,10 +31,11 @@ Every chip NFT links back to the site (`external_url` →
 
 The token launches on [pons](https://www.ponsfamily.com/launchpad) — the
 launchpad where Robinhood Chain trades: bonding curve, graduation at 4.2 ETH
-raised, liquidity locked from graduation on. The developer buy never touches
-the developer's pocket: it becomes the **mining reserve**, sealed into the
-factory at launch, and it leaves one clock cycle at a time — sized for 90
-days of full clock.
+raised, liquidity locked from graduation on. **70% of the supply belongs to
+the public. The other 30% — the developer buy — never touches the
+developer's pocket**: it is sent whole to the factory
+(`0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b`) as the **mining reserve**,
+and it leaves one clock cycle at a time — sized for 90 days of full clock.
 
 ## Why "4"
 
