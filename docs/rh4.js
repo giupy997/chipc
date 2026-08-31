@@ -453,8 +453,6 @@
   const PAIRS = {
     weth: { label: "WETH", note: "priced in ether directly" },
     nvda: { label: "NVDA", note: "NVIDIA · ~0.086 ETH a share" },
-    sndk: { label: "SNDK", note: "SanDisk · reference pool is empty — no usable price", bad: true },
-    spcx: { label: "SPCX", note: "SpaceX · ~0.056 ETH a share" },
   };
 
   const RATES = [
