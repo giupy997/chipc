@@ -130,6 +130,33 @@ contract ChipFactory8Test is Test {
         assertEq(factory.ramAt(b, 0x20), 222);
     }
 
+    /// Il giro completo del PC a 10 bit: 0x3FF + 1 = 0x000, attraverso i
+    /// gate, non per convenzione dell'interprete. Chiesto da un revisore
+    /// esterno il giorno del lancio — aveva ragione a chiederlo.
+    function test_ilPcFaIlGiroCompleto() public {
+        uint256[128] memory rom;
+        rom[0] = 0x17003FF;                          // jmp 0x3FF
+        rom[127] |= uint256(0x0110011) << (7 * 32);  // ROM[1023]: ldi r1, #0x11
+
+        vm.prank(alice);
+        (uint256 id, ) = factory.mint(rom, "WRAP", "WRAP", "", 0, 0);
+
+        factory.tick(id, 0);
+        vm.roll(block.number + 1);
+        (uint16 pc, , , , ) = factory.inspect(id);
+        assertEq(pc, 0x3FF, "il salto all'ultima parola non e' arrivato");
+
+        factory.tick(id, 0);
+        vm.roll(block.number + 1);
+        (pc, , , , ) = factory.inspect(id);
+        assertEq(pc, 0, "il PC non ha fatto il giro: 0x3FF+1 deve essere 0");
+
+        factory.tick(id, 0);
+        vm.roll(block.number + 1);
+        (pc, , , , ) = factory.inspect(id);
+        assertEq(pc, 0x3FF, "dopo il giro il programma deve continuare da ROM[0]");
+    }
+
     // ---- il clock ------------------------------------------------------------
 
     function test_unTickPerBloccoPerChip() public {
