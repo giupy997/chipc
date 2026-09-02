@@ -338,19 +338,36 @@
     const now = Number(BigInt(await rpc("eth_blockNumber", [])));
     const CHUNK = 500000;
     let logs = [];
-    let gaps = 0;
+    // tutti i range in UN batch: una richiesta HTTP per l'intera storia
+    const ranges = [];
     for (let from = state.bornBlock || 1; from <= now; from += CHUNK) {
-      const to = Math.min(from + CHUNK - 1, now);
-      try {
-        const part = await rpc("eth_getLogs", [{
-          address: state.pool, topics: [TOPIC_SWAP],
-          fromBlock: "0x" + from.toString(16), toBlock: "0x" + to.toString(16),
-        }], 6);
-        logs = logs.concat(part);
-      } catch (_) {
-        gaps++; // l'RPC pubblico a volte tossisce: meglio un buco che il buio
+      ranges.push({ method: "eth_getLogs", params: [{
+        address: state.pool, topics: [TOPIC_SWAP],
+        fromBlock: "0x" + from.toString(16),
+        toBlock: "0x" + Math.min(from + CHUNK - 1, now).toString(16) }] });
+    }
+    let gaps = 0;
+    try {
+      const parts = await (async () => {
+        const res = await fetch(CFG().rpc, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify(ranges.map((r, i) => ({ jsonrpc: "2.0", id: i, ...r }))),
+        }).then((x) => x.json());
+        const byId = new Map(res.map((r) => [r.id, r]));
+        return ranges.map((_, i) => {
+          const r = byId.get(i);
+          if (!r || r.error) { gaps++; return []; }
+          return r.result;
+        });
+      })();
+      logs = parts.flat();
+    } catch (_) {
+      // il batch intero e' caduto: si torna alle fette una alla volta
+      for (const rng of ranges) {
+        try { logs = logs.concat(await rpc(rng.method, rng.params, 6)); }
+        catch (_) { gaps++; }
+        await sleep(200);
       }
-      await sleep(200);
     }
     if (gaps) $("#cp-ntrades").title = `${gaps} block ranges unavailable — refresh to fill`;
     $("#cp-ntrades").textContent = logs.length;

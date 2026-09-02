@@ -56,6 +56,21 @@
   }
   const call = (data) => rpc("eth_call", [{ to: CFG().factory, data }, "latest"]);
 
+  /** Tante letture, UNA richiesta HTTP: l'RPC accetta i batch JSON-RPC. */
+  async function rpcBatch(reqs) {
+    const res = await fetch(CFG().rpc, {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify(reqs.map((r, i) => ({ jsonrpc: "2.0", id: i, ...r }))),
+    });
+    const out = await res.json();
+    const byId = new Map(out.map((r) => [r.id, r]));
+    return reqs.map((_, i) => {
+      const r = byId.get(i);
+      if (!r || r.error) throw new Error((r && r.error.message) || "batch error");
+      return r.result;
+    });
+  }
+
   // ------------------------------------------------------------ la galleria
 
   function chipCard(id, c, s, logoURI) {
@@ -83,38 +98,51 @@
     return el;
   }
 
+  let lastGallery = "";
+  function renderGallery(items, total) {
+    const host = $("#gal");
+    const key = JSON.stringify(items);
+    if (key === lastGallery) return; // niente flicker se nulla e' cambiato
+    lastGallery = key;
+    $("#gal-count").textContent = `${total} CHIP${total === 1 ? "" : "S"} MINTED`;
+    host.innerHTML = "";
+    for (const it of items) host.appendChild(chipCard(it.id, it.c, it.s, it.logoURI));
+  }
+
   async function loadGallery() {
     const host = $("#gal");
-    const count = $("#gal-count");
     if (!host) return;
     try {
-      const total = Number(BigInt(await call(SELECTOR_TOTAL)));
-      count.textContent = `${total} CHIP${total === 1 ? "" : "S"} MINTED`;
-      const nowBlock = BigInt(await rpc("eth_blockNumber", []));
+      const ecall = (data) => ({ method: "eth_call", params: [{ to: CFG().factory, data }, "latest"] });
+      const [nowHex, totalHex] = await rpcBatch([
+        { method: "eth_blockNumber", params: [] }, ecall(SELECTOR_TOTAL),
+      ]);
+      const total = Number(BigInt(totalHex));
+      const nowBlock = BigInt(nowHex);
 
-      host.innerHTML = "";
-      // dal piu' recente al piu' vecchio, come ogni launchpad che si rispetti
-      for (let id = total; id >= 1; id--) {
-        const [chipHex, insHex, logoHex] = await Promise.all([
-          call(SELECTOR_CHIP + word(id)),
-          call(SELECTOR_INSPECT + word(id)),
-          call(SELECTOR_LOGO + word(id)),
-        ]);
-        const w = (hex, i) => hex.slice(2 + i * 64, 2 + (i + 1) * 64);
+      const ids = [];
+      for (let id = total; id >= 1; id--) ids.push(id);
+      const reqs = [];
+      for (const id of ids) {
+        reqs.push(ecall(SELECTOR_CHIP + word(id)), ecall(SELECTOR_INSPECT + word(id)), ecall(SELECTOR_LOGO + word(id)));
+      }
+      const res = await rpcBatch(reqs); // tutta la fabbrica in un giro solo
+
+      const w = (hex, i) => hex.slice(2 + i * 64, 2 + (i + 1) * 64);
+      const items = ids.map((id, k) => {
+        const chipHex = res[k * 3], insHex = res[k * 3 + 1], logoHex = res[k * 3 + 2];
         const c = {
           label: b32ToString(w(chipHex, 1)),
           ticker: b32ToString(w(chipHex, 2)),
           token: "0x" + w(chipHex, 6).slice(24),
         };
-        const lastBlock = BigInt("0x" + w(insHex, 4));
-        const s = {
+        const s2 = {
           pc: Number(BigInt("0x" + w(insHex, 0))),
           out: Number(BigInt("0x" + w(insHex, 1))),
           halted: BigInt("0x" + w(insHex, 2)) === 1n,
           cycles: Number(BigInt("0x" + w(insHex, 3))),
-          behindBlocks: Number(nowBlock - lastBlock),
+          behindBlocks: Number(nowBlock - BigInt("0x" + w(insHex, 4))),
         };
-        // il logo e' una string dinamica: offset, lunghezza, byte
         let logoURI = "";
         try {
           const len = Number(BigInt("0x" + w(logoHex, 1)));
@@ -123,10 +151,13 @@
             logoURI = decodeURIComponent(raw.replace(/(..)/g, "%$1"));
           }
         } catch (_) {}
-        host.appendChild(chipCard(id, c, s, logoURI));
-      }
+        return { id, c, s: s2, logoURI };
+      });
+
+      renderGallery(items, total);
+      try { sessionStorage.setItem("rh4_gal", JSON.stringify({ items, total })); } catch (_) {}
     } catch (e) {
-      count.textContent = "the factory did not answer — refresh";
+      if (!lastGallery) $("#gal-count").textContent = "the factory did not answer — refresh";
     }
   }
 
@@ -453,6 +484,10 @@
     wireChips("[data-pair]", (b) => { pair = b.dataset.pair; });
     drawEmission();
     buildUpload();
+    try {
+      const cached = JSON.parse(sessionStorage.getItem("rh4_gal") || "null");
+      if (cached) renderGallery(cached.items, cached.total); // subito, poi si aggiorna
+    } catch (_) {}
     loadGallery();
     setInterval(loadGallery, 30000); // la galleria respira da sola
 
