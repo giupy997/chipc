@@ -13,10 +13,13 @@
 
   const S_CHIP = "0x8c6aefcf", S_INSPECT = "0xb3e98ae8", S_LOGO = "0xa29ba8a7",
         S_EMISSION = "0x58292a3d", S_TICK = "0xe5bbf637",
-        S_GETPOOL = "0x1698ee82", S_SLOT0 = "0x3850c7bd", S_BAL = "0x70a08231";
+        S_GETPOOL = "0x1698ee82", S_SLOT0 = "0x3850c7bd", S_BAL = "0x70a08231",
+        S_APPROVE = "0x095ea7b3", S_ALLOW = "0xdd62ed3e",
+        S_CREATE = "0x13ead562", S_MINTPOS = "0x88316456", S_MULTI = "0xac9650d8";
   const TOPIC_SWAP = "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67";
 
   const UNI = {
+    NPM: "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
     V3F: "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
     WETH: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
     NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
@@ -98,7 +101,12 @@
       if (len > 0) {
         const raw = logoHex.slice(2 + 128, 2 + 128 + len * 2);
         const uri = decodeURIComponent(raw.replace(/(..)/g, "%$1"));
-        $("#cp-logo").src = uri.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/");
+        const img = $("#cp-logo");
+        img.onerror = () => {
+          if (!img.dataset.r) { img.dataset.r = 1; img.src = img.src.replace("ipfs.io/ipfs", "gateway.pinata.cloud/ipfs"); }
+          else img.src = "brand/icon4-256.png";
+        };
+        img.src = uri.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/");
       }
     } catch (_) {}
 
@@ -152,15 +160,152 @@
   }
   const fmtP = (p) => p >= 1 ? p.toFixed(4) : p.toPrecision(4);
 
+
+  // ---------------------------------------- aprire il mercato (LP bruciata)
+
+  const intWord = (v) => { let b = BigInt(v); if (b < 0n) b += 1n << 256n; return b.toString(16).padStart(64, "0"); };
+
+  function sqrtRatioAtTick(tick) {
+    const abs = BigInt(Math.abs(tick));
+    const Q128 = 1n << 128n;
+    let ratio = (abs & 1n) !== 0n ? 0xfffcb933bd6fad37aa2d162d1a594001n : Q128;
+    const muls = [
+      [0x2n, 0xfff97272373d413259a46990580e213an], [0x4n, 0xfff2e50f5f656932ef12357cf3c7fdccn],
+      [0x8n, 0xffe5caca7e10e4e61c3624eaa0941cd0n], [0x10n, 0xffcb9843d60f6159c9db58835c926644n],
+      [0x20n, 0xff973b41fa98c081472e6896dfb254c0n], [0x40n, 0xff2ea16466c96a3843ec78b326b52861n],
+      [0x80n, 0xfe5dee046a99a2a811c461f1969c3053n], [0x100n, 0xfcbe86c7900a88aedcffc83b479aa3a4n],
+      [0x200n, 0xf987a7253ac413176f2b074cf7815e54n], [0x400n, 0xf3392b0822b70005940c7a398e4b70f3n],
+      [0x800n, 0xe7159475a2c29b7443b29c7fa6e889d9n], [0x1000n, 0xd097f3bdfd2022b8845ad8f792aa5825n],
+      [0x2000n, 0xa9f746462d870fdf8a65dc1f90e061e5n], [0x4000n, 0x70d869a156d2a1b890bb3df62baf32f7n],
+      [0x8000n, 0x31be135f97d08fd981231505542fcfa6n], [0x10000n, 0x9aa508b5b7a84e1c677de54f3e99bc9n],
+      [0x20000n, 0x5d6af8dedb81196699c329225ee604n], [0x40000n, 0x2216e584f5fa1ea926041bedfe98n],
+      [0x80000n, 0x48a170391f7dc42444e8fa2n],
+    ];
+    for (const [bit, m] of muls) if ((abs & bit) !== 0n) ratio = (ratio * m) >> 128n;
+    if (tick > 0) ratio = ((1n << 256n) - 1n) / ratio;
+    const shifted = ratio >> 32n;
+    return shifted + (ratio % (1n << 32n) === 0n ? 0n : 1n);
+  }
+  const tickAtPrice = (p) => Math.floor(Math.log(p) / Math.log(1.0001));
+  const floorSpacing = (t, sp) => Math.floor(t / sp) * sp;
+
+  async function ethPerQuote(quote) {
+    let best = null;
+    for (const fee of [500, 3000, 10000]) {
+      const [t0, t1] = quote.toLowerCase() < UNI.WETH.toLowerCase() ? [quote, UNI.WETH] : [UNI.WETH, quote];
+      const pool = "0x" + (await call(UNI.V3F, S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(fee))).slice(26);
+      if (pool === ZERO) continue;
+      const depth = BigInt(await call(UNI.WETH, S_BAL + addrWord(pool)));
+      if (!best || depth > best.depth) best = { pool, depth, t0 };
+    }
+    if (!best || best.depth < 5n * 10n ** 16n) throw new Error("no usable rate pool — open vs WETH instead");
+    const slot0 = await call(best.pool, S_SLOT0);
+    const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
+    const p = Number(sqrtX96) ** 2 / 2 ** 192;
+    return best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / p : p;
+  }
+
+  async function walletOpenMarket(btn, pairKey, statusEl) {
+    const provider = window.ethereum;
+    const tell = (m) => { statusEl.innerHTML = m; };
+    if (!provider) { tell("no wallet found in this browser"); return; }
+    btn.disabled = true;
+    try {
+      const [account] = await provider.request({ method: "eth_requestAccounts" });
+      try {
+        await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CFG().chainIdHex }] });
+      } catch (e) {
+        if (e && e.code === 4902) {
+          await provider.request({ method: "wallet_addEthereumChain", params: [{
+            chainId: CFG().chainIdHex, chainName: CFG().chainName,
+            nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+            rpcUrls: [CFG().rpc], blockExplorerUrls: [CFG().explorer] }] });
+        } else throw e;
+      }
+
+      const balance = BigInt(await call(state.token, S_BAL + addrWord(account)));
+      if (balance === 0n) throw new Error("this wallet holds no liquidity slice of this token");
+
+      const quote = pairKey === "nvda" ? UNI.NVDA : UNI.WETH;
+      const rate = pairKey === "nvda" ? await ethPerQuote(quote) : 1;
+      const ourIsToken0 = state.token.toLowerCase() < quote.toLowerCase();
+      const [t0, t1] = ourIsToken0 ? [state.token, quote] : [quote, state.token];
+      const qStart = 5 / rate, qEnd = 50 / rate, SUP = 1e9, SPACING = 200;
+      let lo, hi, init;
+      if (ourIsToken0) {
+        lo = floorSpacing(tickAtPrice(qStart / SUP), SPACING);
+        hi = floorSpacing(tickAtPrice(qEnd / SUP), SPACING);
+        if (hi <= lo) hi = lo + SPACING;
+        init = lo;
+      } else {
+        lo = floorSpacing(tickAtPrice(SUP / qEnd), SPACING);
+        hi = floorSpacing(tickAtPrice(SUP / qStart), SPACING);
+        if (hi <= lo) hi = lo + SPACING;
+        init = hi;
+      }
+      const sqrtX96 = sqrtRatioAtTick(init);
+
+      const allowance = BigInt(await call(state.token, S_ALLOW + addrWord(account) + addrWord(UNI.NPM)));
+      if (allowance < balance) {
+        tell("1/2 — approve in your wallet…");
+        const h1 = await provider.request({ method: "eth_sendTransaction", params: [{
+          from: account, to: state.token,
+          data: S_APPROVE + addrWord(UNI.NPM) + balance.toString(16).padStart(64, "0") }] });
+        let r1 = null;
+        for (let i = 0; i < 40 && !r1; i++) { await sleep(2500); r1 = await rpc("eth_getTransactionReceipt", [h1]); }
+        if (!r1 || r1.status !== "0x1") throw new Error("approve failed");
+      }
+
+      tell("2/2 — open the market: confirm in your wallet…");
+      const createCall = S_CREATE + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) + sqrtX96.toString(16).padStart(64, "0");
+      const deadline = Math.floor(Date.now() / 1000) + 1800;
+      const mintCall = S_MINTPOS +
+        addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) + intWord(lo) + intWord(hi) +
+        (ourIsToken0 ? balance : 0n).toString(16).padStart(64, "0") +
+        (ourIsToken0 ? 0n : balance).toString(16).padStart(64, "0") +
+        intWord(0) + intWord(0) + addrWord(UNI.DEAD) + intWord(deadline);
+      const enc = (hex) => {
+        const body = hex.replace("0x", "");
+        return intWord(body.length / 2) + body.padEnd(Math.ceil(body.length / 64) * 64, "0");
+      };
+      const c1 = enc(createCall), c2 = enc(mintCall);
+      const data = S_MULTI + intWord(32) + intWord(2) + intWord(64) + intWord(64 + c1.length / 2) + c1 + c2;
+
+      const h2 = await provider.request({ method: "eth_sendTransaction",
+        params: [{ from: account, to: UNI.NPM, data }] });
+      tell(`market opening — ${h2.slice(0, 10)}… waiting`);
+      let r2 = null;
+      for (let i = 0; i < 60 && !r2; i++) { await sleep(2500); r2 = await rpc("eth_getTransactionReceipt", [h2]); }
+      if (!r2 || r2.status !== "0x1") throw new Error("market open reverted — check the explorer");
+
+      tell("market open — the LP position was born at the burn address ✓");
+      setTimeout(() => location.reload(), 2500);
+    } catch (e) {
+      tell(short(e));
+      btn.disabled = false;
+    }
+  }
+
   async function loadMarket() {
     const found = await findPool();
     if (!found) {
       $("#chart").hidden = true;
       const nm = $("#cp-nomarket");
       nm.hidden = false;
-      nm.innerHTML = id === 1
-        ? `the mother trades on <a href="https://www.ponsfamily.com/launchpad/${state.token}">pons</a> — chart and trades live there`
-        : `no market yet — the minter has not opened it.<br>when it opens, the LP position is born at the burn address.`;
+      if (id === 1) {
+        nm.innerHTML = `the mother trades on <a href="https://www.ponsfamily.com/launchpad/${state.token}">pons</a> — chart and trades live there`;
+      } else {
+        nm.innerHTML = `no market yet.<br><br>` +
+          `<button class="btn btn-dark btn-sm" id="cp-open-weth">OPEN VS WETH</button> ` +
+          `<button class="btn btn-light btn-sm" id="cp-open-nvda">OPEN VS NVDA</button>` +
+          `<br><br><span id="cp-open-note">for the minter: your liquidity slice becomes a single-sided ` +
+          `range order, and the LP position is <b>born at the burn address</b> — ` +
+          `nobody can ever pull it.</span>`;
+        $("#cp-open-weth").addEventListener("click", (e) =>
+          walletOpenMarket(e.target, "weth", $("#cp-open-note")));
+        $("#cp-open-nvda").addEventListener("click", (e) =>
+          walletOpenMarket(e.target, "nvda", $("#cp-open-note")));
+      }
       $("#cp-price").textContent = "—";
       return;
     }

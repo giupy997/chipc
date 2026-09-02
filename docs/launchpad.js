@@ -65,7 +65,8 @@
     const leds = Array.from({ length: 8 }, (_, i) =>
       `<div class="gled${(s.out >> (7 - i)) & 1 ? " on" : ""}"></div>`).join("");
     const logo = logoURI
-      ? `<img class="glogo" src="${logoURI.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/")}" alt="" loading="lazy">`
+      ? `<img class="glogo" src="${logoURI.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/")}" alt="" loading="lazy"
+           onerror="if(!this.dataset.r){this.dataset.r=1;this.src=this.src.replace('ipfs.io/ipfs','gateway.pinata.cloud/ipfs')}else{this.hidden=true}">`
       : "";
     const href = `chip.html?id=${id}`;
 
