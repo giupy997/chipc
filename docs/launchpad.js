@@ -245,6 +245,165 @@
       say(`${name} (${ticker}) is alive — its token exists, its clock is waiting. ` +
         `See it: ${CFG().explorer}/tx/${hash}`);
       loadGallery(); // il tuo chip appare subito in cima
+
+      // il passo due: aprire il mercato, con la LP che nasce gia' bruciata
+      if (id && liqBps > 0) {
+        const emiHex = await rpc("eth_call", [{ to: CFG().factory, data: S_EMISSION + word(id) }, "latest"]);
+        const tokenAddr = "0x" + emiHex.slice(2 + 24, 2 + 64);
+        const mbtn = document.createElement("button");
+        mbtn.className = "btn btn-dark btn-block";
+        mbtn.style.marginTop = "10px";
+        mbtn.textContent = "OPEN THE MARKET — LP BURNS AT BIRTH";
+        btn.parentNode.insertBefore(mbtn, btn.nextSibling);
+        mbtn.addEventListener("click", () => walletOpenMarket(mbtn, tokenAddr, pair));
+      }
+    } catch (e) {
+      say(short(e), true);
+      btn.disabled = false;
+    }
+  }
+
+
+  // ------------------------------------------------- il mercato, LP bruciata
+
+  const UNI = {
+    NPM: "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+    V3F: "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+    WETH: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+    NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+    DEAD: "0x000000000000000000000000000000000000dEaD",
+    FEE: 10000, SPACING: 200,
+    FDV_START: 5, FDV_END: 50, SUPPLY: 1e9,
+  };
+  const S_APPROVE = "0x095ea7b3", S_ALLOW = "0xdd62ed3e", S_BAL = "0x70a08231",
+        S_GETPOOL = "0x1698ee82", S_CREATE = "0x13ead562", S_MINTPOS = "0x88316456",
+        S_MULTI = "0xac9650d8", S_SLOT0 = "0x3850c7bd", S_EMISSION = "0x58292a3d";
+
+  const addrWord = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
+  const intWord = (v) => { let b = BigInt(v); if (b < 0n) b += 1n << 256n; return b.toString(16).padStart(64, "0"); };
+
+  /** TickMath.getSqrtRatioAtTick, identico al contratto Uniswap. */
+  function sqrtRatioAtTick(tick) {
+    const abs = BigInt(Math.abs(tick));
+    const Q128 = 1n << 128n;
+    let ratio = (abs & 1n) !== 0n ? 0xfffcb933bd6fad37aa2d162d1a594001n : Q128;
+    const muls = [
+      [0x2n, 0xfff97272373d413259a46990580e213an], [0x4n, 0xfff2e50f5f656932ef12357cf3c7fdccn],
+      [0x8n, 0xffe5caca7e10e4e61c3624eaa0941cd0n], [0x10n, 0xffcb9843d60f6159c9db58835c926644n],
+      [0x20n, 0xff973b41fa98c081472e6896dfb254c0n], [0x40n, 0xff2ea16466c96a3843ec78b326b52861n],
+      [0x80n, 0xfe5dee046a99a2a811c461f1969c3053n], [0x100n, 0xfcbe86c7900a88aedcffc83b479aa3a4n],
+      [0x200n, 0xf987a7253ac413176f2b074cf7815e54n], [0x400n, 0xf3392b0822b70005940c7a398e4b70f3n],
+      [0x800n, 0xe7159475a2c29b7443b29c7fa6e889d9n], [0x1000n, 0xd097f3bdfd2022b8845ad8f792aa5825n],
+      [0x2000n, 0xa9f746462d870fdf8a65dc1f90e061e5n], [0x4000n, 0x70d869a156d2a1b890bb3df62baf32f7n],
+      [0x8000n, 0x31be135f97d08fd981231505542fcfa6n], [0x10000n, 0x9aa508b5b7a84e1c677de54f3e99bc9n],
+      [0x20000n, 0x5d6af8dedb81196699c329225ee604n], [0x40000n, 0x2216e584f5fa1ea926041bedfe98n],
+      [0x80000n, 0x48a170391f7dc42444e8fa2n],
+    ];
+    for (const [bit, m] of muls) if ((abs & bit) !== 0n) ratio = (ratio * m) >> 128n;
+    if (tick > 0) ratio = ((1n << 256n) - 1n) / ratio;
+    const shifted = ratio >> 32n;
+    return shifted + (ratio % (1n << 32n) === 0n ? 0n : 1n);
+  }
+  const tickAtPrice = (p) => Math.floor(Math.log(p) / Math.log(1.0001));
+  const floorSpacing = (t, s2) => Math.floor(t / s2) * s2;
+
+  /** Quanto vale 1 NVDA in ETH: dal pool NVDA/WETH piu' fondo. */
+  async function ethPerQuote(quote) {
+    let best = null;
+    for (const fee of [500, 3000, 10000]) {
+      const [t0, t1] = quote.toLowerCase() < UNI.WETH.toLowerCase() ? [quote, UNI.WETH] : [UNI.WETH, quote];
+      const pool = "0x" + (await rpc("eth_call", [{ to: UNI.V3F,
+        data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(fee) }, "latest"])).slice(26);
+      if (pool === "0x" + "0".repeat(40)) continue;
+      const depth = BigInt(await rpc("eth_call", [{ to: UNI.WETH, data: S_BAL + addrWord(pool) }, "latest"]));
+      if (!best || depth > best.depth) best = { pool, depth, t0 };
+    }
+    if (!best || best.depth < 5n * 10n ** 16n) throw new Error("no usable NVDA/WETH pool — open vs WETH instead");
+    const slot0 = await rpc("eth_call", [{ to: best.pool, data: S_SLOT0 }, "latest"]);
+    const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
+    const price = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0
+    return best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / price : price;
+  }
+
+  async function walletOpenMarket(btn, token, pairKey) {
+    const provider = window.ethereum;
+    if (!provider) { say("no wallet found in this browser", true); return; }
+    btn.disabled = true;
+    try {
+      const [account] = await provider.request({ method: "eth_requestAccounts" });
+
+      const balance = BigInt(await rpc("eth_call", [{ to: token, data: S_BAL + addrWord(account) }, "latest"]));
+      if (balance === 0n) throw new Error("no liquidity slice in this wallet");
+
+      const quote = pairKey === "nvda" ? UNI.NVDA : UNI.WETH;
+      const rate = pairKey === "nvda" ? await ethPerQuote(quote) : 1;
+
+      const ourIsToken0 = token.toLowerCase() < quote.toLowerCase();
+      const [t0, t1] = ourIsToken0 ? [token, quote] : [quote, token];
+      const qStart = UNI.FDV_START / rate, qEnd = UNI.FDV_END / rate;
+      let lo, hi, init;
+      if (ourIsToken0) {
+        lo = floorSpacing(tickAtPrice(qStart / UNI.SUPPLY), UNI.SPACING);
+        hi = floorSpacing(tickAtPrice(qEnd / UNI.SUPPLY), UNI.SPACING);
+        if (hi <= lo) hi = lo + UNI.SPACING;
+        init = lo;
+      } else {
+        lo = floorSpacing(tickAtPrice(UNI.SUPPLY / qEnd), UNI.SPACING);
+        hi = floorSpacing(tickAtPrice(UNI.SUPPLY / qStart), UNI.SPACING);
+        if (hi <= lo) hi = lo + UNI.SPACING;
+        init = hi;
+      }
+      const sqrtX96 = sqrtRatioAtTick(init);
+
+      // 1/2 — approve, solo se serve
+      const allowance = BigInt(await rpc("eth_call", [{ to: token,
+        data: S_ALLOW + addrWord(account) + addrWord(UNI.NPM) }, "latest"]));
+      if (allowance < balance) {
+        say("1/2 — approve in your wallet…");
+        const h1 = await provider.request({ method: "eth_sendTransaction", params: [{
+          from: account, to: token,
+          data: S_APPROVE + addrWord(UNI.NPM) + balance.toString(16).padStart(64, "0"),
+        }] });
+        let r1 = null;
+        for (let i = 0; i < 40 && !r1; i++) { await new Promise((r) => setTimeout(r, 2500)); r1 = await rpc("eth_getTransactionReceipt", [h1]); }
+        if (!r1 || r1.status !== "0x1") throw new Error("approve failed");
+      }
+
+      // 2/2 — createAndInitialize + mint con recipient = inceneritore
+      say("2/2 — open the market: confirm in your wallet…");
+      const createCall = S_CREATE + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) + sqrtX96.toString(16).padStart(64, "0");
+      const deadline = Math.floor(Date.now() / 1000) + 1800;
+      const mintCall = S_MINTPOS +
+        addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) + intWord(lo) + intWord(hi) +
+        (ourIsToken0 ? balance : 0n).toString(16).padStart(64, "0") +
+        (ourIsToken0 ? 0n : balance).toString(16).padStart(64, "0") +
+        intWord(0) + intWord(0) +
+        addrWord(UNI.DEAD) +                 // la posizione nasce bruciata
+        intWord(deadline);
+      // multicall(bytes[]) con due chiamate
+      const enc = (hex) => {
+        const body = hex.replace("0x", "");
+        const len = body.length / 2;
+        return intWord(len) + body.padEnd(Math.ceil(body.length / 64) * 64, "0");
+      };
+      const c1 = enc(createCall), c2 = enc(mintCall);
+      const off1 = 64, off2 = 64 + c1.length / 2;
+      const data = S_MULTI + intWord(32) + intWord(2) + intWord(off1) + intWord(off2) + c1 + c2;
+
+      const h2 = await provider.request({ method: "eth_sendTransaction",
+        params: [{ from: account, to: UNI.NPM, data }] });
+      say(`market opening — ${h2.slice(0, 10)}… waiting`);
+      let r2 = null;
+      for (let i = 0; i < 60 && !r2; i++) { await new Promise((r) => setTimeout(r, 2500)); r2 = await rpc("eth_getTransactionReceipt", [h2]); }
+      if (!r2 || r2.status !== "0x1") throw new Error("market open reverted — check the explorer");
+
+      const pool = "0x" + (await rpc("eth_call", [{ to: UNI.V3F,
+        data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) }, "latest"])).slice(26);
+      btn.textContent = "MARKET OPEN — LP BURNED ✓";
+      btn.style.background = "var(--mint-deep)";
+      say(`the position was born at the burn address: nobody can ever pull the liquidity. ` +
+        `Pool: ${CFG().explorer}/address/${pool}`);
+      loadGallery();
     } catch (e) {
       say(short(e), true);
       btn.disabled = false;
