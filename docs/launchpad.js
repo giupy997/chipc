@@ -67,9 +67,7 @@
     const logo = logoURI
       ? `<img class="glogo" src="${logoURI.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/")}" alt="" loading="lazy">`
       : "";
-    const href = c.token && c.token !== "0x" + "0".repeat(40)
-      ? `${CFG().explorer}/token/${c.token}`
-      : `${CFG().explorer}/address/${CFG().factory}`;
+    const href = `chip.html?id=${id}`;
 
     const el = document.createElement("a");
     el.className = "gchip";
