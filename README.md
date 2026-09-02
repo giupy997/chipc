@@ -72,7 +72,9 @@ The declared road (the "roadmap" section of the site):
    your chip trades against — ETH or tokenised stocks. And the same doors
    open to machines: an MCP server so AI agents can mint, power and read
    chips of their own. Pure software; the factory already accepts every
-   mint, whoever — or whatever — sends it.
+   mint, whoever — or whatever — sends it. Next for the launchpad: a token
+   generation with **holder fee-sharing** built in — trading fees that find
+   every holder's wallet.
 2. **R2 — the court.** The first protocol upgrade. Processors run off-chain
    at full speed; results post with a bond; a dispute bisects to one cycle
    and replays it inside the deployed gate array. Off-chain speed, on-chain

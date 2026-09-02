@@ -283,7 +283,7 @@
         const mbtn = document.createElement("button");
         mbtn.className = "btn btn-dark btn-block";
         mbtn.style.marginTop = "10px";
-        mbtn.textContent = "OPEN THE MARKET — LP BURNS AT BIRTH";
+        mbtn.textContent = "OPEN THE MARKET — LP SEALED, FEES MINE THEMSELVES";
         btn.parentNode.insertBefore(mbtn, btn.nextSibling);
         mbtn.addEventListener("click", () => walletOpenMarket(mbtn, tokenAddr, pair));
       }
@@ -302,6 +302,7 @@
     WETH: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
     NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
     DEAD: "0x000000000000000000000000000000000000dEaD",
+    VAULT: () => CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
     FEE: 10000, SPACING: 200,
     FDV_START: 5, FDV_END: 50, SUPPLY: 1e9,
   };
@@ -408,7 +409,7 @@
         (ourIsToken0 ? balance : 0n).toString(16).padStart(64, "0") +
         (ourIsToken0 ? 0n : balance).toString(16).padStart(64, "0") +
         intWord(0) + intWord(0) +
-        addrWord(UNI.DEAD) +                 // la posizione nasce bruciata
+        addrWord(UNI.VAULT()) +              // la posizione nasce nel vault: fee alla riserva
         intWord(deadline);
       // multicall(bytes[]) con due chiamate
       const enc = (hex) => {
@@ -429,9 +430,9 @@
 
       const pool = "0x" + (await rpc("eth_call", [{ to: UNI.V3F,
         data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) }, "latest"])).slice(26);
-      btn.textContent = "MARKET OPEN — LP BURNED ✓";
+      btn.textContent = "MARKET OPEN — LP SEALED ✓";
       btn.style.background = "var(--mint-deep)";
-      say(`the position was born at the burn address: nobody can ever pull the liquidity. ` +
+      say(`the LP is sealed in the vault — nobody can ever pull it, and the 1% fees sweep into the mining reserve. ` +
         `Pool: ${CFG().explorer}/address/${pool}`);
       loadGallery();
     } catch (e) {
