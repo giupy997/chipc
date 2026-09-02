@@ -93,6 +93,13 @@
     if (state.token !== ZERO) {
       $("#cp-token-link").href = `${CFG().explorer}/token/${state.token}`;
       $("#cp-token-link").hidden = false;
+      $("#cp-ca").hidden = false;
+      $("#cp-ca-addr").textContent = state.token;
+      $("#cp-ca-copy").onclick = async () => {
+        try { await navigator.clipboard.writeText(state.token); } catch (_) {}
+        $("#cp-ca-copy").textContent = "COPIED ✓";
+        setTimeout(() => { $("#cp-ca-copy").textContent = "COPY"; }, 1500);
+      };
     }
 
     // logo
@@ -315,6 +322,9 @@
     // (indicatore semplice: il pool esiste -> mostriamo il fee tier; il burn si
     //  dichiara nei trades del minter, verificabile dall'explorer)
     $("#cp-lp").textContent = "1% FEE";
+    const dex = $("#cp-dex");
+    dex.href = `https://dexscreener.com/robinhood/${state.pool}`;
+    dex.hidden = false;
 
     // prezzo corrente
     const slot0 = await call(state.pool, S_SLOT0);

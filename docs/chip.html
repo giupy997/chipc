@@ -53,6 +53,17 @@
   .cp-emis .row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--panel-dim); }
   .cp-emis .row b { color: var(--paper); font-weight: 700; }
 
+  /* riga del CA */
+  .cp-ca { display: flex; align-items: center; gap: 12px; margin-top: 16px;
+    font-family: var(--mono); flex-wrap: wrap; }
+  .cp-ca .k { font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; color: var(--dim); }
+  .cp-ca code { font-size: 12.5px; background: var(--paper-2); border: 1.5px solid var(--ink);
+    padding: 7px 12px; word-break: break-all; }
+  .cp-ca button, .cp-ca a { font-family: var(--mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.12em; border: 1.5px solid var(--ink); background: var(--ink);
+    color: var(--paper); padding: 8px 14px; cursor: pointer; text-decoration: none; }
+  .cp-ca a { background: var(--mint); color: var(--ink); }
+
   /* colonna mercato */
   .cp-market { border: var(--rule); background: var(--paper); }
   .cp-mhead { display: flex; align-items: baseline; gap: 16px; padding: 16px 20px; border-bottom: var(--rule); font-family: var(--mono); flex-wrap: wrap; }
@@ -125,6 +136,13 @@
       <a class="btn btn-light btn-sm" id="cp-token-link" href="#" hidden>ERC-20 <span class="arr">&#8599;</span></a>
       <a class="btn btn-light btn-sm" id="cp-nft-link" href="#">CHIP NFT <span class="arr">&#8599;</span></a>
     </div>
+  </div>
+
+  <div class="cp-ca" id="cp-ca" hidden>
+    <span class="k">TOKEN CA</span>
+    <code id="cp-ca-addr"></code>
+    <button id="cp-ca-copy">COPY</button>
+    <a id="cp-dex" href="#" target="_blank" hidden>DEXSCREENER &#8599;</a>
   </div>
 
   <div class="cp-grid">
