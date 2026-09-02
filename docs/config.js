@@ -19,4 +19,8 @@ window.RH4_CONFIG = {
   token: "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
   defaultChip: 1,
+
+  // Il cancello del launchpad: finche' e' false il bottone MINT resta
+  // spento sul sito pubblico. Si apre con un flip qui, al T-0.
+  launchpadOpen: false,
 };

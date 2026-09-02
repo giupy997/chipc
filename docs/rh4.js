@@ -276,6 +276,10 @@
    * un bottone onesto che uno che finge.
    */
   const SELECTOR_TICK = "0xe5bbf637"; // tick(uint256,uint8)
+  const SELECTOR_MINT = "0x481aebcf"; // mint(uint256[128],bytes32,bytes32,string,uint16,uint64)
+  const SELECTOR_BYTICKER = "0x4da5bb73"; // chipByTicker(bytes32)
+  const TOPIC_MINTED = "0xe16ebcd5826e8fad06bc57cf29dbfb38c93766eb6df5320acceb51366f717d37";
+  const CFG = () => window.RH4_CONFIG || {};
 
   class Wallet {
     constructor(cfg) {
@@ -624,11 +628,174 @@
 
       // scegliere il programma qui cambia anche quello che gira sopra:
       // cosi' l'anteprima mostra davvero il chip che si sta per coniare
+      this.mintProg = "echo";
       document.querySelectorAll("[data-mintprog]").forEach((btn) => {
         btn.addEventListener("click", () => {
+          this.mintProg = btn.dataset.mintprog;
           this.switchProgram(btn.dataset.mintprog);
         });
       });
+
+      this.buildMint();
+    }
+
+    // ---- il conio vero: dal form alla fabbrica ---------------------------
+
+    mintSay(msg, bad) {
+      const el = $("#f-mint-note");
+      if (!el) return;
+      el.hidden = !msg;
+      el.textContent = msg || "";
+      el.classList.toggle("is-bad", Boolean(bad));
+    }
+
+    /** bytes32 da una stringa: UTF-8, allineata a sinistra, max 32 byte. */
+    static b32(s) {
+      const bytes = new TextEncoder().encode(s);
+      if (bytes.length === 0 || bytes.length > 32) return null;
+      let hex = "";
+      for (const b of bytes) hex += b.toString(16).padStart(2, "0");
+      return hex.padEnd(64, "0");
+    }
+
+    /**
+     * La calldata di mint(), scritta a mano come quella di tick(): l'array
+     * da 128 slot e' a dimensione fissa, quindi vive in testa; l'unico
+     * campo dinamico e' il logo, in coda dopo 133 parole (offset 0x10a0).
+     */
+    encodeMint(slots, labelHex, tickerHex, logoURI, liqBps, targetCycles) {
+      const word = (v) => BigInt(v).toString(16).padStart(64, "0");
+      let head = "";
+      for (const s of slots) head += word(s);
+      head += labelHex + tickerHex + word(133 * 32) + word(liqBps) + word(targetCycles);
+
+      const logoBytes = new TextEncoder().encode(logoURI);
+      let tail = word(logoBytes.length);
+      let hex = "";
+      for (const b of logoBytes) hex += b.toString(16).padStart(2, "0");
+      tail += hex.padEnd(Math.ceil(hex.length / 64) * 64 || 0, "0");
+
+      return SELECTOR_MINT + head + tail;
+    }
+
+    async rpc(method, params) {
+      const res = await fetch(CFG().rpc, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || "rpc error");
+      return data.result;
+    }
+
+    /** La sigla e' unica per sempre: si controlla mentre scrivi, non al conio. */
+    async checkTickerFree(ticker) {
+      const hex = UI.b32(ticker);
+      if (!hex) return false;
+      const result = await this.rpc("eth_call", [
+        { to: CFG().factory, data: SELECTOR_BYTICKER + hex }, "latest",
+      ]);
+      return BigInt(result || "0x0") === 0n;
+    }
+
+    buildMint() {
+      const btn = $("#f-mint");
+      // launchpadOpen apre a tutti; il localStorage apre solo a chi lo
+      // imposta nel proprio browser — serve per collaudare sul sito vero
+      // prima del flip. Non e' un segreto: la fabbrica e' gia' permissionless.
+      let preview = false;
+      try { preview = localStorage.getItem("rh4_launchpad") === "open"; } catch (_) {}
+      if (!btn || (!CFG().launchpadOpen && !preview) || !window.RH4_PROGRAMS) return;
+
+      btn.disabled = false;
+      btn.textContent = "MINT — LAUNCH CHIP & TOKEN";
+
+      // disponibilita' della sigla, con calma: mezzo secondo dopo l'ultimo tasto
+      let debounce;
+      this.tickerEl.addEventListener("input", () => {
+        clearTimeout(debounce);
+        const t = safeTicker(this.tickerEl.value);
+        if (!t) return;
+        debounce = setTimeout(async () => {
+          try {
+            const free = await this.checkTickerFree(t);
+            const note = $("#f-ticker-note");
+            note.textContent = free ? `${t} is free` : `${t} is taken — forever`;
+            note.classList.toggle("is-bad", !free);
+          } catch (_) { /* la rete puo' tossire: il conio ricontrolla comunque */ }
+        }, 500);
+      });
+
+      btn.addEventListener("click", () => this.walletMint(btn));
+    }
+
+    async walletMint(btn) {
+      const provider = window.ethereum;
+      if (!provider) { this.mintSay("no wallet found in this browser", true); return; }
+
+      const name = this.nameEl.value.trim();
+      const ticker = safeTicker(this.tickerEl.value);
+      const labelHex = UI.b32(name);
+      const tickerHex = UI.b32(ticker);
+      if (!labelHex) { this.mintSay("the name must be 1–32 bytes", true); return; }
+      if (!tickerHex || !ticker) { this.mintSay("a chip needs a ticker", true); return; }
+      const logo = this.logoURI || "";
+      if (logo && !/^(https:\/\/|ipfs:\/\/)[\x20-\x21\x23-\x5b\x5d-\x7e]{1,190}$/.test(logo)) {
+        this.mintSay("logo URI must be https:// or ipfs://", true); return;
+      }
+
+      const prog = (window.RH4_PROGRAMS[this.mintProg] || window.RH4_PROGRAMS.echo);
+      const targetCycles = this.spanSeconds * 10; // un ciclo per blocco a 10 Hz
+      const data = this.encodeMint(prog.slots, labelHex, tickerHex, logo, this.liqBps, targetCycles);
+
+      btn.disabled = true;
+      try {
+        // il wallet, sulla chain giusta
+        const [account] = await provider.request({ method: "eth_requestAccounts" });
+        try {
+          await provider.request({ method: "wallet_switchEthereumChain",
+            params: [{ chainId: CFG().chainIdHex }] });
+        } catch (e) {
+          if (e && e.code === 4902) {
+            await provider.request({ method: "wallet_addEthereumChain", params: [{
+              chainId: CFG().chainIdHex, chainName: CFG().chainName,
+              nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+              rpcUrls: [CFG().rpc], blockExplorerUrls: [CFG().explorer],
+            }] });
+          } else throw e;
+        }
+
+        // prova generale via eth_call: se il conio fallirebbe, si scopre
+        // qui, gratis — non dopo la firma
+        this.mintSay("checking the mint…");
+        await this.rpc("eth_call", [{ from: account, to: CFG().factory, data }, "latest"]);
+
+        this.mintSay("confirm in your wallet…");
+        const hash = await provider.request({
+          method: "eth_sendTransaction",
+          params: [{ from: account, to: CFG().factory, data }],
+        });
+
+        this.mintSay(`sent — ${hash.slice(0, 10)}… waiting for the chain`);
+        let receipt = null;
+        for (let i = 0; i < 60 && !receipt; i++) {
+          await new Promise((r) => setTimeout(r, 2500));
+          receipt = await this.rpc("eth_getTransactionReceipt", [hash]);
+        }
+        if (!receipt) throw new Error("still pending — check the explorer");
+        if (receipt.status !== "0x1") throw new Error("the mint reverted");
+
+        const minted = (receipt.logs || []).find((l) => l.topics && l.topics[0] === TOPIC_MINTED);
+        const id = minted ? Number(BigInt(minted.topics[1])) : null;
+        btn.textContent = id ? `CHIP #${id} MINTED ✓` : "CHIP MINTED ✓";
+        btn.style.background = "var(--mint-deep)";
+        this.mintSay(`${name} (${ticker}) is alive — its token exists, its clock is waiting. ` +
+          `See it: ${CFG().explorer}/tx/${hash}`);
+      } catch (e) {
+        this.mintSay(short(e), true);
+        btn.disabled = false;
+      }
     }
 
     /**

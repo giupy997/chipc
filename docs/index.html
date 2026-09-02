@@ -328,7 +328,8 @@
 
         <div class="emission" id="f-emission"></div>
 
-        <button class="btn btn-dark btn-block" disabled>MINTING INCOMING</button>
+        <button class="btn btn-dark btn-block" id="f-mint" disabled>MINTING INCOMING</button>
+        <p class="field-note" id="f-mint-note" hidden></p>
         <p class="field-note">Chip #1 is live and earning &mdash; browser minting is the first
         thing that ships after launch. The factory contract already accepts mints
         on&#8209;chain.</p>
@@ -752,6 +753,7 @@
 </footer>
 
 <script src="config.js"></script>
+<script src="programs.js"></script>
 <script src="rh8-data.js"></script>
 <script src="rh4.js"></script>
 </body>
