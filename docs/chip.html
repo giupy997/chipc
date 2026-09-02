@@ -75,6 +75,25 @@
   .trow a { color: var(--dim); text-decoration: none; }
   .trow a:hover { color: var(--mint-deep); }
   .trow .num { font-variant-numeric: tabular-nums; }
+
+  @media (max-width: 520px) {
+    .cp-main { padding: 0 14px 60px; overflow-x: hidden; }
+    .cp-head { gap: 12px; padding: 22px 0 18px; }
+    .cp-logo { width: 48px; height: 48px; }
+    .cp-title h1 { font-size: 24px; }
+    .cp-title .sub { font-size: 10.5px; }
+    .cp-links { margin-left: 0; width: 100%; }
+    .cp-machine { padding: 18px 16px; }
+    .cpstats .v { font-size: 17px; }
+    .cp-emis { font-size: 11px; }
+    .cp-mhead { gap: 10px; padding: 12px 14px; }
+    .cp-price { font-size: 17px; }
+    .cp-mstats { margin-left: 0; width: 100%; gap: 12px; font-size: 10.5px; }
+    #chart { height: 240px; }
+    .trow { grid-template-columns: 44px 1fr 1fr 60px; gap: 6px; padding: 7px 12px; font-size: 11px; }
+    .trow .num:nth-child(4) { display: none; }
+    .trow.h span:nth-child(4) { display: none; }
+  }
 </style>
 </head>
 <body>
