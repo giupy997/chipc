@@ -1148,3 +1148,14 @@ main { max-width: var(--maxw); margin: 0 auto; }
   letter-spacing: 0.12em;
   color: var(--dim);
 }
+
+/* ---- il wallet nell'header: pill + menu' a tendina ---- */
+.wal { position: relative; display: inline-flex; }
+.wal-btn.is-on { background: var(--mint); border-color: var(--ink); color: var(--ink); font-weight: 700; }
+.wal-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 190px; z-index: 50;
+  background: var(--paper); border: var(--rule); box-shadow: 0 8px 24px rgba(0,0,0,.14); display: flex; flex-direction: column; }
+.wal-item { display: block; width: 100%; text-align: left; font-family: var(--mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; padding: 12px 14px; background: none; border: 0; border-bottom: 1px solid #d4d3c8;
+  color: var(--ink); text-decoration: none; cursor: pointer; }
+.wal-item:last-child { border-bottom: 0; }
+.wal-item:hover { background: var(--mint); }

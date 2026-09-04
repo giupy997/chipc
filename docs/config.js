@@ -30,6 +30,8 @@ window.RH4_CONFIG = {
   socials: "0x355A7C6d677944979bf604080698f131E0B72891",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
   defaultChip: 1,
+  // da dove leggere gli eventi (poco prima della fabbrica di questa generazione)
+  genesisBlock: 51500000,
 
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.

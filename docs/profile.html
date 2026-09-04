@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Profile — RH-4</title>
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/png" sizes="32x32" href="brand/icon4-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://rpc.mainnet.chain.robinhood.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .pf-main { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 80px; }
+  .pf-head { padding: 42px 0 26px; border-bottom: var(--rule); margin-bottom: 30px; display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+  .pf-head h1 { margin: 10px 0 6px; }
+  .pf-addr { font-family: var(--mono); font-size: 12.5px; color: var(--dim); letter-spacing: 0.06em; word-break: break-all; }
+  .pf-empty { font-family: var(--mono); font-size: 13px; color: var(--dim); padding: 60px 0; text-align: center; line-height: 1.9; }
+  .pf-empty .btn { margin-top: 14px; }
+
+  .pf-sec { margin-bottom: 40px; }
+  .pf-sec-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .pf-count { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: var(--dim); }
+
+  /* le card dei chip: le stesse della galleria */
+  .gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .gchip { border: var(--rule); background: var(--panel); color: var(--paper); font-family: var(--mono); padding: 18px 20px; display: block; text-decoration: none; transition: transform .12s; }
+  .gchip:hover { transform: translateY(-2px); }
+  .gchip .row1 { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .gchip .tick { font-size: 17px; font-weight: 700; letter-spacing: 0.06em; color: #fff; }
+  .gchip .badge { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; padding: 4px 9px; }
+  .gchip .badge.run { background: var(--mint); color: var(--ink); }
+  .gchip .badge.stall { background: var(--panel-2); color: var(--panel-dim); border: 1px solid var(--panel-line); }
+  .gchip .badge.halt { background: #3a2020; color: #e08b8b; }
+  .gchip .badge.role { background: none; border: 1px solid var(--mint); color: var(--mint); }
+  .gchip .name { font-size: 12px; color: var(--panel-dim); margin-top: 4px; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gchip .gleds { display: flex; gap: 5px; margin: 14px 0 12px; }
+  .gchip .gled { width: 16px; height: 16px; background: var(--panel-2); border: 1px solid var(--panel-line); }
+  .gchip .gled.on { background: var(--mint); border-color: var(--mint); box-shadow: 0 0 8px rgba(143,232,176,.5); }
+  .gchip .grow { display: flex; justify-content: space-between; font-size: 11px; color: var(--panel-dim); letter-spacing: 0.08em; }
+  .gchip .grow b { color: var(--mint); font-weight: 700; }
+  .gchip .pend { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--panel-line); font-size: 11px; color: var(--panel-dim); letter-spacing: 0.04em; line-height: 1.6; }
+  .gchip .pend b { color: var(--paper); }
+
+  /* tabelle mono */
+  .pf-table { border: var(--rule); background: var(--paper); font-family: var(--mono); }
+  .prow { display: grid; gap: 12px; padding: 12px 18px; border-top: 1px solid #d4d3c8; align-items: center; font-size: 13px; }
+  .prow:first-child { border-top: 0; }
+  .prow.h { font-size: 10px; letter-spacing: 0.14em; color: var(--dim); font-weight: 700; }
+  .prow.fees { grid-template-columns: 1.2fr 1fr 1fr 1fr auto; }
+  .prow.mine { grid-template-columns: 1.2fr 1fr 1fr; }
+  .prow.hold { grid-template-columns: 1.2fr 1fr 1fr auto; }
+  .prow .num { font-weight: 700; }
+  .prow .dim { color: var(--dim); }
+  .prow .sm { font-size: 11px; color: var(--dim); }
+  .prow a { color: var(--ink); }
+  .pf-note { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 12px; line-height: 1.6; }
+  .pf-empty-row { padding: 18px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+  @media (max-width: 760px) { .prow.fees, .prow.mine, .prow.hold { grid-template-columns: 1fr 1fr; } .prow.h { display: none; } }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <a class="logo" href="./">
+    <img class="logo-box" src="brand/icon4-64.png" alt="" width="30" height="30">
+    <span class="logo-word">RH&#8209;4.CPU</span>
+  </a>
+  <nav class="nav-links">
+    <a href="launchpad.html"><strong>Launchpad</strong></a>
+    <a href="./#machine">Machine</a>
+    <a href="./#roadmap">Roadmap</a>
+  </nav>
+  <a class="btn btn-light btn-sm" href="https://x.com/RH4cpu">X <span class="arr">&#8599;</span></a>
+  <a class="btn btn-dark btn-sm" href="https://github.com/giupy997/chipc">Source <span class="arr">&#8599;</span></a>
+</header>
+
+<main class="pf-main">
+  <div class="pf-head">
+    <div>
+      <p class="pill"><span class="pill-n">WALLET</span>PROFILE</p>
+      <h1 class="display display-2">Your machines.</h1>
+      <div class="pf-addr" id="pf-addr">not connected</div>
+    </div>
+  </div>
+
+  <div class="pf-empty" id="pf-empty">
+    connect a wallet to see the chips you built, the chips you hold,<br>
+    the fees waiting for you and what your ticks have earned.<br>
+    <button class="btn btn-dark" id="pf-connect">CONNECT WALLET</button>
+  </div>
+
+  <div id="pf-body" hidden>
+    <section class="pf-sec">
+      <div class="pf-sec-head">
+        <span class="ck"><i class="sq sq-mint"></i> YOUR CHIPS</span>
+        <span class="pf-count" id="c-chips">&hellip;</span>
+      </div>
+      <div class="gal" id="chips"></div>
+      <p class="pf-note" id="chips-note" hidden>none yet &mdash; <a href="launchpad.html">mint your first processor</a>.</p>
+    </section>
+
+    <section class="pf-sec">
+      <div class="pf-sec-head">
+        <span class="ck"><i class="sq"></i> CREATOR FEES</span>
+        <span class="pf-count" id="c-fees">&hellip;</span>
+      </div>
+      <div class="pf-table" id="fees">
+        <div class="prow fees h"><span>TOKEN</span><span>CLAIMABLE</span><span>CLAIMED SO FAR</span><span>VAULT</span><span></span></div>
+      </div>
+      <p class="pf-note">Half of every trading fee your chips generate accrues here, in both tokens, at every sweep.
+        Claim whenever you like &mdash; nobody else can. The other half feeds your chip&rsquo;s reserve and buys back RH4.</p>
+    </section>
+
+    <section class="pf-sec">
+      <div class="pf-sec-head">
+        <span class="ck"><i class="sq"></i> MINING</span>
+        <span class="pf-count" id="c-mine">&hellip;</span>
+      </div>
+      <div class="pf-table" id="mine">
+        <div class="prow mine h"><span>CHIP</span><span>CYCLES YOU PAID</span><span>EARNED</span></div>
+      </div>
+    </section>
+
+    <section class="pf-sec">
+      <div class="pf-sec-head">
+        <span class="ck"><i class="sq"></i> CHIP TOKENS YOU HOLD</span>
+        <span class="pf-count" id="c-hold">&hellip;</span>
+      </div>
+      <div class="pf-table" id="hold">
+        <div class="prow hold h"><span>TOKEN</span><span>BALANCE</span><span>OF SUPPLY</span><span></span></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="footer">
+  <span class="f-word">RH&#8209;4.CPU</span>
+  <span class="f-mid">VERILOG &rarr; YOSYS &rarr; NAND &rarr; YUL &rarr; EVM</span>
+  <a class="f-link" href="launchpad.html">LAUNCHPAD</a>
+  <a class="f-link" href="https://x.com/RH4cpu">X <span class="arr">&#8599;</span></a>
+</footer>
+
+<script src="config.js"></script>
+<script src="wallet.js"></script>
+<script src="profile.js"></script>
+</body>
+</html>
