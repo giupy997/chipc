@@ -33,6 +33,7 @@ block number comes from the ArbSys precompile (`address(100)`,
 | Chip8Renderer (on-chain NFT SVG) | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
 | **ChipFeeVault** (LP lock, fees → reserve) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
 | **ChipCreatorVault** (LP lock, fees 50/50 creator+reserve) | `0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233` |
+| **ChipSocials** (per-chip links: X, website, Telegram) | `0x355A7C6d677944979bf604080698f131E0B72891` |
 | RH4 project token (on pons) | `0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B` |
 
 Uniswap v3 on this chain (canonical addresses are empty stubs — these are the
@@ -85,6 +86,23 @@ tokenURI(uint256 id)                → base64 JSON, image drawn from live state
 `label (bytes32)`, `ticker (bytes32)`, `minter (address)`,
 `bornBlock (uint64, L2 height)`, `resets (uint32)`, `token (address)`,
 `rewardPerCycle (uint96)`.
+
+### Socials (ChipSocials `0x355A…2891`)
+
+Per-chip links live on-chain, writable only by the chip's original minter
+or its current NFT owner — read them straight from the contract, no API:
+
+```
+links(uint256 chipId)                            0x881d8a40  → (string x, string website, string telegram)
+setLinks(uint256 id, string, string, string)     0xdeb711de  (minter or owner only)
+event LinksSet(uint256 indexed id, address indexed by, string x, string website, string telegram)
+  topic0 0x106bd79598695ee8aff46d8bde4bb73db8a9d99cec0dd6b15557d4a956e44a79
+```
+
+Every stored link is either empty or `https://…` in printable ASCII with
+no quotes, angle brackets, backslashes or spaces (enforced by the
+contract), so it is safe to drop into an `href`. Map a token to its chip
+with `chipByToken(address)` first.
 
 ## 4. Events to index (ChipFactory8)
 
