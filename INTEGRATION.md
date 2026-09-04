@@ -70,7 +70,7 @@ on-chain, 1,024-word ROM, 256 bytes of RAM, one instruction per block via
 totalChips()                        0x73514205  → uint256
 chip(uint256 id)                    0x8c6aefcf  → Chip struct (see below)
 chipByTicker(bytes32)               0x4da5bb73  → chip id (0 = free)
-chipByToken(address)                0x0972a437  → chip id served by a token
+chipByToken(address)                0xb8b4671d  → chip id served by a token
 emission(uint256 id)                0x58292a3d  → (token, reserveLeft, rewardPerCycle, cyclesLeft)
 inspect(uint256 id)                 0xb3e98ae8  → (pc uint16, out uint8, halted bool, cycles uint256, lastTickBlock uint256)
 logo(uint256 id)                    0xa29ba8a7  → string (https:// or ipfs://)
