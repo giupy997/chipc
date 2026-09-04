@@ -556,6 +556,16 @@
     });
 
     const btn = $("#f-mint");
+    // l'invito per il collaudo privato: ?crew=<parola> apre il form solo su
+    // questo browser, poi l'URL si ripulisce da solo. Il cancello vero e' il
+    // flip di launchpadOpen: questo e' un passaggio sul retro, non la porta.
+    try {
+      const crew = new URLSearchParams(location.search).get("crew");
+      if (crew === "tapeout-2368") {
+        localStorage.setItem("rh4_launchpad", "open");
+        history.replaceState(null, "", location.pathname);
+      }
+    } catch (_) {}
     let preview = false;
     try { preview = localStorage.getItem("rh4_launchpad") === "open"; } catch (_) {}
     if (btn && (CFG().launchpadOpen || preview) && window.RH4_PROGRAMS) {
