@@ -81,7 +81,10 @@
 
   // ------------------------------------------------------------ la galleria
 
-  function chipCard(id, c, s, logoURI) {
+  const fmtUsd = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + Math.round(n);
+  const fmtEth = (n) => "\u039e " + (n >= 1 ? n.toFixed(2) : n.toPrecision(2));
+
+  function chipCard(id, c, s, logoURI, mcap) {
     const running = !s.halted;
     const stalled = running && s.behindBlocks > 600; // ~1 minuto senza tick
     const badge = s.halted ? ["HALTED", "halt"] : stalled ? ["IDLE", "stall"] : ["RUNNING", "run"];
@@ -96,8 +99,10 @@
     const el = document.createElement("a");
     el.className = "gchip";
     el.href = href;
+    const cap = mcap && mcap.usd ? `<span class="mcap" title="market cap">${fmtUsd(mcap.usd)}</span>`
+      : mcap && mcap.eth ? `<span class="mcap" title="fully diluted, on-chain">${fmtEth(mcap.eth)}</span>` : "";
     el.innerHTML =
-      `<div class="row1"><span class="tick">${esc(c.ticker || "?")}</span>${logo}` +
+      `<div class="row1"><span class="tick">${esc(c.ticker || "?")}${cap}</span>${logo}` +
       `<span class="badge ${badge[1]}">${badge[0]}</span></div>` +
       `<div class="name">#${id} · ${esc(c.label || "unnamed")}</div>` +
       `<div class="gleds">${leds}</div>` +
@@ -114,7 +119,7 @@
     lastGallery = key;
     $("#gal-count").textContent = `${total} CHIP${total === 1 ? "" : "S"} MINTED`;
     host.innerHTML = "";
-    for (const it of items) host.appendChild(chipCard(it.id, it.c, it.s, it.logoURI));
+    for (const it of items) host.appendChild(chipCard(it.id, it.c, it.s, it.logoURI, it.mcap));
   }
 
   async function loadGallery() {
@@ -162,11 +167,75 @@
         return { id, c, s: s2, logoURI };
       });
 
+      // prima i chip con il mercato piu' grande: DexScreener (in dollari) e,
+      // per i mercati che DexScreener non ha ancora visto, l'FDV letto dal pool
+      try {
+        const caps = await marketCaps(items.map((it) => it.c.token));
+        for (const it of items) it.mcap = caps[it.c.token.toLowerCase()] || null;
+        items.sort((a, b) => (capValue(b.mcap) - capValue(a.mcap)) || (b.id - a.id));
+      } catch (_) {}
+
       renderGallery(items, total);
       try { sessionStorage.setItem("rh4_gal", JSON.stringify({ items, total })); } catch (_) {}
     } catch (e) {
       if (!lastGallery) $("#gal-count").textContent = "the factory did not answer — refresh";
     }
+  }
+
+  /** un numero unico per ordinare: dollari, oppure ETH x prezzo stimato */
+  const capValue = (m) => !m ? -1 : m.usd ? m.usd : m.eth ? m.eth * 2500 : -1;
+
+  /** DexScreener per tutti i token in una richiesta (cache 60 s); per token
+   *  la coppia con piu' liquidita', cosi' i pool fantasma non contano. */
+  async function marketCaps(tokens) {
+    const list = [...new Set(tokens.filter((t) => t && t !== "0x" + "0".repeat(40)).map((t) => t.toLowerCase()))];
+    if (!list.length) return {};
+    let cached = null;
+    try { cached = JSON.parse(sessionStorage.getItem("rh4_mcap") || "null"); } catch (_) {}
+    if (cached && Date.now() - cached.t < 60000 && list.every((t) => t in cached.data)) return cached.data;
+
+    const out = {};
+    try {
+      const res = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + list.join(","));
+      const data = await res.json();
+      for (const p of data.pairs || []) {
+        if (p.chainId !== "robinhood") continue;
+        const t = (p.baseToken.address || "").toLowerCase();
+        if (!list.includes(t)) continue;
+        const liq = (p.liquidity && p.liquidity.usd) || 0;
+        const cap = Number(p.marketCap || p.fdv || 0);
+        if (!cap) continue;
+        if (!out[t] || liq > out[t].liq) out[t] = { usd: cap, liq };
+      }
+    } catch (_) {}
+
+    // i mercati appena nati: l'FDV dal pool, in ETH
+    const missing = list.filter((t) => !out[t]);
+    if (missing.length) {
+      try {
+        const pools = await rpcBatch(missing.flatMap((t) => [
+          { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < UNI.WETH.toLowerCase() ? t : UNI.WETH) + addrWord(t < UNI.WETH.toLowerCase() ? UNI.WETH : t) + intWord(UNI.FEE) }, "latest"] },
+          { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < UNI.NVDA.toLowerCase() ? t : UNI.NVDA) + addrWord(t < UNI.NVDA.toLowerCase() ? UNI.NVDA : t) + intWord(UNI.FEE) }, "latest"] },
+        ]));
+        let rate = null;
+        for (let i = 0; i < missing.length; i++) {
+          const t = missing[i];
+          const pw = "0x" + String(pools[i * 2] || "").slice(26), pn = "0x" + String(pools[i * 2 + 1] || "").slice(26);
+          const quote = pw.length === 42 && pw !== "0x" + "0".repeat(40) ? { pool: pw, q: UNI.WETH } : pn.length === 42 && pn !== "0x" + "0".repeat(40) ? { pool: pn, q: UNI.NVDA } : null;
+          if (!quote) { out[t] = null; continue; }
+          const slot0 = await rpc("eth_call", [{ to: quote.pool, data: S_SLOT0 }, "latest"]);
+          const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
+          const p = Number(sqrtX96) ** 2 / 2 ** 192;
+          const ourIsToken0 = t < quote.q.toLowerCase();
+          let priceQ = ourIsToken0 ? p : 1 / p; // quote per token
+          if (quote.q === UNI.NVDA) { if (rate === null) rate = await ethPerQuote(UNI.NVDA).catch(() => 0); priceQ *= rate; }
+          out[t] = priceQ > 0 ? { eth: priceQ * 1e9 } : null;
+        }
+      } catch (_) {}
+    }
+    for (const t of list) if (!(t in out)) out[t] = null;
+    try { sessionStorage.setItem("rh4_mcap", JSON.stringify({ t: Date.now(), data: out })); } catch (_) {}
+    return out;
   }
 
   // ------------------------------------------------------------- il calcolo
