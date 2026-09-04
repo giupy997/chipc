@@ -12,6 +12,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=JetBrains+Mono:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
+  /* ---- la sala delle porte, in filigrana: fissa, sfocata, sotto tutto ---- */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: url("brand/gate-hall.webp") no-repeat right -40px bottom -30px / min(58vw, 860px) auto;
+    opacity: .10; filter: blur(1.5px);
+  }
+  @media (max-width: 1000px) { body::before { background-size: 90vw auto; opacity: .07; } }
+
   /* ---- pagina dedicata: layout stretto, niente hero ---- */
   .lp-main { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 80px; }
   .lp-head { padding: 42px 0 26px; border-bottom: var(--rule); margin-bottom: 34px; }
