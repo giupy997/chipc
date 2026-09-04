@@ -18,6 +18,7 @@ window.RH4_CONFIG = {
   factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b",
   token: "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B",
   feeVault: "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",
+  creatorVault: "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
   defaultChip: 1,
 

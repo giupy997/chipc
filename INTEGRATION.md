@@ -28,7 +28,8 @@ block number comes from the ArbSys precompile (`address(100)`,
 | **ChipFactory8** (the launchpad) | `0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b` |
 | RH8GateArray (the silicon, `pure`) | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
 | Chip8Renderer (on-chain NFT SVG) | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
-| **ChipFeeVault** (LP lock + fee sweep) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
+| **ChipFeeVault** (LP lock, fees → reserve) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
+| **ChipCreatorVault** (LP lock, fees 50/50 creator+reserve) | `0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233` |
 | RH4 project token (on pons) | `0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B` |
 
 Uniswap v3 on this chain (canonical addresses are empty stubs — these are the
@@ -99,6 +100,9 @@ address is `topics[2]`.
 ChipFeeVault: `FeesForwarded(uint256 indexed tokenId, address token0, address token1, uint256 amount0, uint256 amount1)`
 → `0x1c12d9097777aef029f9495dfbeea56113e2561ba2bb70f270e411e1bace8dde`.
 
+ChipCreatorVault: `FeesSplit(uint256 indexed tokenId, uint256 indexed chipId, address indexed creator, uint256 amount0, uint256 amount1)`
+→ `0x92fa015bd17874d5d476b15a7a487c877a1b8b6b44b9e2c0d0a284e7403f41ab`.
+
 ## 5. Markets
 
 Chip tokens trade on **Uniswap v3**, always:
@@ -116,7 +120,11 @@ directly to either
 - the **ChipFeeVault** `0xb5C4…491D` — no owner, no transfer, no
   `decreaseLiquidity`: liquidity can never be pulled. `collect(tokenId)` is
   public and forwards all accrued fees to the factory, where the chip-token
-  side joins the mining reserve.
+  side joins the mining reserve, or
+- the **ChipCreatorVault** `0xc7d4…1233` — same exitless custody, but
+  `collect(tokenId)` splits fees **50/50**: half to the chip's original
+  minter (immutable, set at mint — NFT transfers do not move it), half to
+  the factory reserve. The split is a constant in the contract.
 
 Either way, **the minter never holds the position**. Rug-by-LP-pull is
 impossible by construction for markets opened through the launchpad.

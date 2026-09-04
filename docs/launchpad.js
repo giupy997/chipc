@@ -283,7 +283,7 @@
         const mbtn = document.createElement("button");
         mbtn.className = "btn btn-dark btn-block";
         mbtn.style.marginTop = "10px";
-        mbtn.textContent = "OPEN THE MARKET — LP SEALED, FEES MINE THEMSELVES";
+        mbtn.textContent = "OPEN THE MARKET — LP SEALED, FEES SPLIT 50/50";
         btn.parentNode.insertBefore(mbtn, btn.nextSibling);
         mbtn.addEventListener("click", () => walletOpenMarket(mbtn, tokenAddr, pair));
       }
@@ -302,7 +302,7 @@
     WETH: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
     NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
     DEAD: "0x000000000000000000000000000000000000dEaD",
-    VAULT: () => CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
+    VAULT: () => CFG().creatorVault || CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
     FEE: 10000, SPACING: 200,
     FDV_START: 5, FDV_END: 50, SUPPLY: 1e9,
   };
@@ -432,7 +432,7 @@
         data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) }, "latest"])).slice(26);
       btn.textContent = "MARKET OPEN — LP SEALED ✓";
       btn.style.background = "var(--mint-deep)";
-      say(`the LP is sealed in the vault — nobody can ever pull it, and the 1% fees sweep into the mining reserve. ` +
+      say(`the LP is sealed — nobody can ever pull it. Half the 1% fees go to you forever, half to the mining reserve. ` +
         `Pool: ${CFG().explorer}/address/${pool}`);
       loadGallery();
     } catch (e) {

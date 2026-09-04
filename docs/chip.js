@@ -25,6 +25,7 @@
     NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
     DEAD: "0x000000000000000000000000000000000000dEaD",
     VAULT: () => CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
+    CVAULT: () => CFG().creatorVault || "0x000000000000000000000000000000000000dEaD",
     FEE: 10000,
   };
 
@@ -272,7 +273,7 @@
         (ourIsToken0 ? balance : 0n).toString(16).padStart(64, "0") +
         (ourIsToken0 ? 0n : balance).toString(16).padStart(64, "0") +
         intWord(0) + intWord(0) +
-        addrWord(feeMode === "vault" ? UNI.VAULT() : UNI.DEAD) + intWord(deadline);
+        addrWord(feeMode === "creator" ? UNI.CVAULT() : feeMode === "vault" ? UNI.VAULT() : UNI.DEAD) + intWord(deadline);
       const enc = (hex) => {
         const body = hex.replace("0x", "");
         return intWord(body.length / 2) + body.padEnd(Math.ceil(body.length / 64) * 64, "0");
@@ -287,7 +288,9 @@
       for (let i = 0; i < 60 && !r2; i++) { await sleep(2500); r2 = await rpc("eth_getTransactionReceipt", [h2]); }
       if (!r2 || r2.status !== "0x1") throw new Error("market open reverted — check the explorer");
 
-      tell(feeMode === "vault"
+      tell(feeMode === "creator"
+        ? "market open — LP sealed: fees split 50/50, creator and reserve ✓"
+        : feeMode === "vault"
         ? "market open — the LP is sealed in the vault: fees will feed the reserve ✓"
         : "market open — the LP position was born at the burn address ✓");
       setTimeout(() => location.reload(), 2500);
@@ -301,8 +304,11 @@
   /** La posizione di questo pool sta nel vault? Allora chiunque puo'
    *  spazzare le fee nella riserva: il bottone e' un servizio pubblico. */
   async function detectVaulted() {
-    const vault = CFG().feeVault;
-    if (!vault) return;
+    for (const [vault, label] of [[CFG().creatorVault, "CREATOR 50/50"], [CFG().feeVault, "VAULTED"]]) {
+      if (vault && await _detectIn(vault, label)) return;
+    }
+  }
+  async function _detectIn(vault, label) {
     const n = Number(BigInt(await call(UNI.NPM, "0x70a08231" + addrWord(vault))));
     for (let i = 0; i < Math.min(n, 50); i++) {
       const tid = BigInt(await call(UNI.NPM, "0x2f745c59" + addrWord(vault) + intWord(i)));
@@ -311,11 +317,11 @@
       const t0 = w2(2), t1 = w2(3);
       const ours = [t0.toLowerCase(), t1.toLowerCase()];
       if (ours.includes(state.token.toLowerCase()) && ours.includes(state.quote.toLowerCase())) {
-        $("#cp-lp").textContent = "VAULTED";
+        $("#cp-lp").textContent = label;
         const head = $(".cp-mhead");
         const b = document.createElement("button");
         b.className = "btn btn-light btn-sm";
-        b.textContent = "SWEEP FEES → RESERVE";
+        b.textContent = label === "VAULTED" ? "SWEEP FEES → RESERVE" : "SWEEP FEES 50/50";
         b.style.marginLeft = "8px";
         b.onclick = async () => {
           const provider = window.ethereum;
@@ -332,9 +338,10 @@
           } catch (_) { b.textContent = "SWEEP FEES → RESERVE"; b.disabled = false; }
         };
         head.appendChild(b);
-        return;
+        return true;
       }
     }
+    return false;
   }
 
   async function loadMarket() {
@@ -348,21 +355,25 @@
       } else {
         nm.innerHTML = `no market yet.<br><br>` +
           `<span style="font-size:11px;letter-spacing:0.12em;font-weight:700">TRADING FEES — chosen once, sealed forever</span><br>` +
-          `<button class="btn btn-light btn-sm" id="cp-fee-vault" style="border-width:2px">&#10003; FEES &rarr; MINING RESERVE</button> ` +
-          `<button class="btn btn-light btn-sm" id="cp-fee-burn" style="opacity:.55">FEES &rarr; BURNED</button>` +
+          `<button class="btn btn-light btn-sm" id="cp-fee-creator" style="border-width:2px">&#10003; 50% CREATOR / 50% RESERVE</button> ` +
+          `<button class="btn btn-light btn-sm" id="cp-fee-vault" style="opacity:.55">100% RESERVE</button> ` +
+          `<button class="btn btn-light btn-sm" id="cp-fee-burn" style="opacity:.55">BURNED</button>` +
           `<br><br>` +
           `<button class="btn btn-dark btn-sm" id="cp-open-weth">OPEN VS WETH</button> ` +
           `<button class="btn btn-dark btn-sm" id="cp-open-nvda">OPEN VS NVDA</button>` +
           `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault ` +
           `(or burned), not in a wallet. With the vault, anyone can sweep the 1% trading ` +
           `fees into this chip's mining reserve: volume extends the emission.</span>`;
-        let feeMode = "vault";
+        let feeMode = "creator";
         const syncFee = () => {
-          $("#cp-fee-vault").style.opacity = feeMode === "vault" ? "1" : ".55";
-          $("#cp-fee-burn").style.opacity = feeMode === "burn" ? "1" : ".55";
-          $("#cp-fee-vault").innerHTML = (feeMode === "vault" ? "&#10003; " : "") + "FEES &rarr; MINING RESERVE";
-          $("#cp-fee-burn").innerHTML = (feeMode === "burn" ? "&#10003; " : "") + "FEES &rarr; BURNED";
+          const modes = { creator: "cp-fee-creator", vault: "cp-fee-vault", burn: "cp-fee-burn" };
+          const labels = { creator: "50% CREATOR / 50% RESERVE", vault: "100% RESERVE", burn: "BURNED" };
+          for (const [m, idEl] of Object.entries(modes)) {
+            $("#" + idEl).style.opacity = feeMode === m ? "1" : ".55";
+            $("#" + idEl).innerHTML = (feeMode === m ? "&#10003; " : "") + labels[m];
+          }
         };
+        $("#cp-fee-creator").addEventListener("click", () => { feeMode = "creator"; syncFee(); });
         $("#cp-fee-vault").addEventListener("click", () => { feeMode = "vault"; syncFee(); });
         $("#cp-fee-burn").addEventListener("click", () => { feeMode = "burn"; syncFee(); });
         $("#cp-open-weth").addEventListener("click", (e) =>
