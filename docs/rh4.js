@@ -809,7 +809,9 @@
 
       const SUPPLY = 1e9;
       const GAS_PER_TICK = 256740;
-      const GWEI = 0.020166;          // Robinhood Chain, misurato
+      // il gas della chain si muove: appena la pagina lo legge, il numero
+      // vero rimpiazza il ricordo (window.RH4_GWEI, vedi sotto)
+      const GWEI = window.RH4_GWEI || 0.020166;
       const ethPerTick = GAS_PER_TICK * GWEI * 1e-9;
 
       const cycles = this.spanSeconds * 10;   // un ciclo per blocco, 10 Hz
@@ -1093,7 +1095,23 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     stampFacts();
-    new UI();
+    const ui = new UI();
     new Wallet(window.RH4_CONFIG || {});
+
+    // il prezzo del gas, quello vero: il break-even del mining dipende
+    // tutto da lui, e una costante invecchia male
+    (async () => {
+      try {
+        const res = await fetch((window.RH4_CONFIG || {}).rpc, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_gasPrice", params: [] }),
+        });
+        const data = await res.json();
+        if (data.result) {
+          window.RH4_GWEI = Number(BigInt(data.result)) / 1e9;
+          if (ui && ui.drawEmission) ui.drawEmission();
+        }
+      } catch (_) {}
+    })();
   });
 })();

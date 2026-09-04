@@ -177,6 +177,17 @@
   let pair = "weth";
   let logoURI = "";
 
+  // il gas si legge dalla chain, non da una costante: il break-even del
+  // mining vive o muore con questo numero
+  const GAS_PER_TICK = 256740;
+  let gasGwei = null;
+  async function refreshGas() {
+    try {
+      gasGwei = Number(BigInt(await rpc("eth_gasPrice", []))) / 1e9;
+      drawEmission();
+    } catch (_) {}
+  }
+
   function drawEmission() {
     const host = $("#f-emission");
     if (!host) return;
@@ -185,10 +196,18 @@
     const reserve = SUPPLY * (1 - liqBps / 10000);
     const perCycle = reserve / cycles;
     const fmt = (n) => Math.round(n).toLocaleString("en-US");
+    let breakEven = "";
+    if (gasGwei) {
+      const ethPerTick = GAS_PER_TICK * gasGwei * 1e-9;
+      const be = ethPerTick * (SUPPLY / perCycle);
+      breakEven =
+        `<div class="em-row"><span>MINING PAYS ABOVE</span><b>&asymp; ${fmt(be)} ETH FDV</b></div>`;
+    }
     host.innerHTML =
       `<div class="em-row"><span>TO LIQUIDITY</span><b>${fmt(SUPPLY - reserve)} YOURS</b></div>` +
       `<div class="em-row"><span>EARNED BY CYCLES</span><b>${fmt(reserve)}</b></div>` +
       `<div class="em-row"><span>PER CLOCK CYCLE</span><b>${perCycle.toFixed(2)}</b></div>` +
+      breakEven +
       `<div class="em-row"><span>TRADES AGAINST</span><b>${pair.toUpperCase()}</b></div>`;
   }
 
@@ -496,6 +515,8 @@
     wireChips("[data-mintprog]", (b) => { mintProg = b.dataset.mintprog; });
     wireChips("[data-pair]", (b) => { pair = b.dataset.pair; });
     drawEmission();
+    refreshGas();
+    setInterval(refreshGas, 60000);
     buildUpload();
     try {
       const cached = JSON.parse(sessionStorage.getItem("rh4_gal") || "null");
