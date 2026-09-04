@@ -74,14 +74,28 @@ contract ChipBuybackVaultForkTest is Test {
 
         vault.collect(1);
 
-        assertEq(IERC20(TCHIP).balanceOf(TCHIP_MINTER) - minterTchip, 500e18, "meta' TCHIP al coniatore");
-        assertEq(IERC20(NVDA).balanceOf(TCHIP_MINTER) - minterNvda, 0.025e18, "meta' NVDA al coniatore");
+        // la meta' del coniatore matura nel vault: si ritira con claim
+        assertEq(IERC20(TCHIP).balanceOf(TCHIP_MINTER), minterTchip, "niente parte da solo");
+        assertEq(vault.claimable(TCHIP_MINTER, TCHIP), 500e18, "meta' TCHIP maturata");
+        assertEq(vault.claimable(TCHIP_MINTER, NVDA), 0.025e18, "meta' NVDA maturata");
         assertEq(IERC20(TCHIP).balanceOf(FACTORY) - factoryTchip, 500e18, "meta' TCHIP in riserva");
         uint256 rh4 = IERC20(RH4).balanceOf(FACTORY) - factoryRh4;
         assertGt(rh4, 0, "la NVDA e' diventata RH4 nella fabbrica");
         assertEq(address(vault).balance, 0, "niente ETH rimasto");
-        assertEq(IERC20(NVDA).balanceOf(address(vault)), 0);
+        assertEq(IERC20(NVDA).balanceOf(address(vault)), 0.025e18, "nel vault resta solo la NVDA del coniatore");
         assertEq(IERC20(WETH).balanceOf(address(vault)), 0);
+
+        // il claim: solo lui, e una volta sola
+        vm.prank(address(0xBEEF));
+        vm.expectRevert(ChipBuybackVault.NothingToBuy.selector);
+        vault.claim(TCHIP);
+        address[] memory toks = new address[](2); toks[0] = TCHIP; toks[1] = NVDA;
+        vm.prank(TCHIP_MINTER);
+        vault.claimMany(toks);
+        assertEq(IERC20(TCHIP).balanceOf(TCHIP_MINTER) - minterTchip, 500e18, "TCHIP ritirati");
+        assertEq(IERC20(NVDA).balanceOf(TCHIP_MINTER) - minterNvda, 0.025e18, "NVDA ritirata");
+        assertEq(vault.claimable(TCHIP_MINTER, TCHIP), 0);
+        assertEq(vault.held(NVDA), 0, "il vault non trattiene piu' nulla");
         emit log_named_decimal_uint("RH4 dalla meta' di 0.05 NVDA", rh4, 18);
     }
 
@@ -133,11 +147,26 @@ contract ChipBuybackVaultForkTest is Test {
         npm.set(TCHIP, address(alien), 10e18, 100e18);
         uint256 fBefore = alien.balanceOf(FACTORY);
         vault.collect(1);
-        assertEq(alien.balanceOf(address(vault)), 50e18, "la quota riserva aspetta nel vault");
         assertEq(alien.balanceOf(FACTORY), fBefore, "niente sepolto in fabbrica");
-        assertEq(alien.balanceOf(TCHIP_MINTER), 50e18, "il coniatore ha la sua meta'");
+        assertEq(vault.claimable(TCHIP_MINTER, address(alien)), 50e18, "la meta' del coniatore matura");
+        assertEq(alien.balanceOf(address(vault)), 100e18, "tutto nel vault: 50 in attesa di claim, 50 in attesa di pool");
         vm.expectRevert(ChipBuybackVault.NoRoute.selector);
         vault.convert(address(alien));
+    }
+
+    /// Due sweep di fila: il secondo non tocca cio' che il primo ha messo da
+    /// parte per il coniatore.
+    function test_dueSweepNonSiRubanoIlClaim() public {
+        deal(TCHIP, address(npm), 100e18); deal(WETH, address(npm), 0.002e18);
+        npm.set(TCHIP, WETH, 100e18, 0.002e18);
+        vault.collect(1);
+        assertEq(vault.claimable(TCHIP_MINTER, WETH), 0.001e18);
+        deal(TCHIP, address(npm), 100e18); deal(WETH, address(npm), 0.002e18);
+        npm.set(TCHIP, WETH, 100e18, 0.002e18);
+        vault.collect(1);
+        assertEq(vault.claimable(TCHIP_MINTER, WETH), 0.002e18, "il claim WETH si somma");
+        assertEq(IERC20(WETH).balanceOf(address(vault)), 0.002e18, "il buyback ha usato solo la parte libera");
+        assertEq(vault.claimable(TCHIP_MINTER, TCHIP), 100e18);
     }
 
     function test_nessunoPuoChiamareIlCallback() public {

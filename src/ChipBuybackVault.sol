@@ -62,7 +62,8 @@ interface IPoolManager {
  * Stessa custodia senza uscita dei fratelli: le posizioni LP entrano e non
  * escono mai. Cambia solo dove vanno le fee dell'1%:
  *
- *   - una quota (creatorBps) al coniatore originale, in entrambe le monete;
+ *   - una quota (creatorBps) matura qui a nome del coniatore originale, in
+ *     entrambe le monete, e la ritira lui con claim() quando vuole;
  *   - il resto del token del chip alla fabbrica: riserva di mining;
  *   - il resto della quote (WETH, NVDA, qualunque azione tokenizzata che
  *     abbia un pool con WETH) NON viene sepolto: diventa ETH e, nella stessa
@@ -79,7 +80,7 @@ interface IPoolManager {
  * puo' mordere piu' di quello. Se il mercato non regge il minimo, l'ETH
  * resta qui — mai perso — e chiunque puo' ritentare con buyback(), anche a
  * fette. Nessun owner, nessun prelievo: da questo contratto escono solo
- * fee al coniatore e RH4 verso la fabbrica.
+ * le fee maturate verso il loro coniatore e RH4 verso la fabbrica.
  */
 contract ChipBuybackVault {
     using SafeERC20 for IERC20;
@@ -97,11 +98,18 @@ contract ChipBuybackVault {
     uint256 public constant MIN_SQRT_PRICE_PLUS_ONE = 4295128740;
     uint256 private constant POOLS_SLOT = 6;
 
+    /// coniatore -> token -> fee maturate e non ancora ritirate
+    mapping(address => mapping(address => uint256)) public claimable;
+    /// token -> somma di tutto cio' che e' in attesa di claim (non e' nostro)
+    mapping(address => uint256) public held;
+
     event FeesSplit(uint256 indexed tokenId, uint256 indexed chipId, address indexed creator, uint256 amount0, uint256 amount1);
     event Buyback(uint256 ethIn, uint256 rh4Out, address indexed by);
     event BuybackDeferred(uint256 ethHeld);
 
     event QuoteHeld(address indexed token, uint256 amount);
+    event Accrued(address indexed creator, address indexed token, uint256 amount);
+    event Claimed(address indexed creator, address indexed token, uint256 amount);
 
     error NotPoolManager();
     error NothingToBuy();
@@ -187,11 +195,15 @@ contract ChipBuybackVault {
 
     /// @dev Quota al coniatore; il resto: token del chip -> fabbrica, quote -> ETH.
     function _route(address token, address creator) internal {
-        uint256 bal = IERC20(token).balanceOf(address(this));
+        uint256 bal = _free(token);
         if (bal == 0) return;
         if (creator != address(0) && creatorBps != 0) {
             uint256 share = bal * creatorBps / 10_000;
-            if (share != 0) IERC20(token).safeTransfer(creator, share);
+            if (share != 0) {
+                claimable[creator][token] += share;
+                held[token] += share;
+                emit Accrued(creator, token, share);
+            }
             bal -= share;
         }
         if (bal == 0) return;
@@ -210,7 +222,7 @@ contract ChipBuybackVault {
     ///         chiunque: il minimo lo fissa lo spot di quel pool.
     function convert(address token) external {
         if (token == weth || token == rh4 || factory.chipByToken(token) != 0) revert NotAQuote();
-        uint256 amount = IERC20(token).balanceOf(address(this));
+        uint256 amount = _free(token);
         if (amount == 0) revert NothingToBuy();
         (address pool, uint24 fee) = _deepestPool(token);
         if (pool == address(0)) revert NoRoute();
@@ -227,6 +239,29 @@ contract ChipBuybackVault {
             amountIn: amount, amountOutMinimum: minOut, sqrtPriceLimitX96: 0
         }));
         IWETH9(weth).withdraw(got);
+    }
+
+    /// @notice Il coniatore ritira le sue fee maturate, un token alla volta.
+    function claim(address token) public returns (uint256 amount) {
+        amount = claimable[msg.sender][token];
+        if (amount == 0) revert NothingToBuy();
+        claimable[msg.sender][token] = 0;
+        held[token] -= amount;
+        IERC20(token).safeTransfer(msg.sender, amount);
+        emit Claimed(msg.sender, token, amount);
+    }
+
+    /// @notice Piu' token in una firma sola.
+    function claimMany(address[] calldata tokens) external {
+        for (uint256 i; i < tokens.length; ++i) claim(tokens[i]);
+    }
+
+    /// @dev Quanto di un token e' davvero disponibile: il saldo meno cio' che
+    ///      aspetta il suo coniatore.
+    function _free(address token) internal view returns (uint256) {
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        uint256 h = held[token];
+        return bal > h ? bal - h : 0;
     }
 
     /// @dev Fra i pool token/WETH ai fee standard, quello con piu' WETH dentro.
