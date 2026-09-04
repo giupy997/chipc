@@ -1,18 +1,23 @@
 {
   "name": "@rh4cpu/plugin-rh4",
   "version": "0.1.0",
-  "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips — real gate-level processors on Robinhood Chain",
+  "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips \u2014 real gate-level processors on Robinhood Chain",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "prepublishOnly": "tsc"
   },
   "peerDependencies": {
     "@elizaos/core": ">=0.1.7"
   },
-  "repository": "github:giupy997/chipc",
+  "repository": {
+    "type": "git",
+    "url": "github:giupy997/chipc",
+    "directory": "eliza/plugin-rh4"
+  },
   "keywords": [
     "elizaos",
     "eliza",
@@ -26,5 +31,44 @@
     "@elizaos/core": "^1.7.2",
     "typescript": "^7.0.2",
     "viem": "^2.56.3"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "examples",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "homepage": "https://rh4cpu.tech",
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "RH4_PRIVATE_KEY": {
+        "type": "string",
+        "optional": true,
+        "description": "Dedicated low-value wallet key on Robinhood Chain. Without it the plugin is read-only (no mint/tick)."
+      },
+      "RH4_RPC_URL": {
+        "type": "string",
+        "optional": true,
+        "description": "JSON-RPC endpoint. Default: https://rpc.mainnet.chain.robinhood.com"
+      },
+      "RH4_FACTORY": {
+        "type": "string",
+        "optional": true,
+        "description": "ChipFactory8 address. Default: the live verified factory."
+      },
+      "RH4_AGENT_CHIP_ID": {
+        "type": "string",
+        "optional": true,
+        "description": "The chip the agent considers its own: default tick target, injected as context."
+      }
+    }
   }
 }
