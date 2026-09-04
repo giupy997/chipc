@@ -1,7 +1,7 @@
 {
   "name": "@rh4cpu/plugin-rh4",
   "version": "0.1.0",
-  "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips \u2014 real gate-level processors on Robinhood Chain",
+  "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips — real gate-level processors on Robinhood Chain",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "github:giupy997/chipc",
+    "url": "git+https://github.com/giupy997/chipc.git",
     "directory": "eliza/plugin-rh4"
   },
   "keywords": [
