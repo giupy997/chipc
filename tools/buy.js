@@ -8,15 +8,18 @@
  *   PRIVATE_KEY=... node tools/buy.js --token 0x... --eth 0.001            # pair WETH
  *   PRIVATE_KEY=... node tools/buy.js --token 0x... --eth 0.001 --via nvda # pair NVDA
  */
-const { createPublicClient, createWalletClient, http, parseAbi, parseEther, formatEther, getAddress, encodePacked } = require("viem");
+const { createPublicClient, createWalletClient, http, parseAbi, parseEther, formatEther, getAddress, encodePacked, encodeFunctionData } = require("viem");
 const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
 
 const ROUTER = "0xCaF681a66D020601342297493863e78c959E5cB2";
 const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
 const NVDA = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
 
+// Il router e' un SwapRouter02: niente deadline dentro exactInput (la firma
+// v1 cade nel fallback e brucia 23k gas), il deadline sta in multicall.
 const ABI = parseAbi([
-  "function exactInput((bytes path, address recipient, uint256 deadline, uint256 amountIn, uint256 amountOutMinimum)) payable returns (uint256 amountOut)",
+  "function exactInput((bytes path, address recipient, uint256 amountIn, uint256 amountOutMinimum)) payable returns (uint256 amountOut)",
+  "function multicall(uint256 deadline, bytes[] data) payable returns (bytes[])",
   "function balanceOf(address) view returns (uint256)",
   "function symbol() view returns (string)",
 ]);
@@ -42,11 +45,13 @@ async function main() {
   const before = await pub.readContract({ address: token, abi: ABI, functionName: "balanceOf", args: [account.address] });
 
   console.log(`compro ${sym} con ${formatEther(eth)} ETH ${viaNvda ? "(via NVDA)" : "(diretto)"}`);
+  const swap = encodeFunctionData({
+    abi: ABI, functionName: "exactInput",
+    args: [{ path, recipient: account.address, amountIn: eth, amountOutMinimum: 0n }],
+  });
   const hash = await wallet.writeContract({
-    address: ROUTER, abi: ABI, functionName: "exactInput",
-    args: [{ path, recipient: account.address,
-      deadline: BigInt(Math.floor(Date.now() / 1000) + 600),
-      amountIn: eth, amountOutMinimum: 0n }],
+    address: ROUTER, abi: ABI, functionName: "multicall",
+    args: [BigInt(Math.floor(Date.now() / 1000) + 600), [swap]],
     value: eth,
   });
   const r = await pub.waitForTransactionReceipt({ hash });

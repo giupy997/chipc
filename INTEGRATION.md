@@ -132,9 +132,16 @@ directly to either
 Either way, **the minter never holds the position**. Rug-by-LP-pull is
 impossible by construction for markets opened through the launchpad.
 
-Swaps: standard v3 `SwapRouter.exactInput` at `0xCaF6…5cB2`. For NVDA-paired
-chips, route `WETH → (500) → NVDA → (10000) → token`. Price/history: `slot0`
-and `Swap` events (each carries `sqrtPriceX96`).
+Swaps: the router at `0xCaF6…5cB2` is a **SwapRouter02** — `exactInput`
+takes `(bytes path, address recipient, uint256 amountIn, uint256 amountOutMinimum)`
+(selector `0xb858183f`, **no deadline field**; the v1 selector `0xc04b8d59`
+hits the fallback and reverts). Put the deadline in
+`multicall(uint256 deadline, bytes[] data)` (`0x5ae401dc`). Buying with native
+ETH: `msg.value` with a path starting at WETH. Selling to native ETH:
+`exactInput` with recipient `address(2)` (the router itself), then
+`unwrapWETH9(uint256 amountMinimum, address recipient)` (`0x49404b7c`) in the
+same multicall. For NVDA-paired chips, route `WETH → (500) → NVDA → (10000) → token`.
+Price/history: `slot0` and `Swap` events (each carries `sqrtPriceX96`).
 
 **Mother-token exception:** RH4 itself trades on
 [pons](https://www.ponsfamily.com/launchpad/0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B)

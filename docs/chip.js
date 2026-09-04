@@ -308,8 +308,13 @@
 
   // ------------------------------------------------- comprare e vendere
 
+  // Il router e' un SwapRouter02: exactInput NON porta il deadline nella
+  // struct (il selector v1 0xc04b8d59 cade nel fallback e muore a 23k gas),
+  // il deadline vive in multicall(uint256,bytes[]), e "consegna al router"
+  // si dice address(2), non address(0).
   const ROUTER = "0xCaF681a66D020601342297493863e78c959E5cB2";
-  const S_EXACTIN = "0xc04b8d59", S_UNWRAP = "0x49404b7c";
+  const ROUTER_THIS = "0x0000000000000000000000000000000000000002";
+  const S_EXACTIN = "0xb858183f", S_UNWRAP = "0x49404b7c", S_MULTI_DL = "0x5ae401dc";
 
   /** "1.5" -> 1500000000000000000n. Esatto, niente float sulla strada dei soldi. */
   function parseUnits18(s) {
@@ -336,12 +341,25 @@
     return out;
   }
 
-  /** exactInput((bytes,address,uint256,uint256,uint256)) — come buy.js, a mano. */
+  /** exactInput((bytes path, address recipient, uint256 amountIn, uint256 amountOutMinimum)) */
   function encExactInput(pathHex, recipient, amountIn, minOut) {
-    const deadline = Math.floor(Date.now() / 1000) + 600;
     return S_EXACTIN + intWord(0x20) +
-      intWord(0xa0) + addrWord(recipient) + intWord(deadline) + intWord(amountIn) + intWord(minOut) +
+      intWord(0x80) + addrWord(recipient) + intWord(amountIn) + intWord(minOut) +
       intWord(pathHex.length / 2) + pathHex.padEnd(Math.ceil(pathHex.length / 64) * 64, "0");
+  }
+
+  /** multicall(uint256 deadline, bytes[] data): una transazione, N chiamate,
+   *  e il deadline che protegge tutte. */
+  function encMulticall(calls) {
+    const deadline = Math.floor(Date.now() / 1000) + 600;
+    const enc = (hex) => {
+      const body = hex.replace("0x", "");
+      return intWord(body.length / 2) + body.padEnd(Math.ceil(body.length / 64) * 64, "0");
+    };
+    const items = calls.map(enc);
+    let offs = "", cursor = calls.length * 32;
+    for (const it of items) { offs += intWord(cursor); cursor += it.length / 2; }
+    return S_MULTI_DL + intWord(deadline) + intWord(0x40) + intWord(calls.length) + offs + items.join("");
   }
 
   async function ensureChain(provider) {
@@ -465,7 +483,7 @@
           tellT("confirm in your wallet…");
           const h = await provider.request({ method: "eth_sendTransaction", params: [{
             from: account, to: ROUTER,
-            data: encExactInput(path, account, wei, minOut),
+            data: encMulticall([encExactInput(path, account, wei, minOut)]),
             value: "0x" + wei.toString(16) }] });
           tellT(`swapping — ${h.slice(0, 10)}… waiting`);
           await waitTx(h, "swap");
@@ -486,15 +504,12 @@
           const path = state.sym === "NVDA"
             ? encPath([state.token, 10000, UNI.NVDA, 500, UNI.WETH])
             : encPath([state.token, 10000, UNI.WETH]);
-          // lo swap lascia il WETH al router, l'unwrap lo consegna come ETH:
-          // due chiamate, una transazione
-          const enc = (hex) => {
-            const body = hex.replace("0x", "");
-            return intWord(body.length / 2) + body.padEnd(Math.ceil(body.length / 64) * 64, "0");
-          };
-          const c1 = enc(encExactInput(path, "0x0000000000000000000000000000000000000000", wei, minOut));
-          const c2 = enc(S_UNWRAP + minOut.toString(16).padStart(64, "0") + addrWord(account));
-          const data = S_MULTI + intWord(32) + intWord(2) + intWord(64) + intWord(64 + c1.length / 2) + c1 + c2;
+          // lo swap lascia il WETH al router (address(2) = "me stesso" per il
+          // Router02), l'unwrap lo consegna come ETH: due chiamate, una tx
+          const data = encMulticall([
+            encExactInput(path, ROUTER_THIS, wei, minOut),
+            S_UNWRAP + minOut.toString(16).padStart(64, "0") + addrWord(account),
+          ]);
           const h = await provider.request({ method: "eth_sendTransaction", params: [{
             from: account, to: ROUTER, data }] });
           tellT(`swapping — ${h.slice(0, 10)}… waiting`);
