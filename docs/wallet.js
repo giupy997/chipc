@@ -25,7 +25,8 @@
     try {
       await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CFG().chainIdHex }] });
     } catch (e) {
-      if (e && e.code === 4902) {
+      const code = e && (e.code === 4902 ? 4902 : e.data && e.data.originalError && e.data.originalError.code);
+      if (code === 4902) {
         await provider.request({ method: "wallet_addEthereumChain", params: [{
           chainId: CFG().chainIdHex, chainName: CFG().chainName,
           nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
@@ -74,7 +75,7 @@
     btn = host.querySelector(".wal-btn");
     menu = host.querySelector(".wal-menu");
     btn.addEventListener("click", () => {
-      if (!RH4W.address) { RH4W.connect(); return; }
+      if (!RH4W.address) { RH4W.connect().catch(() => {}); return; }
       menu.hidden = !menu.hidden;
     });
     menu.querySelector('[data-act="copy"]').addEventListener("click", async () => {

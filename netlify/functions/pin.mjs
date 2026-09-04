@@ -39,8 +39,28 @@ const fail = (status, error) =>
     headers: { "content-type": "application/json" },
   });
 
-export default async (req) => {
+// Un freno per chi volesse riempire l'account Pinata da fuori: solo dal
+// nostro sito, e non piu' di qualche pin al minuto per indirizzo. La memoria
+// vive nell'istanza della function (ne bastano pochi minuti), non e' un
+// muro, e' un tornello.
+const ALLOWED_ORIGINS = ["https://rh4cpu.tech", "https://www.rh4cpu.tech"];
+const RATE = { window: 60_000, max: 6 };
+const hits = new Map();
+function throttled(ip) {
+  const now = Date.now();
+  const arr = (hits.get(ip) || []).filter((t) => now - t < RATE.window);
+  if (arr.length >= RATE.max) { hits.set(ip, arr); return true; }
+  arr.push(now); hits.set(ip, arr);
+  if (hits.size > 5000) hits.clear();
+  return false;
+}
+
+export default async (req, context) => {
   if (req.method !== "POST") return fail(405, "solo POST");
+  const origin = req.headers.get("origin") || "";
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) return fail(403, "origine non consentita");
+  const ip = (context && context.ip) || req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "?";
+  if (throttled(ip)) return fail(429, "troppi caricamenti: riprova fra un minuto");
 
   const jwt = process.env.PINATA_JWT;
   if (!jwt) return fail(500, "PINATA_JWT non configurata su Netlify");

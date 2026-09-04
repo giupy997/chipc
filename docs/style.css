@@ -1050,6 +1050,7 @@ main { max-width: var(--maxw); margin: 0 auto; }
 }
 .drop-text small { font-size: 10px; letter-spacing: 0.12em; }
 
+.drop img[hidden] { display: none; }
 .drop img {
   display: block;
   width: 100%;

@@ -43,40 +43,66 @@
   }
 
   function b32ToString(hex) {
-    let out = "";
+    const bytes = [];
     for (let i = 0; i < 64; i += 2) {
       const c = parseInt(hex.slice(i, i + 2), 16);
       if (c === 0) break;
-      out += c >= 0x20 && c <= 0x7e ? String.fromCharCode(c) : " ";
+      bytes.push(c);
     }
-    return out;
+    try { return new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(bytes)).replace(/[\u0000-\u001f\u007f]/g, " "); }
+    catch (_) { return ""; }
   }
 
-  async function rpc(method, params) {
-    const res = await fetch(CFG().rpc, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message || "rpc error");
-    return data.result;
+  /** le revert custom dei nostri contratti, tradotte: 4 byte -> frase */
+  const ERRORS = {"0xe454f6d8": "no such chip", "0x06893d25": "someone already paid this block's cycle \u2014 try again", "0xd6c912e6": "the chip is halted", "0xc36f2a95": "only the chip's creator or owner can do this", "0x788a686f": "wrong mint payment", "0xb4c4da23": "this ticker is taken \u2014 forever", "0xb2d7fcd2": "ticker: 1-8 of A-Z, 0-9, dash", "0x7732985d": "logo URI must be https:// or ipfs://", "0xa8af6972": "liquidity share too big", "0x607eaf48": "emission too short", "0xd45eb4fc": "mother already set", "0x79d93f49": "no token", "0xe22d1c9e": "token already set", "0xf6e17d95": "token already serves another chip", "0xfdabadb7": "reserve not funded", "0x6cf71335": "links must be https:// with no spaces or quotes", "0xb2f53681": "nothing to claim or buy", "0x6586e129": "no WETH pool for this token yet", "0xe20a4c5d": "the market moved past the slippage floor", "0x3344031e": "not a quote token", "0xae18210a": "not the pool manager"};
+  function explain(err) {
+    const data = err && (err.data || (err.error && err.error.data));
+    const hex = typeof data === "string" ? data : data && data.data;
+    if (typeof hex === "string" && ERRORS[hex.slice(0, 10)]) return ERRORS[hex.slice(0, 10)];
+    return (err && err.message) || "rpc error";
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function rpc(method, params, tries = 4) {
+    for (let i = 0; ; i++) {
+      try {
+        const res = await fetch(CFG().rpc, {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+        });
+        const data = await res.json();
+        if (data.error) { const e = new Error(explain(data.error)); e.revert = true; throw e; }
+        return data.result;
+      } catch (e) {
+        // una revert e' una risposta, non un incidente: non si riprova
+        if (e.revert || i >= tries - 1) throw e;
+        await sleep(600 * (i + 1)); // la rete sbuffa (mobile in background, RPC pubblico): respiro e riprovo
+      }
+    }
   }
   const call = (data) => rpc("eth_call", [{ to: CFG().factory, data }, "latest"]);
 
-  /** Tante letture, UNA richiesta HTTP: l'RPC accetta i batch JSON-RPC. */
+  /** Tante letture, poche richieste: batch JSON-RPC a fette da 50, cosi'
+   *  il limite del nodo pubblico non ci tocca mai. */
   async function rpcBatch(reqs) {
-    const res = await fetch(CFG().rpc, {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify(reqs.map((r, i) => ({ jsonrpc: "2.0", id: i, ...r }))),
-    });
-    const out = await res.json();
-    const byId = new Map(out.map((r) => [r.id, r]));
-    return reqs.map((_, i) => {
-      const r = byId.get(i);
-      if (!r || r.error) throw new Error((r && r.error.message) || "batch error");
-      return r.result;
-    });
+    const out = new Array(reqs.length);
+    for (let start = 0; start < reqs.length; start += 50) {
+      const slice = reqs.slice(start, start + 50);
+      const res = await fetch(CFG().rpc, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify(slice.map((r, i) => ({ jsonrpc: "2.0", id: start + i, ...r }))),
+      });
+      const data = await res.json();
+      const arr = Array.isArray(data) ? data : [data];
+      if (!Array.isArray(data) && data && data.error) throw new Error(data.error.message || "batch error");
+      const byId = new Map(arr.map((r) => [r.id, r]));
+      for (let i = 0; i < slice.length; i++) {
+        const r = byId.get(start + i);
+        if (!r || r.error) throw new Error((r && r.error && r.error.message) || "batch error");
+        out[start + i] = r.result;
+      }
+    }
+    return out;
   }
 
   // ------------------------------------------------------------ la galleria
@@ -91,7 +117,7 @@
     const leds = Array.from({ length: 8 }, (_, i) =>
       `<div class="gled${(s.out >> (7 - i)) & 1 ? " on" : ""}"></div>`).join("");
     const logo = logoURI
-      ? `<img class="glogo" src="${logoURI.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/")}" alt="" loading="lazy"
+      ? `<img class="glogo" src="${logoURI.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/")}" alt="" loading="lazy" referrerpolicy="no-referrer"
            onerror="if(!this.dataset.r){this.dataset.r=1;this.src=this.src.replace('ipfs.io/ipfs','gateway.pinata.cloud/ipfs')}else{this.hidden=true}">`
       : "";
     const href = `chip.html?id=${id}`;
@@ -114,7 +140,7 @@
   let lastGallery = "";
   function renderGallery(items, total) {
     const host = $("#gal");
-    const key = JSON.stringify(items);
+    const key = JSON.stringify(items.map((it) => ({ ...it, s: { ...it.s, behindBlocks: it.s.behindBlocks > 600 } })));
     if (key === lastGallery) return; // niente flicker se nulla e' cambiato
     lastGallery = key;
     $("#gal-count").textContent = `${total} CHIP${total === 1 ? "" : "S"} MINTED`;
@@ -196,9 +222,13 @@
 
     const out = {};
     try {
-      const res = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + list.join(","));
-      const data = await res.json();
-      for (const p of data.pairs || []) {
+      const pairs = [];
+      for (let i = 0; i < list.length; i += 30) { // l'endpoint accetta al massimo 30 indirizzi
+        const res = await fetch("https://api.dexscreener.com/latest/dex/tokens/" + list.slice(i, i + 30).join(","));
+        const data = await res.json();
+        pairs.push(...(data.pairs || []));
+      }
+      for (const p of pairs) {
         if (p.chainId !== "robinhood") continue;
         const t = (p.baseToken.address || "").toLowerCase();
         if (!list.includes(t)) continue;
@@ -217,19 +247,24 @@
           { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < UNI.WETH.toLowerCase() ? t : UNI.WETH) + addrWord(t < UNI.WETH.toLowerCase() ? UNI.WETH : t) + intWord(UNI.FEE) }, "latest"] },
           { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < UNI.NVDA.toLowerCase() ? t : UNI.NVDA) + addrWord(t < UNI.NVDA.toLowerCase() ? UNI.NVDA : t) + intWord(UNI.FEE) }, "latest"] },
         ]));
-        let rate = null;
-        for (let i = 0; i < missing.length; i++) {
-          const t = missing[i];
+        const quotes = missing.map((t, i) => {
           const pw = "0x" + String(pools[i * 2] || "").slice(26), pn = "0x" + String(pools[i * 2 + 1] || "").slice(26);
-          const quote = pw.length === 42 && pw !== "0x" + "0".repeat(40) ? { pool: pw, q: UNI.WETH } : pn.length === 42 && pn !== "0x" + "0".repeat(40) ? { pool: pn, q: UNI.NVDA } : null;
+          return pw.length === 42 && pw !== "0x" + "0".repeat(40) ? { pool: pw, q: UNI.WETH }
+            : pn.length === 42 && pn !== "0x" + "0".repeat(40) ? { pool: pn, q: UNI.NVDA } : null;
+        });
+        const slots = await rpcBatch(quotes.filter(Boolean).map((qt) => ({ method: "eth_call", params: [{ to: qt.pool, data: S_SLOT0 }, "latest"] })));
+        let rate = null, k = 0;
+        for (let i = 0; i < missing.length; i++) {
+          const t = missing[i], quote = quotes[i];
           if (!quote) { out[t] = null; continue; }
-          const slot0 = await rpc("eth_call", [{ to: quote.pool, data: S_SLOT0 }, "latest"]);
-          const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
+          const slot0 = slots[k++];
+          const sqrtX96 = BigInt("0x" + String(slot0 || "").slice(2, 66) || "0");
           const p = Number(sqrtX96) ** 2 / 2 ** 192;
           const ourIsToken0 = t < quote.q.toLowerCase();
           let priceQ = ourIsToken0 ? p : 1 / p; // quote per token
           if (quote.q === UNI.NVDA) { if (rate === null) rate = await ethPerQuote(UNI.NVDA).catch(() => 0); priceQ *= rate; }
-          out[t] = priceQ > 0 ? { eth: priceQ * 1e9 } : null;
+          // un pool creato ma mai inizializzato ha sqrtP = 0: niente numeri infiniti in vetrina
+          out[t] = Number.isFinite(priceQ) && priceQ > 0 ? { eth: priceQ * 1e9 } : null;
         }
       } catch (_) {}
     }
@@ -339,12 +374,29 @@
     return S_SETLINKS + word(id) + offs + parts.join("");
   }
 
+  /** Prima di ogni firma: la chain giusta, o l'aggiunta della chain. MetaMask
+   *  mobile annida il 4902 dentro un -32603: si guarda anche li'. */
+  async function ensureChain(provider) {
+    try {
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CFG().chainIdHex }] });
+    } catch (e) {
+      const code = e && (e.code === 4902 ? 4902 : e.data && e.data.originalError && e.data.originalError.code);
+      if (code === 4902) {
+        await provider.request({ method: "wallet_addEthereumChain", params: [{
+          chainId: CFG().chainIdHex, chainName: CFG().chainName,
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [CFG().rpc], blockExplorerUrls: [CFG().explorer] }] });
+      } else throw e;
+    }
+  }
+
   async function walletSetLinks(btn, id, x, web, tg) {
     const provider = window.ethereum;
     if (!provider) { say("no wallet found in this browser", true); return; }
     btn.disabled = true;
     try {
       const [account] = await provider.request({ method: "eth_requestAccounts" });
+      await ensureChain(provider);
       say("links: confirm in your wallet…");
       const h = await provider.request({ method: "eth_sendTransaction", params: [{
         from: account, to: CFG().socials, data: encSetLinks(id, x, web, tg) }] });
@@ -391,18 +443,7 @@
     btn.disabled = true;
     try {
       const [account] = await provider.request({ method: "eth_requestAccounts" });
-      try {
-        await provider.request({ method: "wallet_switchEthereumChain",
-          params: [{ chainId: CFG().chainIdHex }] });
-      } catch (e) {
-        if (e && e.code === 4902) {
-          await provider.request({ method: "wallet_addEthereumChain", params: [{
-            chainId: CFG().chainIdHex, chainName: CFG().chainName,
-            nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-            rpcUrls: [CFG().rpc], blockExplorerUrls: [CFG().explorer],
-          }] });
-        } else throw e;
-      }
+      await ensureChain(provider);
 
       say("checking the mint…");
       // il prezzo del conio si legge dal contratto: se un domani si accende
@@ -453,7 +494,8 @@
         mbtn.style.marginTop = "10px";
         mbtn.textContent = "OPEN THE MARKET — LP SEALED, FEES SPLIT 50/50";
         btn.parentNode.insertBefore(mbtn, btn.nextSibling);
-        mbtn.addEventListener("click", () => walletOpenMarket(mbtn, tokenAddr, pair));
+        const pairAtMint = pair;
+        mbtn.addEventListener("click", () => walletOpenMarket(mbtn, tokenAddr, pairAtMint));
       }
     } catch (e) {
       say(short(e), true);
@@ -530,6 +572,7 @@
     btn.disabled = true;
     try {
       const [account] = await provider.request({ method: "eth_requestAccounts" });
+      await ensureChain(provider);
 
       const balance = BigInt(await rpc("eth_call", [{ to: token, data: S_BAL + addrWord(account) }, "latest"]));
       if (balance === 0n) throw new Error("no liquidity slice in this wallet");
@@ -622,7 +665,7 @@
       if (file.size > 1024 * 1024) { tell("too big — 1 MB max", "is-bad"); return; }
       thumb.src = URL.createObjectURL(file);
       thumb.hidden = false; text.hidden = true; drop.classList.add("is-set");
-      tell("pinning to IPFS…", "busy");
+      tell("pinning to IPFS…", "is-busy");
       try {
         const body = new FormData();
         body.append("file", file);
@@ -669,11 +712,12 @@
       if (cleaned !== tickerEl.value) tickerEl.value = cleaned;
       drawEmission(); // la frase del break-even chiama il token per nome
       clearTimeout(debounce);
-      if (!cleaned) return;
+      if (!cleaned) { $("#f-ticker-note").textContent = "unique across the factory"; $("#f-ticker-note").classList.remove("is-bad"); return; }
       debounce = setTimeout(async () => {
         try {
           const hex = b32(cleaned);
           const taken = BigInt(await call(SELECTOR_BYTICKER + hex)) !== 0n;
+          if (cleaned !== safeTicker(tickerEl.value)) return; // e' arrivata una risposta vecchia
           const note = $("#f-ticker-note");
           note.textContent = taken ? `${cleaned} is taken — forever` : `${cleaned} is free`;
           note.classList.toggle("is-bad", taken);

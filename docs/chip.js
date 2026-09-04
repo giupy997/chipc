@@ -31,20 +31,20 @@
 
   const word = (v) => BigInt(v).toString(16).padStart(64, "0");
   const addrWord = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
-  // gli errori finiscono in innerHTML e una revert string la scrive chi vuole:
-  // qui si spegne qualsiasi markup, sempre
-  const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90)
-    .replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
+  // una revert string la scrive chi vuole: dove si usa innerHTML si spegne il markup
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const ZERO = "0x" + "0".repeat(40);
 
   function b32ToString(hex) {
-    let out = "";
+    const bytes = [];
     for (let i = 0; i < 64; i += 2) {
       const c = parseInt(hex.slice(i, i + 2), 16);
       if (c === 0) break;
-      out += c >= 0x20 && c <= 0x7e ? String.fromCharCode(c) : " ";
+      bytes.push(c);
     }
-    return out;
+    try { return new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(bytes)).replace(/[\u0000-\u001f\u007f]/g, " "); }
+    catch (_) { return ""; }
   }
   /** int256 dal log: complemento a due. */
   function i256(hex) {
@@ -72,7 +72,24 @@
   }
   const call = (to, data) => rpc("eth_call", [{ to, data }, "latest"]);
 
-  const id = Math.max(1, Number(new URLSearchParams(location.search).get("id")) || 1);
+  /** tante letture, poche richieste: batch a fette da 50, errori -> null */
+  async function rpcBatch(reqs) {
+    const out = new Array(reqs.length).fill(null);
+    for (let start = 0; start < reqs.length; start += 50) {
+      const slice = reqs.slice(start, start + 50);
+      try {
+        const res = await fetch(CFG().rpc, { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify(slice.map((r, i) => ({ jsonrpc: "2.0", id: start + i, ...r }))) });
+        const data = await res.json();
+        const byId = new Map((Array.isArray(data) ? data : [data]).map((r) => [r.id, r]));
+        for (let i = 0; i < slice.length; i++) { const r = byId.get(start + i); out[start + i] = r && !r.error ? r.result : null; }
+      } catch (_) {}
+    }
+    return out;
+  }
+  const ecall = (to, data) => ({ method: "eth_call", params: [{ to, data }, "latest"] });
+
+  const id = Math.max(1, Math.floor(Number(new URLSearchParams(location.search).get("id"))) || 1);
   const state = { token: ZERO, reward: 0, pool: null, quote: null, quoteSym: "WETH" };
 
   // ------------------------------------------------------------ lo stato vivo
@@ -118,7 +135,8 @@
           if (!img.dataset.r) { img.dataset.r = 1; img.src = img.src.replace("ipfs.io/ipfs", "gateway.pinata.cloud/ipfs"); }
           else img.src = "brand/icon4-256.png";
         };
-        img.src = uri.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/");
+        const want = uri.replace(/^ipfs:\/\//, "https://ipfs.io/ipfs/");
+        if (img.dataset.want !== want) { img.dataset.want = want; img.dataset.r = ""; img.src = want; }
       }
     } catch (_) {}
 
@@ -307,9 +325,10 @@
       const pool = "0x" + (await call(UNI.V3F, S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(fee))).slice(26);
       if (pool === ZERO) continue;
       const depth = BigInt(await call(UNI.WETH, S_BAL + addrWord(pool)));
-      if (!best || depth > best.depth) best = { pool, depth, t0 };
+      if (!best || depth > best.depth) best = { pool, depth, t0, fee };
     }
     if (!best || best.depth < 5n * 10n ** 16n) throw new Error("no usable rate pool — open vs WETH instead");
+    state.rateFee = best.fee; // la stessa fee tier andra' nella rotta dello swap
     const slot0 = await call(best.pool, S_SLOT0);
     const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
     const p = Number(sqrtX96) ** 2 / 2 ** 192;
@@ -319,6 +338,7 @@
   async function walletOpenMarket(btn, pairKey, statusEl, feeMode) {
     const provider = window.ethereum;
     const tell = (m) => { statusEl.innerHTML = m; };
+    const tellErr = (e) => { statusEl.textContent = short(e); };
     if (!provider) { tell("no wallet found in this browser"); return; }
     btn.disabled = true;
     try {
@@ -417,10 +437,14 @@
 
   /** "1.5" -> 1500000000000000000n. Esatto, niente float sulla strada dei soldi. */
   function parseUnits18(s) {
-    const t = String(s).trim().replace(",", ".");
+    let t = String(s).trim();
+    if (t.includes(",") && t.includes(".")) return null;          // "1,000.5": ambiguo, no
+    if ((t.match(/,/g) || []).length > 1) return null;             // "1,000,000": idem
+    t = t.replace(",", ".");
     if (!/^\d*(\.\d*)?$/.test(t) || t === "" || t === ".") return null;
     const [i, f = ""] = t.split(".");
-    return BigInt(i || "0") * 10n ** 18n + BigInt((f + "0".repeat(18)).slice(0, 18));
+    const v = BigInt(i || "0") * 10n ** 18n + BigInt((f + "0".repeat(18)).slice(0, 18));
+    return v < (1n << 255n) ? v : null;
   }
   const fromWei = (b) => Number(b) / 1e18;
   /** float -> wei per un MINIMO garantito: precisione adattiva, cosi' anche
@@ -526,9 +550,10 @@
 
     let estSeq = 0, deb;
     async function estimate() {
-      const amt = parseFloat(String(amtEl.value).replace(",", "."));
+      const weiIn = parseUnits18(amtEl.value);
+      const amt = weiIn ? fromWei(weiIn) : 0;
       const seq = ++estSeq;
-      if (!amt || amt <= 0) { estEl.innerHTML = "&nbsp;"; return; }
+      if (!amt || amt <= 0) { estEl.innerHTML = amtEl.value.trim() ? "enter a plain number, like 0.05" : "&nbsp;"; return; }
       try {
         const out = await quote(amt);
         if (seq !== estSeq) return;
@@ -577,7 +602,7 @@
 
         if (mode === "buy") {
           const path = state.sym === "NVDA"
-            ? encPath([UNI.WETH, 500, UNI.NVDA, 10000, state.token])
+            ? encPath([UNI.WETH, state.rateFee || 500, UNI.NVDA, 10000, state.token])
             : encPath([UNI.WETH, 10000, state.token]);
           tellT("confirm in your wallet…");
           const h = await provider.request({ method: "eth_sendTransaction", params: [{
@@ -601,7 +626,7 @@
           }
           tellT("sell: confirm in your wallet…");
           const path = state.sym === "NVDA"
-            ? encPath([state.token, 10000, UNI.NVDA, 500, UNI.WETH])
+            ? encPath([state.token, 10000, UNI.NVDA, state.rateFee || 500, UNI.WETH])
             : encPath([state.token, 10000, UNI.WETH]);
           // lo swap lascia il WETH al router (address(2) = "me stesso" per il
           // Router02), l'unwrap lo consegna come ETH: due chiamate, una tx
@@ -636,9 +661,14 @@
   }
   async function _detectIn(vault, label) {
     const n = Number(BigInt(await call(UNI.NPM, "0x70a08231" + addrWord(vault))));
-    for (let i = 0; i < Math.min(n, 50); i++) {
-      const tid = BigInt(await call(UNI.NPM, "0x2f745c59" + addrWord(vault) + intWord(i)));
-      const pos = await call(UNI.NPM, "0x99fbab88" + intWord(tid));
+    if (!n) return false;
+    const tidsRaw = await rpcBatch(Array.from({ length: Math.min(n, 2000) }, (_, i) => ecall(UNI.NPM, "0x2f745c59" + addrWord(vault) + intWord(i))));
+    const tids = tidsRaw.filter(Boolean);
+    const poss = await rpcBatch(tids.map((t) => ecall(UNI.NPM, "0x99fbab88" + t.slice(2))));
+    for (let i = 0; i < poss.length; i++) {
+      const pos = poss[i];
+      if (!pos) continue;
+      const tid = BigInt(tids[i]);
       const w2 = (k) => "0x" + pos.slice(2 + k * 64 + 24, 2 + (k + 1) * 64);
       const t0 = w2(2), t1 = w2(3);
       const ours = [t0.toLowerCase(), t1.toLowerCase()];
@@ -655,13 +685,13 @@
           b.disabled = true;
           try {
             const [account] = await provider.request({ method: "eth_requestAccounts" });
+            await ensureChain(provider);
             const h = await provider.request({ method: "eth_sendTransaction", params: [{
               from: account, to: vault, data: "0xce3f865f" + intWord(tid) }] });
             b.textContent = "SWEEPING…";
-            let r = null;
-            for (let k = 0; k < 40 && !r; k++) { await sleep(2500); r = await rpc("eth_getTransactionReceipt", [h]); }
-            b.textContent = r && r.status === "0x1" ? "FEES SWEPT ✓" : "SWEEP FAILED";
-          } catch (_) { b.textContent = "SWEEP FEES → RESERVE"; b.disabled = false; }
+            await waitTx(h, "sweep");
+            b.textContent = "FEES SWEPT ✓";
+          } catch (_) { b.textContent = label === "VAULTED" ? "SWEEP FEES → RESERVE" : "SWEEP FEES 50/50"; b.disabled = false; }
         };
         head.appendChild(b);
         return true;
@@ -825,7 +855,7 @@
       const area = chart.addAreaSeries({
         lineColor: "#8fe8b0", topColor: "rgba(143,232,176,0.25)",
         bottomColor: "rgba(143,232,176,0.02)", lineWidth: 2,
-        priceFormat: { type: "price", precision: 6, minMove: 0.000001 },
+        priceFormat: { type: "custom", formatter: fmtP, minMove: 1e-12 },
       });
       area.setData(series);
       chart.timeScale().fitContent();

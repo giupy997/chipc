@@ -31,10 +31,10 @@ block number comes from the ArbSys precompile (`address(100)`,
 | **ChipFactory8** (the launchpad) | `0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b` |
 | RH8GateArray (the silicon, `pure`) | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
 | Chip8Renderer (on-chain NFT SVG) | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
-| **ChipBuybackVault 50/50** (LP lock; creator claims half, rest → reserve + RH4 buyback) | `0xAbc4F8e14879Bb9Cb1871953E5715fe5787AB363` |
-| **ChipBuybackVault 100%** (LP lock; all fees → reserve + RH4 buyback) | `0xc126579fe50Db740534053e3312aBb460A8A6e9e` |
-| ChipCreatorVault (legacy 50/50, quote share buried) | `0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233` |
-| ChipFeeVault (legacy 100%, quote share buried) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
+| **ChipCreatorVault** (LP lock, fees 50/50 creator+reserve) | `0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233` |
+| **ChipFeeVault** (LP lock, fees → reserve) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
+| ChipBuybackVault v2 50/50 / 100% (executor-driven RH4 buyback) | *redeploy pending — addresses will be listed here* |
+| ~~ChipBuybackVault v1~~ `0xAbc4…B363`, `0xc126…6e9e` | withdrawn before use (same-tx spot was manipulable); empty, do not use |
 | **ChipSocials** (per-chip links: X, website, Telegram) | `0x355A7C6d677944979bf604080698f131E0B72891` |
 | RH4 project token (on pons) | `0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B` |
 
@@ -139,42 +139,37 @@ Chip tokens trade on **Uniswap v3**, always:
 **LP custody (critical for safety labels):** the position NFT is minted
 directly to either
 
-- the **ChipBuybackVault 50/50** `0xAbc4…B363` (default) or
-- the **ChipBuybackVault 100%** `0xc126…6e9e`, or
+- the **ChipCreatorVault** `0xc7d4…1233` (default today) — `collect(tokenId)` is
+  public: half of the fees go to the chip's original minter (immutable, set at
+  mint — NFT transfers do not move it), half to the factory (chip token →
+  mining reserve; quote is buried), or
+- the **ChipFeeVault** `0xb5C4…491D` — all fees to the factory, or
 - `0x000000000000000000000000000000000000dEaD` (burned, fees unclaimable).
 
-Both vaults: no owner, no transfer, no `decreaseLiquidity` — liquidity can
-never be pulled. `collect(tokenId)` (`0xce3f865f`) is permissionless and, in
-one transaction:
+**ChipBuybackVault v2** (being redeployed; will become the default): same
+exitless custody, but the quote share buys RH4 for the mother chip instead
+of being buried. `collect(tokenId)` (`0xce3f865f`) is permissionless and does
+**no swaps**: the creator share accrues (`claimable(creator, token)`
+`0xd4570c1c`, withdrawn with `claim(address)` `0x1e83409a` / `claimMany(address[])`
+`0x7e686e01`), the chip token goes to the factory reserve, WETH becomes ETH held
+in the vault, other quotes wait in `pending(token)` (`0x5eebea20`). Swaps are
+executor-only (the project keeper, appointed by the factory owner via
+`setExecutor` `0x1c3c0ea8`) with a `minOut` fixed off-chain — a same-block spot
+would be manipulable — via `convert(token, amountIn, minOut, fee)` (`0x1bfdd9f9`)
+and `buyback(amountIn, minOut)` (`0x460ddf8d`); the executor cannot extract
+anything: RH4 only ever lands in the factory.
 
-- the creator share (50% in the 50/50 vault, 0 in the 100% vault) **accrues**
-  to the chip's original minter (immutable, set at mint — NFT transfers do
-  not move it) in both tokens: `claimable(address creator, address token)`
-  (`0xd4570c1c`), withdrawn by the creator with `claim(address token)`
-  (`0x1e83409a`) or `claimMany(address[])` (`0x7e686e01`);
-- the reserve share of the **chip token** goes to the factory (mining reserve);
-- the reserve share of the **quote** (WETH, NVDA, any tokenised stock with a
-  WETH pool) is converted to ETH and **buys RH4 on its Uniswap v4 pool**,
-  delivered to the factory as the mother chip's mining reserve. Minimum
-  output is derived on-chain from spot (5% tolerance); if the spot can't
-  absorb it, the ETH waits in the vault and anyone can retry with
-  `buyback(uint256 amountIn)` (`0x79a9fa1c`). Quotes without a WETH pool wait
-  for `convert(address token)` (`0xdef2489b`).
-
-Events (both vaults):
+Events (v2):
 
 | event | topic0 |
 |---|---|
 | `FeesSplit(uint256 indexed tokenId, uint256 indexed chipId, address indexed creator, uint256 amount0, uint256 amount1)` | `0x92fa015bd17874d5d476b15a7a487c877a1b8b6b44b9e2c0d0a284e7403f41ab` |
 | `Accrued(address indexed creator, address indexed token, uint256 amount)` | `0x25963a1429417a86986b3c9b49e532b39cf61128506dbcd415f9f3420b10af30` |
 | `Claimed(address indexed creator, address indexed token, uint256 amount)` | `0xf7a40077ff7a04c7e61f6f26fb13774259ddf1b6bce9ecf26a8276cdd3992683` |
+| `QuotePending(address indexed token, uint256 amount, uint256 total)` | `0x1c439a20fdeb406aa4d7d2641197446461c76626f8c86c4b3dc7981c700cffe2` |
+| `Converted(address indexed token, uint256 amountIn, uint256 ethOut)` | `0xe6a45eea08a42f7c3f90f290e8ecf15e16174981943adf509fc9ea49808a64c6` |
 | `Buyback(uint256 ethIn, uint256 rh4Out, address indexed by)` | `0x19dce436477c8ec377992306a402bd2728800a3be453520cd9bcf8ef12946325` |
-| `BuybackDeferred(uint256 ethHeld)` | `0xc855e04853c0ff308d42dfb52503057eea10cc9687857a34da277dfbcfeb41ca` |
-| `QuoteHeld(address indexed token, uint256 amount)` | `0x2f7dead15965651704a8d4e7d85b143604f6b7065d1ec51c16222128fc90c1ab` |
-
-Legacy positions (TCHIP's market and any opened before this generation)
-live in the first-generation vaults `0xc7d4…1233` / `0xb5C4…491D`, whose
-`collect` pays the creator directly and forwards the rest to the factory.
+| `ExecutorSet(address indexed executor)` | `0x3e3c5e6d5b512eaa5d5a80669846cfbaf8bde70fc6f7a3be9828cffc9ba5f1db` |
 
 Either way, **the minter never holds the position**. Rug-by-LP-pull is
 impossible by construction for markets opened through the launchpad.

@@ -33,13 +33,14 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function b32ToString(hex) {
-    let out = "";
+    const bytes = [];
     for (let i = 0; i < 64; i += 2) {
       const c = parseInt(hex.slice(i, i + 2), 16);
       if (c === 0) break;
-      out += c >= 0x20 && c <= 0x7e ? String.fromCharCode(c) : " ";
+      bytes.push(c);
     }
-    return out;
+    try { return new TextDecoder("utf-8", { fatal: false }).decode(new Uint8Array(bytes)).replace(/[\u0000-\u001f\u007f]/g, " "); }
+    catch (_) { return ""; }
   }
   function decodeString(hex) {
     try {
@@ -57,12 +58,18 @@
   }
   /** tante letture, una richiesta: gli errori dei singoli diventano null */
   async function rpcBatch(reqs) {
-    if (!reqs.length) return [];
-    const res = await fetch(CFG().rpc, { method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify(reqs.map((r, i) => ({ jsonrpc: "2.0", id: i, ...r }))) });
-    const out = await res.json();
-    const byId = new Map((Array.isArray(out) ? out : [out]).map((r) => [r.id, r]));
-    return reqs.map((_, i) => { const r = byId.get(i); return r && !r.error ? r.result : null; });
+    const out = new Array(reqs.length).fill(null);
+    for (let start = 0; start < reqs.length; start += 50) {  // a fette: il nodo pubblico ha un tetto
+      const slice = reqs.slice(start, start + 50);
+      try {
+        const res = await fetch(CFG().rpc, { method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify(slice.map((r, i) => ({ jsonrpc: "2.0", id: start + i, ...r }))) });
+        const data = await res.json();
+        const byId = new Map((Array.isArray(data) ? data : [data]).map((r) => [r.id, r]));
+        for (let i = 0; i < slice.length; i++) { const r = byId.get(start + i); out[start + i] = r && !r.error ? r.result : null; }
+      } catch (_) {}
+    }
+    return out;
   }
   const ecall = (to, data, from) => ({ method: "eth_call", params: [{ to, data, ...(from && { from }) }, "latest"] });
 
@@ -81,7 +88,7 @@
 
   // ------------------------------------------------------------- il profilo
 
-  const state = { me: null, chips: [], symbols: new Map() };
+  const state = { me: null, chips: [], symbols: new Map(), seq: 0 };
 
   async function symbolOf(token) {
     if (!state.symbols.has(token.toLowerCase())) {
@@ -92,6 +99,7 @@
   }
 
   async function load(me) {
+    const seq = ++state.seq;
     state.me = me;
     $("#pf-addr").textContent = me;
     $("#pf-empty").hidden = true;
@@ -119,6 +127,7 @@
         owner: o ? "0x" + w(o, 0).slice(24) : ZERO, ins,
       };
     }).filter(Boolean);
+    if (seq !== state.seq) return; // nel frattempo e' partito un caricamento piu' nuovo
     state.chips = chips;
     const mine = chips.filter((c) => c.minter.toLowerCase() === me.toLowerCase() || c.owner.toLowerCase() === me.toLowerCase());
     for (const c of chips) if (c.token !== ZERO) state.symbols.set(c.token.toLowerCase(), c.ticker || "?");
@@ -161,8 +170,9 @@
       const nHex = await rpc("eth_call", [{ to: NPM, data: S_BAL + addrWord(vault) }, "latest"]).catch(() => null);
       const n = nHex ? Number(BigInt(nHex)) : 0;
       if (!n) continue;
-      const tids = await rpcBatch(Array.from({ length: Math.min(n, 60) }, (_, i) => ecall(NPM, S_TOKBYIDX + addrWord(vault) + word(i))));
-      const poss = await rpcBatch(tids.filter(Boolean).map((t) => ecall(NPM, S_POSITIONS + t.slice(2))));
+      const tidsRaw = await rpcBatch(Array.from({ length: Math.min(n, 60) }, (_, i) => ecall(NPM, S_TOKBYIDX + addrWord(vault) + word(i))));
+      const tids = tidsRaw.filter(Boolean);
+      const poss = await rpcBatch(tids.map((t) => ecall(NPM, S_POSITIONS + t.slice(2))));
       poss.forEach((p, i) => {
         if (!p) return;
         const t0 = "0x" + w(p, 2).slice(24), t1 = "0x" + w(p, 3).slice(24);
