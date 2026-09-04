@@ -531,7 +531,7 @@
         data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) }, "latest"])).slice(26);
       btn.textContent = "MARKET OPEN — LP SEALED ✓";
       btn.style.background = "var(--mint-deep)";
-      say(`the LP is sealed — nobody can ever pull it. Half the 1% fees go to you forever, half to the mining reserve. ` +
+      say(`the LP is sealed — nobody can ever pull it. Half the 1% fees go to you forever; the rest feeds the reserve and buys back RH4. ` +
         `Pool: ${CFG().explorer}/address/${pool}`);
       loadGallery();
     } catch (e) {

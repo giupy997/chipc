@@ -393,9 +393,9 @@
       if (!r2 || r2.status !== "0x1") throw new Error("market open reverted — check the explorer");
 
       tell(feeMode === "creator"
-        ? "market open — LP sealed: fees split 50/50, creator and reserve ✓"
+        ? "market open — LP sealed: fees split 50/50, creator and reserve; the quote share buys back RH4 ✓"
         : feeMode === "vault"
-        ? "market open — the LP is sealed in the vault: fees will feed the reserve ✓"
+        ? "market open — the LP is sealed in the vault: fees feed the reserve and buy back RH4 ✓"
         : "market open — the LP position was born at the burn address ✓");
       setTimeout(() => location.reload(), 2500);
     } catch (e) {
@@ -628,7 +628,9 @@
   /** La posizione di questo pool sta nel vault? Allora chiunque puo'
    *  spazzare le fee nella riserva: il bottone e' un servizio pubblico. */
   async function detectVaulted() {
-    for (const [vault, label] of [[CFG().creatorVault, "CREATOR 50/50"], [CFG().feeVault, "VAULTED"]]) {
+    const list = [[CFG().creatorVault, "CREATOR 50/50"], [CFG().feeVault, "VAULTED"]];
+    for (const v of CFG().legacyVaults || []) list.push([v, "VAULTED"]);
+    for (const [vault, label] of list) {
       if (vault && await _detectIn(vault, label)) return;
     }
   }
@@ -688,7 +690,8 @@
           `<button class="btn btn-dark btn-sm" id="cp-open-nvda">OPEN VS NVDA</button>` +
           `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault, ` +
           `not in a wallet. Anyone can sweep the accrued 1% trading fees at any time: ` +
-          `the reserve share extends the emission — volume keeps the chip paying.</span>`;
+          `the reserve share of your token extends the emission, and the reserve share of ` +
+          `the quote buys back RH4 for the mother chip — in the same transaction.</span>`;
         let feeMode = "creator";
         const syncFee = () => {
           const modes = { creator: "cp-fee-creator", vault: "cp-fee-vault" };

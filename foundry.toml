@@ -6,6 +6,7 @@ libs = ["lib"]
 solc = "0.8.28"
 optimizer = true
 optimizer_runs = 200
+evm_version = "cancun"   # il verificatore di Blockscout non conosce ancora prague
 # la ROM assemblata e' l'unica sorgente di verita': i test la leggono da li'
 fs_permissions = [{ access = "read-write", path = "./build" }]
 
