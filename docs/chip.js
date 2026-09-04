@@ -31,7 +31,10 @@
 
   const word = (v) => BigInt(v).toString(16).padStart(64, "0");
   const addrWord = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
-  const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
+  // gli errori finiscono in innerHTML e una revert string la scrive chi vuole:
+  // qui si spegne qualsiasi markup, sempre
+  const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90)
+    .replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const ZERO = "0x" + "0".repeat(40);
 
   function b32ToString(hex) {
@@ -69,7 +72,7 @@
   }
   const call = (to, data) => rpc("eth_call", [{ to, data }, "latest"]);
 
-  const id = Math.max(1, Number(new URLSearchParams(location.search).get("id") || 1));
+  const id = Math.max(1, Number(new URLSearchParams(location.search).get("id")) || 1);
   const state = { token: ZERO, reward: 0, pool: null, quote: null, quoteSym: "WETH" };
 
   // ------------------------------------------------------------ lo stato vivo

@@ -12,6 +12,7 @@
   const $ = (s) => document.querySelector(s);
 
   const SELECTOR_MINT = "0x481aebcf";     // mint(uint256[128],bytes32,bytes32,string,uint16,uint64)
+  const SELECTOR_MINTPRICE = "0x6817c76c"; // mintPrice()
   const SELECTOR_BYTICKER = "0x4da5bb73"; // chipByTicker(bytes32)
   const SELECTOR_TOTAL = "0x73514205";    // totalChips()
   const SELECTOR_CHIP = "0x8c6aefcf";     // chip(uint256)
@@ -24,6 +25,13 @@
 
   function safeTicker(raw) {
     return String(raw).toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+  }
+
+  /** La label di un chip e' bytes32 LIBERI sul contratto: chiunque puo'
+   *  scriverci dentro dell'HTML. Qui si spegne, sempre, prima di innerHTML. */
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
 
   function b32(s) {
@@ -89,9 +97,9 @@
     el.className = "gchip";
     el.href = href;
     el.innerHTML =
-      `<div class="row1"><span class="tick">${c.ticker || "?"}</span>${logo}` +
+      `<div class="row1"><span class="tick">${esc(c.ticker || "?")}</span>${logo}` +
       `<span class="badge ${badge[1]}">${badge[0]}</span></div>` +
-      `<div class="name">#${id} · ${c.label || "unnamed"}</div>` +
+      `<div class="name">#${id} · ${esc(c.label || "unnamed")}</div>` +
       `<div class="gleds">${leds}</div>` +
       `<div class="grow"><span>CYCLES <b>${s.cycles.toLocaleString("en-US")}</b></span>` +
       `<span>OUT <b>${s.out}</b></span><span>PC <b>0x${s.pc.toString(16).padStart(3, "0")}</b></span></div>`;
@@ -251,12 +259,16 @@
       }
 
       say("checking the mint…");
-      await rpc("eth_call", [{ from: account, to: CFG().factory, data }, "latest"]);
+      // il prezzo del conio si legge dal contratto: se un domani si accende
+      // il mintFee, il form continua a funzionare senza toccare nulla
+      const price = BigInt(await call(SELECTOR_MINTPRICE));
+      const value = price > 0n ? "0x" + price.toString(16) : undefined;
+      await rpc("eth_call", [{ from: account, to: CFG().factory, data, ...(value && { value }) }, "latest"]);
 
       say("confirm in your wallet…");
       const hash = await provider.request({
         method: "eth_sendTransaction",
-        params: [{ from: account, to: CFG().factory, data }],
+        params: [{ from: account, to: CFG().factory, data, ...(value && { value }) }],
       });
 
       say(`sent — ${hash.slice(0, 10)}… waiting for the chain`);
