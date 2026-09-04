@@ -6,6 +6,9 @@ RH-4 chip launchpad on Robinhood Chain.
 - Site / launchpad: https://rh4cpu.tech · https://rh4cpu.tech/launchpad.html
 - Source: https://github.com/giupy997/chipc
 - Contact: [@RH4cpu](https://x.com/RH4cpu)
+- AI agents: ElizaOS plugin in [`eliza/plugin-rh4`](eliza/plugin-rh4) —
+  lets an agent mint, power and read chips (mint/tick/read actions + a
+  chip-state provider)
 
 ## 1. Chain
 
