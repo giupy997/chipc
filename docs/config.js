@@ -20,9 +20,12 @@ window.RH4_CONFIG = {
   // I vault delle fee: le posizioni LP nascono qui e non escono mai. Dalla
   // generazione buyback, la quota "riserva" della quote ricompra RH4 per
   // la madre invece di restare sepolta. I vecchi restano riconosciuti.
-  feeVault: "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",       // 100% riserva
-  creatorVault: "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",   // 50/50
-  legacyVaults: [],
+  feeVault: "0xc126579fe50Db740534053e3312aBb460A8A6e9e",       // 100% riserva + buyback RH4
+  creatorVault: "0xAbc4F8e14879Bb9Cb1871953E5715fe5787AB363",   // 50/50 (claim) + buyback RH4
+  legacyVaults: [
+    "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",   // 50/50 prima generazione (TCHIP)
+    "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",   // 100% riserva prima generazione
+  ],
   // ChipSocials: i link (X, sito, Telegram) di ogni chip, on-chain.
   socials: "0x355A7C6d677944979bf604080698f131E0B72891",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
