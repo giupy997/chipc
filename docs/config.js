@@ -20,13 +20,15 @@ window.RH4_CONFIG = {
   // I vault delle fee: le posizioni LP nascono qui e non escono mai. Dalla
   // generazione buyback, la quota "riserva" della quote ricompra RH4 per
   // la madre invece di restare sepolta. I vecchi restano riconosciuti.
-  // In attesa dei vault buyback v2 (executor + minOut fuori chain) i mercati
-  // nuovi nascono nei vault della prima generazione: sicuri, ma la quote
-  // viene sepolta. I v1 buyback (0xAbc4…, 0xc126…) sono ritirati: vuoti,
-  // e da non usare — lo spot letto nella stessa transazione era manipolabile.
-  feeVault: "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",       // 100% riserva
-  creatorVault: "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",   // 50/50
-  legacyVaults: [],
+  // I vault buyback v2: collect() di tutti (accredita, riserva, parcheggia),
+  // convert()/buyback() solo dell'executor con minOut deciso fuori chain.
+  // I v1 buyback (0xAbc4…, 0xc126…) sono ritirati: vuoti, mai usati.
+  feeVault: "0x2F9D010BE1D2b8F304Bb1c0a02fe9277Fcdb3896",       // 100% riserva + buyback RH4
+  creatorVault: "0x48B8CdbF29d65981F9dFbc4176A868AcE28c30Aa",   // 50/50 (claim) + buyback RH4
+  legacyVaults: [
+    "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",   // 50/50 prima generazione
+    "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",   // 100% riserva prima generazione
+  ],
   // ChipSocials: i link (X, sito, Telegram) di ogni chip, on-chain.
   socials: "0x355A7C6d677944979bf604080698f131E0B72891",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",

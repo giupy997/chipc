@@ -31,9 +31,10 @@ block number comes from the ArbSys precompile (`address(100)`,
 | **ChipFactory8** (the launchpad) | `0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b` |
 | RH8GateArray (the silicon, `pure`) | `0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a` |
 | Chip8Renderer (on-chain NFT SVG) | `0xd6e71a902a927C2d36110d35769ed49bf8705b28` |
-| **ChipCreatorVault** (LP lock, fees 50/50 creator+reserve) | `0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233` |
-| **ChipFeeVault** (LP lock, fees → reserve) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
-| ChipBuybackVault v2 50/50 / 100% (executor-driven RH4 buyback) | *redeploy pending — addresses will be listed here* |
+| **ChipBuybackVault 50/50** (LP lock; creator claims half, rest → reserve + RH4 buyback) | `0x48B8CdbF29d65981F9dFbc4176A868AcE28c30Aa` |
+| **ChipBuybackVault 100%** (LP lock; all fees → reserve + RH4 buyback) | `0x2F9D010BE1D2b8F304Bb1c0a02fe9277Fcdb3896` |
+| ChipCreatorVault (first generation 50/50, quote share buried) | `0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233` |
+| ChipFeeVault (first generation 100%, quote share buried) | `0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D` |
 | ~~ChipBuybackVault v1~~ `0xAbc4…B363`, `0xc126…6e9e` | withdrawn before use (same-tx spot was manipulable); empty, do not use |
 | **ChipSocials** (per-chip links: X, website, Telegram) | `0x355A7C6d677944979bf604080698f131E0B72891` |
 | RH4 project token (on pons) | `0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B` |
@@ -139,16 +140,16 @@ Chip tokens trade on **Uniswap v3**, always:
 **LP custody (critical for safety labels):** the position NFT is minted
 directly to either
 
-- the **ChipCreatorVault** `0xc7d4…1233` (default today) — `collect(tokenId)` is
-  public: half of the fees go to the chip's original minter (immutable, set at
-  mint — NFT transfers do not move it), half to the factory (chip token →
-  mining reserve; quote is buried), or
-- the **ChipFeeVault** `0xb5C4…491D` — all fees to the factory, or
+- the **ChipBuybackVault 50/50** `0x48B8…30Aa` (default), or
+- the **ChipBuybackVault 100%** `0x2F9D…3896`, or
 - `0x000000000000000000000000000000000000dEaD` (burned, fees unclaimable).
 
-**ChipBuybackVault v2** (being redeployed; will become the default): same
-exitless custody, but the quote share buys RH4 for the mother chip instead
-of being buried. `collect(tokenId)` (`0xce3f865f`) is permissionless and does
+First-generation positions (opened before Sep 4, 2026) live in
+ChipCreatorVault `0xc7d4…1233` / ChipFeeVault `0xb5C4…491D`, whose public
+`collect` pays the creator directly and forwards the rest to the factory.
+
+**ChipBuybackVault**: same exitless custody, but the quote share buys RH4
+for the mother chip instead of being buried. `collect(tokenId)` (`0xce3f865f`) is permissionless and does
 **no swaps**: the creator share accrues (`claimable(creator, token)`
 `0xd4570c1c`, withdrawn with `claim(address)` `0x1e83409a` / `claimMany(address[])`
 `0x7e686e01`), the chip token goes to the factory reserve, WETH becomes ETH held
@@ -159,7 +160,7 @@ would be manipulable — via `convert(token, amountIn, minOut, fee)` (`0x1bfdd9f
 and `buyback(amountIn, minOut)` (`0x460ddf8d`); the executor cannot extract
 anything: RH4 only ever lands in the factory.
 
-Events (v2):
+Events (ChipBuybackVault):
 
 | event | topic0 |
 |---|---|
