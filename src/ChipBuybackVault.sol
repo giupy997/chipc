@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {INPM} from "./ChipFeeVault.sol";
 import {IChipFactoryLite} from "./ChipCreatorVault.sol";
 
@@ -26,6 +27,10 @@ interface ISwapRouter02 {
 
 interface IV3Pool {
     function slot0() external view returns (uint160 sqrtPriceX96, int24, uint16, uint16, uint16, uint8, bool);
+}
+
+interface IV3Factory {
+    function getPool(address, address, uint24) external view returns (address);
 }
 
 /// Il minimo indispensabile di Uniswap v4: Currency e IHooks sono address.
@@ -59,9 +64,15 @@ interface IPoolManager {
  *
  *   - una quota (creatorBps) al coniatore originale, in entrambe le monete;
  *   - il resto del token del chip alla fabbrica: riserva di mining;
- *   - il resto della quote (WETH, NVDA) NON viene sepolto: diventa ETH e,
- *     nella stessa transazione, compra RH4 sul pool v4 dove la madre e'
- *     graduata. L'RH4 finisce nella fabbrica: riserva del chip madre.
+ *   - il resto della quote (WETH, NVDA, qualunque azione tokenizzata che
+ *     abbia un pool con WETH) NON viene sepolto: diventa ETH e, nella stessa
+ *     transazione, compra RH4 sul pool v4 dove la madre e' graduata. L'RH4
+ *     finisce nella fabbrica: riserva del chip madre.
+ *
+ * La strada verso l'ETH il vault se la trova da solo: per ogni quote cerca
+ * il pool piu' profondo con WETH sulla V3 factory. Se un pool non esiste
+ * ancora, il token resta qui — mai sepolto — e chiunque puo' convertirlo
+ * dopo con convert(), quando il pool arriva.
  *
  * Il buyback e' automatico dentro collect(). Il prezzo minimo lo detta lo
  * spot letto on-chain dal PoolManager (tolleranza fissa): un sandwich non
@@ -77,9 +88,8 @@ contract ChipBuybackVault {
     IChipFactoryLite public immutable factory;
     address public immutable rh4;
     address public immutable weth;
-    address public immutable nvda;
-    IV3Pool public immutable nvdaWethPool;   // il cambio NVDA/WETH (fee 500)
-    ISwapRouter02 public immutable router;   // SwapRouter02 per la gamba NVDA -> WETH
+    IV3Factory public immutable v3Factory;   // dove cercare il pool quote/WETH
+    ISwapRouter02 public immutable router;   // SwapRouter02 per la gamba quote -> WETH
     IPoolManager public immutable poolManager;
     address public immutable hook;           // V2MemeHook di pons sul pool RH4
     uint256 public immutable creatorBps;     // 5000 = meta' al coniatore, 0 = tutto in riserva
@@ -91,18 +101,22 @@ contract ChipBuybackVault {
     event Buyback(uint256 ethIn, uint256 rh4Out, address indexed by);
     event BuybackDeferred(uint256 ethHeld);
 
+    event QuoteHeld(address indexed token, uint256 amount);
+
     error NotPoolManager();
     error NothingToBuy();
     error TooLittleOut(uint256 got, uint256 min);
+    error NotAQuote();
+    error NoRoute();
 
     constructor(
-        INPM npm_, IChipFactoryLite factory_, address rh4_, address weth_, address nvda_,
-        IV3Pool nvdaWethPool_, ISwapRouter02 router_, IPoolManager poolManager_, address hook_,
+        INPM npm_, IChipFactoryLite factory_, address rh4_, address weth_,
+        IV3Factory v3Factory_, ISwapRouter02 router_, IPoolManager poolManager_, address hook_,
         uint256 creatorBps_
     ) {
         require(creatorBps_ <= 5000, "creator share too big");
-        npm = npm_; factory = factory_; rh4 = rh4_; weth = weth_; nvda = nvda_;
-        nvdaWethPool = nvdaWethPool_; router = router_; poolManager = poolManager_; hook = hook_;
+        npm = npm_; factory = factory_; rh4 = rh4_; weth = weth_;
+        v3Factory = v3Factory_; router = router_; poolManager = poolManager_; hook = hook_;
         creatorBps = creatorBps_;
     }
 
@@ -181,27 +195,50 @@ contract ChipBuybackVault {
             bal -= share;
         }
         if (bal == 0) return;
-        if (token == weth) {
+        if (factory.chipByToken(token) != 0) {
+            IERC20(token).safeTransfer(address(factory), bal);   // token del chip: riserva
+        } else if (token == weth) {
             IWETH9(weth).withdraw(bal);
-        } else if (token == nvda) {
-            _nvdaToEth(bal);
         } else {
-            IERC20(token).safeTransfer(address(factory), bal); // token del chip: riserva
+            // quote: la strada verso l'ETH si cerca; se manca, il token aspetta qui
+            try this.convert(token) {} catch { emit QuoteHeld(token, bal); }
         }
     }
 
-    /// @dev NVDA -> WETH sul pool fee 500, minimo dallo spot, poi ETH.
-    function _nvdaToEth(uint256 amount) internal {
-        (uint160 sqrtP, , , , , , ) = nvdaWethPool.slot0();
-        // token0 = WETH, token1 = NVDA: WETH = NVDA * 2^192 / sqrtP^2
-        uint256 wethOut = ((amount << 96) / sqrtP << 96) / sqrtP;
+    /// @notice Converte in ETH una quote tenuta qui (NVDA, un'azione tokenizzata
+    ///         futura...) passando dal pool piu' profondo con WETH. Aperta a
+    ///         chiunque: il minimo lo fissa lo spot di quel pool.
+    function convert(address token) external {
+        if (token == weth || token == rh4 || factory.chipByToken(token) != 0) revert NotAQuote();
+        uint256 amount = IERC20(token).balanceOf(address(this));
+        if (amount == 0) revert NothingToBuy();
+        (address pool, uint24 fee) = _deepestPool(token);
+        if (pool == address(0)) revert NoRoute();
+
+        (uint160 sqrtP, , , , , , ) = IV3Pool(pool).slot0();
+        uint256 wethOut = token < weth
+            ? Math.mulDiv(Math.mulDiv(amount, sqrtP, 1 << 96), sqrtP, 1 << 96)   // token0 -> token1
+            : Math.mulDiv(Math.mulDiv(amount, 1 << 96, sqrtP), 1 << 96, sqrtP);  // token1 -> token0
         uint256 minOut = wethOut * (10_000 - TOLERANCE_BPS) / 10_000;
-        IERC20(nvda).forceApprove(address(router), amount);
+
+        IERC20(token).forceApprove(address(router), amount);
         uint256 got = router.exactInputSingle(ISwapRouter02.ExactInputSingleParams({
-            tokenIn: nvda, tokenOut: weth, fee: 500, recipient: address(this),
+            tokenIn: token, tokenOut: weth, fee: fee, recipient: address(this),
             amountIn: amount, amountOutMinimum: minOut, sqrtPriceLimitX96: 0
         }));
         IWETH9(weth).withdraw(got);
+    }
+
+    /// @dev Fra i pool token/WETH ai fee standard, quello con piu' WETH dentro.
+    function _deepestPool(address token) internal view returns (address best, uint24 bestFee) {
+        uint24[3] memory fees = [uint24(500), uint24(3000), uint24(10000)];
+        uint256 bestDepth;
+        for (uint256 i; i < 3; ++i) {
+            address pool = v3Factory.getPool(token, weth, fees[i]);
+            if (pool == address(0)) continue;
+            uint256 depth = IERC20(weth).balanceOf(pool);
+            if (depth > bestDepth) { bestDepth = depth; best = pool; bestFee = fees[i]; }
+        }
     }
 
     function _key() internal view returns (PoolKey memory) {
@@ -213,6 +250,6 @@ contract ChipBuybackVault {
         bytes32 poolId = keccak256(abi.encode(_key()));
         bytes32 slot = keccak256(abi.encodePacked(poolId, POOLS_SLOT));
         uint256 sqrtP = uint256(poolManager.extsload(slot)) & ((1 << 160) - 1);
-        return ((amountIn * sqrtP) >> 96) * sqrtP >> 96;
+        return Math.mulDiv(Math.mulDiv(amountIn, sqrtP, 1 << 96), sqrtP, 1 << 96);
     }
 }

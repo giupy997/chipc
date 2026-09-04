@@ -2,7 +2,8 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {ChipBuybackVault, IV3Pool, ISwapRouter02, IPoolManager} from "../src/ChipBuybackVault.sol";
+import {ChipBuybackVault, IV3Factory, ISwapRouter02, IPoolManager} from "../src/ChipBuybackVault.sol";
+import {ChipToken} from "../src/ChipToken.sol";
 import {INPM} from "../src/ChipFeeVault.sol";
 import {IChipFactoryLite} from "../src/ChipCreatorVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -27,7 +28,7 @@ contract ChipBuybackVaultForkTest is Test {
     address constant RH4 = 0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B;
     address constant WETH = 0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73;
     address constant NVDA = 0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC;
-    address constant NVDA_WETH_500 = 0x62AB521f71431f78ac374CdbadC6cda3c8916b6C;
+    address constant V3_FACTORY = 0x1f7d7550B1b028f7571E69A784071F0205FD2EfA;
     address constant ROUTER02 = 0xCaf681a66D020601342297493863E78C959E5cb2;
     address constant POOL_MANAGER = 0x8366a39CC670B4001A1121B8F6A443A643e40951;
     address constant HOOK = 0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044;
@@ -42,8 +43,8 @@ contract ChipBuybackVaultForkTest is Test {
         vm.createSelectFork(rpc);
         npm = new MockNPMFork();
         vault = new ChipBuybackVault(
-            INPM(address(npm)), IChipFactoryLite(FACTORY), RH4, WETH, NVDA,
-            IV3Pool(NVDA_WETH_500), ISwapRouter02(ROUTER02), IPoolManager(POOL_MANAGER), HOOK, 5000
+            INPM(address(npm)), IChipFactoryLite(FACTORY), RH4, WETH,
+            IV3Factory(V3_FACTORY), ISwapRouter02(ROUTER02), IPoolManager(POOL_MANAGER), HOOK, 5000
         );
     }
 
@@ -98,8 +99,8 @@ contract ChipBuybackVaultForkTest is Test {
     /// 100% riserva: nessuna quota al coniatore, tutto in riserva e in buyback.
     function test_varianteCentoPerCentoRiserva() public {
         ChipBuybackVault v0 = new ChipBuybackVault(
-            INPM(address(npm)), IChipFactoryLite(FACTORY), RH4, WETH, NVDA,
-            IV3Pool(NVDA_WETH_500), ISwapRouter02(ROUTER02), IPoolManager(POOL_MANAGER), HOOK, 0
+            INPM(address(npm)), IChipFactoryLite(FACTORY), RH4, WETH,
+            IV3Factory(V3_FACTORY), ISwapRouter02(ROUTER02), IPoolManager(POOL_MANAGER), HOOK, 0
         );
         deal(TCHIP, address(npm), 100e18);
         deal(WETH, address(npm), 0.001e18);
@@ -122,6 +123,21 @@ contract ChipBuybackVaultForkTest is Test {
         uint256 before = IERC20(RH4).balanceOf(FACTORY);
         vault.buyback(0.05 ether);
         assertGt(IERC20(RH4).balanceOf(FACTORY), before);
+    }
+
+    /// Una quote senza pool con WETH (un'azione tokenizzata di domani, prima
+    /// che qualcuno le apra il mercato): resta nel vault, non viene sepolta.
+    function test_quoteSenzaPoolRestaInAttesa() public {
+        ChipToken alien = new ChipToken("Alien", "ALN", 999, 1_000_000e18, address(npm), 0, address(this));
+        deal(TCHIP, address(npm), 10e18);
+        npm.set(TCHIP, address(alien), 10e18, 100e18);
+        uint256 fBefore = alien.balanceOf(FACTORY);
+        vault.collect(1);
+        assertEq(alien.balanceOf(address(vault)), 50e18, "la quota riserva aspetta nel vault");
+        assertEq(alien.balanceOf(FACTORY), fBefore, "niente sepolto in fabbrica");
+        assertEq(alien.balanceOf(TCHIP_MINTER), 50e18, "il coniatore ha la sua meta'");
+        vm.expectRevert(ChipBuybackVault.NoRoute.selector);
+        vault.convert(address(alien));
     }
 
     function test_nessunoPuoChiamareIlCallback() public {
