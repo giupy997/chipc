@@ -152,6 +152,8 @@
         <label class="field">
           <span class="field-k">EMISSION RUNS FOR</span>
           <div class="chips" id="f-span">
+            <button class="chip" data-span="864000">10 D</button>
+            <button class="chip" data-span="1296000">15 D</button>
             <button class="chip" data-span="2592000">30 D</button>
             <button class="chip is-on" data-span="7776000">90 D</button>
             <button class="chip" data-span="31536000">1 Y</button>
@@ -163,10 +165,8 @@
       <p class="field-note">Want your chip to pay miners more? Keep <strong>TO
       LIQUIDITY</strong> low and the <strong>emission short</strong>: the reserve
       is what&rsquo;s left after your slice, split across fewer cycles &mdash; both
-      levers raise the per-cycle reward. <strong>MINING PAYS ABOVE</strong> is the
-      market cap where one cycle earns more than its gas, at the chain&rsquo;s
-      current gas price: above that line, powering your chip is a business &mdash;
-      below it, every tick is sponsorship, one byte engraved forever.</p>
+      levers raise the per-cycle reward, and lower the market cap where mining
+      turns profitable.</p>
 
       <button class="btn btn-dark btn-block" id="f-mint" disabled>MINTING INCOMING</button>
       <p class="field-note" id="f-mint-note" hidden></p>

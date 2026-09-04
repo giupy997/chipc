@@ -196,19 +196,24 @@
     const reserve = SUPPLY * (1 - liqBps / 10000);
     const perCycle = reserve / cycles;
     const fmt = (n) => Math.round(n).toLocaleString("en-US");
-    let breakEven = "";
+    let beRow = "", beNote = "";
     if (gasGwei) {
       const ethPerTick = GAS_PER_TICK * gasGwei * 1e-9;
       const be = ethPerTick * (SUPPLY / perCycle);
-      breakEven =
-        `<div class="em-row"><span>MINING PAYS ABOVE</span><b>&asymp; ${fmt(be)} ETH FDV</b></div>`;
+      const tick = safeTicker($("#f-ticker") ? $("#f-ticker").value : "") || "your token";
+      beRow = `<div class="em-row"><span>MINING PAYS ABOVE</span><b>&asymp; ${fmt(be)} ETH FDV</b></div>`;
+      beNote =
+        `<div class="em-break">Mining pays for itself once ${esc(tick)} is worth about ` +
+        `<b>${fmt(be)} ETH</b> fully diluted, at today&rsquo;s gas. Below that line every ` +
+        `tick is sponsorship: one byte engraved forever, tokens earned at a loss.</div>`;
     }
     host.innerHTML =
       `<div class="em-row"><span>TO LIQUIDITY</span><b>${fmt(SUPPLY - reserve)} YOURS</b></div>` +
       `<div class="em-row"><span>EARNED BY CYCLES</span><b>${fmt(reserve)}</b></div>` +
       `<div class="em-row"><span>PER CLOCK CYCLE</span><b>${perCycle.toFixed(2)}</b></div>` +
-      breakEven +
-      `<div class="em-row"><span>TRADES AGAINST</span><b>${pair.toUpperCase()}</b></div>`;
+      beRow +
+      `<div class="em-row"><span>TRADES AGAINST</span><b>${pair.toUpperCase()}</b></div>` +
+      beNote;
   }
 
   function wireChips(sel, apply) {
@@ -530,6 +535,7 @@
     tickerEl.addEventListener("input", () => {
       const cleaned = safeTicker(tickerEl.value);
       if (cleaned !== tickerEl.value) tickerEl.value = cleaned;
+      drawEmission(); // la frase del break-even chiama il token per nome
       clearTimeout(debounce);
       if (!cleaned) return;
       debounce = setTimeout(async () => {
