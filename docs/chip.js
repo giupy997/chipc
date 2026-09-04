@@ -360,8 +360,8 @@
           `<span style="font-size:11px;letter-spacing:0.12em;font-weight:700">TRADING FEES — chosen once, sealed forever</span><br>` +
           `<button class="btn btn-light btn-sm" id="cp-fee-creator" style="border-width:2px">&#10003; 50% CREATOR / 50% RESERVE</button> ` +
           `<button class="btn btn-light btn-sm" id="cp-fee-vault" style="opacity:.55">100% RESERVE</button> ` +
-          `<button class="btn btn-light btn-sm" id="cp-fee-holders" style="opacity:.35;cursor:default" disabled>100% HOLDERS ` +
-          `<small style="font-size:9px;letter-spacing:.14em">INCOMING</small></button>` +
+          `<button class="btn btn-light btn-sm" id="cp-fee-holders" style="opacity:.35;cursor:default" disabled>100% HOLDERS` +
+          `<small style="font-size:9px;letter-spacing:.14em;margin-left:8px">INCOMING</small></button>` +
           `<br><br>` +
           `<button class="btn btn-dark btn-sm" id="cp-open-weth">OPEN VS WETH</button> ` +
           `<button class="btn btn-dark btn-sm" id="cp-open-nvda">OPEN VS NVDA</button>` +
