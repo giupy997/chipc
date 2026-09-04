@@ -76,6 +76,29 @@
   .cp-nomarket { padding: 40px 24px; font-family: var(--mono); font-size: 13px; color: var(--dim); text-align: center; line-height: 1.8; }
   .cp-nomarket a { color: var(--mint-deep); }
 
+  /* trade: buy / sell dentro la card del mercato */
+  .cp-trade { border-top: var(--rule); padding: 16px 20px 18px; font-family: var(--mono); }
+  .tr-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tr-slip { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .tr-slip-k { font-size: 10px; font-weight: 700; letter-spacing: 0.18em; color: var(--dim); margin-right: 2px; }
+  .slip { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 5px 9px;
+    background: none; border: 1px solid #bdbcb0; color: var(--dim); cursor: pointer; }
+  .slip.is-on { border-color: var(--ink); color: var(--ink); font-weight: 700; }
+  .tr-row { display: flex; gap: 10px; margin-top: 14px; }
+  .tr-amt { flex: 1; display: flex; align-items: center; gap: 8px;
+    border: 2px solid var(--ink); background: var(--paper); padding: 0 12px; }
+  .tr-amt input { flex: 1; min-width: 0; border: 0; outline: 0; background: none;
+    font-family: var(--mono); font-size: 17px; font-weight: 700; padding: 11px 0; color: var(--ink); }
+  .tr-max { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    background: none; border: 1px solid #bdbcb0; color: var(--dim); padding: 4px 7px; cursor: pointer; }
+  .tr-max:hover { border-color: var(--ink); color: var(--ink); }
+  .tr-unit { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--dim); white-space: nowrap; }
+  #tr-go { min-width: 132px; }
+  .tr-est { margin-top: 9px; font-size: 12px; color: var(--dim); letter-spacing: 0.05em; min-height: 17px; }
+  .tr-est b { color: var(--mint-deep); }
+  .tr-note { margin: 8px 0 0; }
+  @media (max-width: 700px) { .tr-row { flex-direction: column; } #tr-go { width: 100%; } }
+
   /* trades */
   .trades-head { font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.16em; padding: 14px 20px 10px; border-top: var(--rule); }
   .trades { font-family: var(--mono); font-size: 12.5px; max-height: 320px; overflow-y: auto; scrollbar-width: thin; }
@@ -185,6 +208,31 @@
       </div>
       <div id="chart"></div>
       <div class="cp-nomarket" id="cp-nomarket" hidden></div>
+
+      <div class="cp-trade" id="cp-trade" hidden>
+        <div class="tr-top">
+          <button class="chip is-on" id="tr-tab-buy">BUY</button>
+          <button class="chip" id="tr-tab-sell">SELL</button>
+          <span class="tr-slip">
+            <span class="tr-slip-k">SLIPPAGE</span>
+            <button class="slip" data-slip="0.5">0.5%</button>
+            <button class="slip is-on" data-slip="1">1%</button>
+            <button class="slip" data-slip="3">3%</button>
+            <button class="slip" data-slip="5">5%</button>
+          </span>
+        </div>
+        <div class="tr-row">
+          <div class="tr-amt">
+            <input id="tr-amt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.0">
+            <button class="tr-max" id="tr-max" hidden>MAX</button>
+            <span class="tr-unit" id="tr-unit">ETH</span>
+          </div>
+          <button class="btn btn-dark" id="tr-go">BUY</button>
+        </div>
+        <div class="tr-est" id="tr-est">&nbsp;</div>
+        <p class="field-note tr-note" id="tr-note" hidden></p>
+      </div>
+
       <div class="trades-head">TRADES</div>
       <div class="trades" id="trades">
         <div class="trow h"><span>SIDE</span><span>TOKENS</span><span>QUOTE</span><span>PRICE</span><span>TX</span></div>

@@ -306,6 +306,211 @@
   }
 
 
+  // ------------------------------------------------- comprare e vendere
+
+  const ROUTER = "0xCaF681a66D020601342297493863e78c959E5cB2";
+  const S_EXACTIN = "0xc04b8d59", S_UNWRAP = "0x49404b7c";
+
+  /** "1.5" -> 1500000000000000000n. Esatto, niente float sulla strada dei soldi. */
+  function parseUnits18(s) {
+    const t = String(s).trim().replace(",", ".");
+    if (!/^\d*(\.\d*)?$/.test(t) || t === "" || t === ".") return null;
+    const [i, f = ""] = t.split(".");
+    return BigInt(i || "0") * 10n ** 18n + BigInt((f + "0".repeat(18)).slice(0, 18));
+  }
+  const fromWei = (b) => Number(b) / 1e18;
+  /** float -> wei per un MINIMO garantito: precisione adattiva, cosi' anche
+   *  gli spiccioli (1e-8 ETH) tengono il pavimento invece di crollare a 0. */
+  const minWei18 = (x) => {
+    if (!(x > 0)) return 0n;
+    return x >= 1
+      ? BigInt(Math.floor(x * 1e6)) * 10n ** 12n
+      : BigInt(Math.floor(x * 1e15)) * 10n ** 3n;
+  };
+
+  function encPath(hops) {
+    let out = "";
+    for (const h of hops) {
+      out += typeof h === "string" ? h.toLowerCase().replace("0x", "") : h.toString(16).padStart(6, "0");
+    }
+    return out;
+  }
+
+  /** exactInput((bytes,address,uint256,uint256,uint256)) — come buy.js, a mano. */
+  function encExactInput(pathHex, recipient, amountIn, minOut) {
+    const deadline = Math.floor(Date.now() / 1000) + 600;
+    return S_EXACTIN + intWord(0x20) +
+      intWord(0xa0) + addrWord(recipient) + intWord(deadline) + intWord(amountIn) + intWord(minOut) +
+      intWord(pathHex.length / 2) + pathHex.padEnd(Math.ceil(pathHex.length / 64) * 64, "0");
+  }
+
+  async function ensureChain(provider) {
+    try {
+      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: CFG().chainIdHex }] });
+    } catch (e) {
+      if (e && e.code === 4902) {
+        await provider.request({ method: "wallet_addEthereumChain", params: [{
+          chainId: CFG().chainIdHex, chainName: CFG().chainName,
+          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+          rpcUrls: [CFG().rpc], blockExplorerUrls: [CFG().explorer] }] });
+      } else throw e;
+    }
+  }
+
+  async function waitTx(hash, what) {
+    let r = null;
+    for (let i = 0; i < 60 && !r; i++) { await sleep(2500); r = await rpc("eth_getTransactionReceipt", [hash]); }
+    if (!r || r.status !== "0x1") throw new Error(`${what} failed — check the explorer`);
+    return r;
+  }
+
+  let tradeBuilt = false;
+  function buildTrade() {
+    if (tradeBuilt) return;
+    tradeBuilt = true;
+    const box = $("#cp-trade");
+    box.hidden = false;
+    const ticker = ($("#cp-ticker").textContent || "TOKEN").trim();
+    let mode = "buy", slip = 1, rateCache = null, rateAt = 0;
+
+    const amtEl = $("#tr-amt"), goEl = $("#tr-go"), estEl = $("#tr-est"),
+          unitEl = $("#tr-unit"), noteEl = $("#tr-note"), maxEl = $("#tr-max");
+    const tellT = (m) => { noteEl.hidden = !m; noteEl.textContent = m || ""; };
+
+    const syncMode = () => {
+      $("#tr-tab-buy").classList.toggle("is-on", mode === "buy");
+      $("#tr-tab-sell").classList.toggle("is-on", mode === "sell");
+      unitEl.textContent = mode === "buy" ? "ETH" : ticker;
+      goEl.textContent = mode === "buy" ? `BUY ${ticker}` : `SELL ${ticker}`;
+      maxEl.hidden = mode === "buy";
+      amtEl.value = "";
+      estEl.innerHTML = "&nbsp;";
+      tellT("");
+    };
+
+    // quanto vale 1 unita' di quote in ETH (1 per WETH, live per NVDA)
+    async function rate() {
+      if (state.sym !== "NVDA") return 1;
+      if (rateCache && Date.now() - rateAt < 60000) return rateCache;
+      rateCache = await ethPerQuote(UNI.NVDA); rateAt = Date.now();
+      return rateCache;
+    }
+    const feeFactor = () => (state.sym === "NVDA" ? 0.99 * 0.9995 : 0.99);
+
+    /** stima dallo spot: l'impatto sul prezzo non c'e', ma il minimo
+     *  garantito dal minOut si', ed e' quello che protegge davvero. */
+    async function quote(amt) {
+      const [slot0, r] = await Promise.all([call(state.pool, S_SLOT0), rate()]);
+      const price = priceFrom(BigInt("0x" + slot0.slice(2, 66)), state.ourIsToken0);
+      return mode === "buy"
+        ? (amt / r) / price * feeFactor()
+        : amt * price * feeFactor() * r;
+    }
+
+    let estSeq = 0, deb;
+    async function estimate() {
+      const amt = parseFloat(String(amtEl.value).replace(",", "."));
+      const seq = ++estSeq;
+      if (!amt || amt <= 0) { estEl.innerHTML = "&nbsp;"; return; }
+      try {
+        const out = await quote(amt);
+        if (seq !== estSeq) return;
+        const min = out * (1 - slip / 100);
+        estEl.innerHTML = mode === "buy"
+          ? `you receive &asymp; <b>${out.toLocaleString("en-US", { maximumFractionDigits: 0 })} ${ticker}</b>` +
+            ` &middot; at least ${min.toLocaleString("en-US", { maximumFractionDigits: 0 })} or the swap reverts`
+          : `you receive &asymp; <b>${out.toPrecision(4)} ETH</b>` +
+            ` &middot; at least ${min.toPrecision(4)} or the swap reverts`;
+      } catch (_) {
+        if (seq === estSeq) estEl.textContent = "estimate unavailable — the slippage floor still protects the swap";
+      }
+    }
+    amtEl.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(estimate, 250); });
+
+    $("#tr-tab-buy").addEventListener("click", () => { mode = "buy"; syncMode(); });
+    $("#tr-tab-sell").addEventListener("click", () => { mode = "sell"; syncMode(); });
+    document.querySelectorAll(".slip").forEach((b) => b.addEventListener("click", () => {
+      slip = Number(b.dataset.slip);
+      document.querySelectorAll(".slip").forEach((x) => x.classList.toggle("is-on", x === b));
+      estimate();
+    }));
+
+    maxEl.addEventListener("click", async () => {
+      const provider = window.ethereum;
+      if (!provider) { tellT("no wallet found in this browser"); return; }
+      try {
+        const [account] = await provider.request({ method: "eth_requestAccounts" });
+        const bal = BigInt(await call(state.token, S_BAL + addrWord(account)));
+        amtEl.value = (Number(bal / 10n ** 12n) / 1e6).toString();
+        estimate();
+      } catch (_) {}
+    });
+
+    goEl.addEventListener("click", async () => {
+      const provider = window.ethereum;
+      if (!provider) { tellT("no wallet found in this browser"); return; }
+      goEl.disabled = true;
+      try {
+        const [account] = await provider.request({ method: "eth_requestAccounts" });
+        await ensureChain(provider);
+        const wei = parseUnits18(amtEl.value);
+        if (!wei || wei === 0n) throw new Error(mode === "buy" ? "enter an ETH amount" : `enter a ${ticker} amount`);
+        const out = await quote(fromWei(wei));
+        const minOut = minWei18(out * (1 - slip / 100));
+
+        if (mode === "buy") {
+          const path = state.sym === "NVDA"
+            ? encPath([UNI.WETH, 500, UNI.NVDA, 10000, state.token])
+            : encPath([UNI.WETH, 10000, state.token]);
+          tellT("confirm in your wallet…");
+          const h = await provider.request({ method: "eth_sendTransaction", params: [{
+            from: account, to: ROUTER,
+            data: encExactInput(path, account, wei, minOut),
+            value: "0x" + wei.toString(16) }] });
+          tellT(`swapping — ${h.slice(0, 10)}… waiting`);
+          await waitTx(h, "swap");
+          tellT("bought ✓ — refreshing the chart");
+          setTimeout(() => location.reload(), 2200);
+        } else {
+          const bal = BigInt(await call(state.token, S_BAL + addrWord(account)));
+          if (bal < wei) throw new Error("amount exceeds your balance");
+          const allowance = BigInt(await call(state.token, S_ALLOW + addrWord(account) + addrWord(ROUTER)));
+          if (allowance < wei) {
+            tellT("1/2 — approve in your wallet…");
+            const hA = await provider.request({ method: "eth_sendTransaction", params: [{
+              from: account, to: state.token,
+              data: S_APPROVE + addrWord(ROUTER) + wei.toString(16).padStart(64, "0") }] });
+            await waitTx(hA, "approve");
+          }
+          tellT("sell: confirm in your wallet…");
+          const path = state.sym === "NVDA"
+            ? encPath([state.token, 10000, UNI.NVDA, 500, UNI.WETH])
+            : encPath([state.token, 10000, UNI.WETH]);
+          // lo swap lascia il WETH al router, l'unwrap lo consegna come ETH:
+          // due chiamate, una transazione
+          const enc = (hex) => {
+            const body = hex.replace("0x", "");
+            return intWord(body.length / 2) + body.padEnd(Math.ceil(body.length / 64) * 64, "0");
+          };
+          const c1 = enc(encExactInput(path, "0x0000000000000000000000000000000000000000", wei, minOut));
+          const c2 = enc(S_UNWRAP + minOut.toString(16).padStart(64, "0") + addrWord(account));
+          const data = S_MULTI + intWord(32) + intWord(2) + intWord(64) + intWord(64 + c1.length / 2) + c1 + c2;
+          const h = await provider.request({ method: "eth_sendTransaction", params: [{
+            from: account, to: ROUTER, data }] });
+          tellT(`swapping — ${h.slice(0, 10)}… waiting`);
+          await waitTx(h, "swap");
+          tellT("sold ✓ — ETH is in your wallet, refreshing");
+          setTimeout(() => location.reload(), 2200);
+        }
+      } catch (e) {
+        tellT(short(e));
+        goEl.disabled = false;
+      }
+    });
+
+    syncMode();
+  }
+
   /** La posizione di questo pool sta nel vault? Allora chiunque puo'
    *  spazzare le fee nella riserva: il bottone e' un servizio pubblico. */
   async function detectVaulted() {
@@ -396,6 +601,7 @@
     //  dichiara nei trades del minter, verificabile dall'explorer)
     $("#cp-lp").textContent = "1% FEE";
     detectVaulted().catch(() => {});
+    buildTrade();
     const dex = $("#cp-dex");
     dex.href = `https://dexscreener.com/robinhood/${state.pool}`;
     dex.hidden = false;
