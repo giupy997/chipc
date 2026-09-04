@@ -214,7 +214,7 @@
         `the market later from the chip&rsquo;s page.</div>`
       : "";
     host.innerHTML =
-      `<div class="em-row"><span>TO LIQUIDITY</span><b>${fmt(SUPPLY - reserve)} YOURS</b></div>` +
+      `<div class="em-row"><span>TO LIQUIDITY</span><b>${fmt(SUPPLY - reserve)}</b></div>` +
       `<div class="em-row"><span>EARNED BY CYCLES</span><b>${fmt(reserve)}</b></div>` +
       `<div class="em-row"><span>PER CLOCK CYCLE</span><b>${perCycle.toFixed(2)}</b></div>` +
       beRow +
