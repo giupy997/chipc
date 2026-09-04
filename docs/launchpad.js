@@ -247,6 +247,50 @@
     return SELECTOR_MINT + head + tail;
   }
 
+  // ---------------------------------------------------- i link del chip
+
+  const S_SETLINKS = "0xdeb711de"; // setLinks(uint256,string,string,string)
+  /** vuoto, oppure https:// in ASCII pulito — la stessa regola del contratto */
+  const linkOk = (s) => s === "" || /^https:\/\/[\x21-\x7e]{1,152}$/.test(s) && !/["'<>\\]/.test(s);
+  const readLinks = () => ["#f-x", "#f-web", "#f-tg"].map((id) => ($(id) ? $(id).value.trim() : ""));
+
+  function encStrings(strs) {
+    const parts = strs.map((s) => {
+      const bytes = new TextEncoder().encode(s);
+      let hex = "";
+      for (const b of bytes) hex += b.toString(16).padStart(2, "0");
+      return word(bytes.length) + hex.padEnd(Math.ceil(hex.length / 64) * 64 || 0, "0");
+    });
+    return parts;
+  }
+  function encSetLinks(id, x, web, tg) {
+    const parts = encStrings([x, web, tg]);
+    let off = 4 * 32, offs = "";
+    for (const p of parts) { offs += word(off); off += p.length / 2; }
+    return S_SETLINKS + word(id) + offs + parts.join("");
+  }
+
+  async function walletSetLinks(btn, id, x, web, tg) {
+    const provider = window.ethereum;
+    if (!provider) { say("no wallet found in this browser", true); return; }
+    btn.disabled = true;
+    try {
+      const [account] = await provider.request({ method: "eth_requestAccounts" });
+      say("links: confirm in your wallet…");
+      const h = await provider.request({ method: "eth_sendTransaction", params: [{
+        from: account, to: CFG().socials, data: encSetLinks(id, x, web, tg) }] });
+      let r = null;
+      for (let i = 0; i < 40 && !r; i++) { await new Promise((z) => setTimeout(z, 2500)); r = await rpc("eth_getTransactionReceipt", [h]); }
+      if (!r || r.status !== "0x1") throw new Error("links not written — check the explorer");
+      btn.textContent = "LINKS ON-CHAIN ✓";
+      btn.style.background = "var(--mint-deep)";
+      say(`links written — they show on chip #${id}'s page. Only you can change them.`);
+    } catch (e) {
+      say(short(e), true);
+      btn.disabled = false;
+    }
+  }
+
   function say(msg, bad) {
     const el = $("#f-mint-note");
     if (!el) return;
@@ -268,6 +312,9 @@
     if (logoURI && !/^(https:\/\/|ipfs:\/\/)[\x20-\x21\x23-\x5b\x5d-\x7e]{1,190}$/.test(logoURI)) {
       say("logo URI must be https:// or ipfs://", true); return;
     }
+
+    const [lx, lweb, ltg] = readLinks();
+    if (![lx, lweb, ltg].every(linkOk)) { say("links must be https:// with no spaces or quotes", true); return; }
 
     const prog = (window.RH4_PROGRAMS[mintProg] || window.RH4_PROGRAMS.echo);
     const data = encodeMint(prog.slots, labelHex, tickerHex, logoURI, liqBps, spanSeconds * 10);
@@ -317,6 +364,16 @@
       say(`${name} (${ticker}) is alive — its token exists, its clock is waiting. ` +
         `See it: ${CFG().explorer}/tx/${hash}`);
       loadGallery(); // il tuo chip appare subito in cima
+
+      // i link, se ne ha messi: una seconda firma, incisa accanto al chip
+      if (id && CFG().socials && (lx || lweb || ltg)) {
+        const lbtn = document.createElement("button");
+        lbtn.className = "btn btn-light btn-block";
+        lbtn.style.marginTop = "10px";
+        lbtn.textContent = `ADD LINKS TO CHIP #${id}`;
+        btn.parentNode.insertBefore(lbtn, btn.nextSibling);
+        lbtn.addEventListener("click", () => walletSetLinks(lbtn, id, lx, lweb, ltg));
+      }
 
       // il passo due: aprire il mercato, con la LP che nasce gia' bruciata
       if (id && liqBps > 0) {
@@ -554,6 +611,17 @@
         } catch (_) {}
       }, 500);
     });
+
+    // i link si controllano mentre li scrivi, e senza registro restano nascosti
+    for (const id of ["#f-x", "#f-web", "#f-tg"]) {
+      const el = $(id);
+      if (!el) continue;
+      el.addEventListener("input", () => el.classList.toggle("is-bad", !linkOk(el.value.trim())));
+    }
+    if (!CFG().socials) {
+      const lf = $("#f-x") && $("#f-x").closest(".field");
+      if (lf) lf.hidden = true;
+    }
 
     const btn = $("#f-mint");
     // l'invito per il collaudo privato: ?crew=<parola> apre il form solo su

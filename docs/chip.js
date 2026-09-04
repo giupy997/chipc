@@ -151,6 +151,105 @@
       `<div class="row"><span>CYCLES LEFT</span><b>${Number(left).toLocaleString("en-US")}</b></div>`;
   }
 
+  // ------------------------------------------------------------ i link
+
+  const S_LINKS = "0x881d8a40", S_SETLINKS = "0xdeb711de";
+  const linkOk = (s) => s === "" || /^https:\/\/[\x21-\x7e]{1,152}$/.test(s) && !/["'<>\\]/.test(s);
+  const ICON = {
+    website: '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.93 8zM12 4.04c.83 1.2 1.48 2.53 1.91 3.96h-3.82c.43-1.43 1.08-2.76 1.91-3.96zM4.26 14A7.82 7.82 0 0 1 4 12c0-.69.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2H4.26zm.82 2h2.95c.32 1.25.78 2.45 1.38 3.56A7.99 7.99 0 0 1 5.08 16zm2.95-8H5.08a7.99 7.99 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.03 8zM12 19.96c-.83-1.2-1.48-2.53-1.91-3.96h3.82c-.43 1.43-1.08 2.76-1.91 3.96zM14.34 14H9.66c-.09-.66-.16-1.32-.16-2s.07-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2zm.25 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2h-3.38z"/></svg>',
+    x: '<svg viewBox="0 0 24 24"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"/></svg>',
+    telegram: '<svg viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>',
+  };
+
+  /** (string,string,string) di ritorno: tre offset in testa, poi len+dati. */
+  function decodeStrings3(hex) {
+    const h = hex.slice(2);
+    const rd = (off) => {
+      const len = Number(BigInt("0x" + h.slice(off * 2, off * 2 + 64)));
+      const raw = h.slice(off * 2 + 64, off * 2 + 64 + len * 2);
+      try { return decodeURIComponent(raw.replace(/(..)/g, "%$1")); } catch (_) { return ""; }
+    };
+    return [0, 1, 2].map((i) => rd(Number(BigInt("0x" + h.slice(i * 64, i * 64 + 64)))));
+  }
+  function encSetLinks(chipId, strs) {
+    const parts = strs.map((s) => {
+      const bytes = new TextEncoder().encode(s);
+      let hx = "";
+      for (const b of bytes) hx += b.toString(16).padStart(2, "0");
+      return word(bytes.length) + hx.padEnd(Math.ceil(hx.length / 64) * 64 || 0, "0");
+    });
+    let off = 4 * 32, offs = "";
+    for (const p of parts) { offs += word(off); off += p.length / 2; }
+    return S_SETLINKS + word(chipId) + offs + parts.join("");
+  }
+
+  let socialEdit = null;
+  async function loadSocials() {
+    const reg = CFG().socials;
+    const host = $("#cp-social");
+    if (!reg || !host) return;
+    let cur = ["", "", ""];
+    try {
+      const hex = await call(reg, S_LINKS + word(id));
+      if (hex && hex.length > 2 + 64 * 3) cur = decodeStrings3(hex);
+    } catch (_) {}
+
+    host.innerHTML = "";
+    const items = [["website", cur[1], "website"], ["x", cur[0], "X"], ["telegram", cur[2], "Telegram"]];
+    for (const [key, url, title] of items) {
+      if (!linkOk(url) || !url) continue; // solo https:// pulito arriva in un href
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener"; a.title = title;
+      a.innerHTML = ICON[key];
+      host.appendChild(a);
+    }
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.title = "set the links (creator or chip owner)";
+    edit.textContent = cur.some(Boolean) ? "✎" : "+";
+    edit.addEventListener("click", () => toggleSocialEdit(cur));
+    host.appendChild(edit);
+    host.hidden = false;
+  }
+
+  function toggleSocialEdit(cur) {
+    if (socialEdit) { socialEdit.classList.toggle("is-open"); return; }
+    const box = document.createElement("div");
+    box.className = "cp-social-edit is-open";
+    box.innerHTML =
+      `<div class="k">LINKS — X · WEBSITE · TELEGRAM</div>` +
+      `<div class="row">` +
+      `<input id="se-x" placeholder="https://x.com/…" spellcheck="false">` +
+      `<input id="se-web" placeholder="https://…" spellcheck="false">` +
+      `<input id="se-tg" placeholder="https://t.me/…" spellcheck="false">` +
+      `<button class="btn btn-dark btn-sm" id="se-save">SAVE ON-CHAIN</button></div>` +
+      `<div class="se-note" id="se-note">https:// only, no spaces or quotes. Only the chip's creator or its current owner can write them; leave a field empty to remove a link.</div>`;
+    $(".cp-head").insertAdjacentElement("afterend", box);
+    socialEdit = box;
+    $("#se-x").value = cur[0]; $("#se-web").value = cur[1]; $("#se-tg").value = cur[2];
+    $("#se-save").addEventListener("click", async () => {
+      const vals = ["#se-x", "#se-web", "#se-tg"].map((s) => $(s).value.trim());
+      const note = $("#se-note"), b = $("#se-save");
+      if (!vals.every(linkOk)) { note.textContent = "links must be https:// with no spaces or quotes"; return; }
+      const provider = window.ethereum;
+      if (!provider) { note.textContent = "no wallet found in this browser"; return; }
+      b.disabled = true;
+      try {
+        const [account] = await provider.request({ method: "eth_requestAccounts" });
+        await ensureChain(provider);
+        note.textContent = "confirm in your wallet…";
+        const h = await provider.request({ method: "eth_sendTransaction", params: [{
+          from: account, to: CFG().socials, data: encSetLinks(id, vals) }] });
+        await waitTx(h, "links");
+        note.textContent = "written ✓";
+        box.classList.remove("is-open");
+        loadSocials();
+      } catch (e) {
+        note.textContent = short(e);
+      } finally { b.disabled = false; }
+    });
+  }
+
   // ------------------------------------------------------------- il mercato
 
   async function findPool() {
@@ -800,6 +899,7 @@
     try {
       await loadChip();
       buildPower();
+      loadSocials().catch(() => {});
       await loadMarket();
       setInterval(loadChip, 15000);
     } catch (e) {
