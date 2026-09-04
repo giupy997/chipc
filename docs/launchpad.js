@@ -207,13 +207,19 @@
         `<b>${fmt(be)} ETH</b> fully diluted, at today&rsquo;s gas. Below that line every ` +
         `tick is sponsorship: one byte engraved forever, tokens earned at a loss.</div>`;
     }
+    // 0% e' una scelta seria, non un incidente: niente mercato alla nascita
+    const fairNote = liqBps === 0
+      ? `<div class="em-break"><b>0% = pure fair launch.</b> No market at birth — every single ` +
+        `token must be mined, one cycle at a time. Anyone holding mined tokens can open ` +
+        `the market later from the chip&rsquo;s page.</div>`
+      : "";
     host.innerHTML =
       `<div class="em-row"><span>TO LIQUIDITY</span><b>${fmt(SUPPLY - reserve)} YOURS</b></div>` +
       `<div class="em-row"><span>EARNED BY CYCLES</span><b>${fmt(reserve)}</b></div>` +
       `<div class="em-row"><span>PER CLOCK CYCLE</span><b>${perCycle.toFixed(2)}</b></div>` +
       beRow +
       `<div class="em-row"><span>TRADES AGAINST</span><b>${pair.toUpperCase()}</b></div>` +
-      beNote;
+      beNote + fairNote;
   }
 
   function wireChips(sel, apply) {

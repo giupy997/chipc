@@ -235,8 +235,10 @@
         } else throw e;
       }
 
+      // basta possedere il token: anche i minatori di un chip 0% possono
+      // aprire il mercato con quello che hanno estratto
       const balance = BigInt(await call(state.token, S_BAL + addrWord(account)));
-      if (balance === 0n) throw new Error("this wallet holds no liquidity slice of this token");
+      if (balance === 0n) throw new Error("this wallet holds none of this token — mine a few cycles first");
 
       const quote = pairKey === "nvda" ? UNI.NVDA : UNI.WETH;
       const rate = pairKey === "nvda" ? await ethPerQuote(quote) : 1;
