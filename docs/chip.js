@@ -360,17 +360,18 @@
           `<span style="font-size:11px;letter-spacing:0.12em;font-weight:700">TRADING FEES — chosen once, sealed forever</span><br>` +
           `<button class="btn btn-light btn-sm" id="cp-fee-creator" style="border-width:2px">&#10003; 50% CREATOR / 50% RESERVE</button> ` +
           `<button class="btn btn-light btn-sm" id="cp-fee-vault" style="opacity:.55">100% RESERVE</button> ` +
-          `<button class="btn btn-light btn-sm" id="cp-fee-burn" style="opacity:.55">BURNED</button>` +
+          `<button class="btn btn-light btn-sm" id="cp-fee-holders" style="opacity:.35;cursor:default" disabled>100% HOLDERS ` +
+          `<small style="font-size:9px;letter-spacing:.14em">INCOMING</small></button>` +
           `<br><br>` +
           `<button class="btn btn-dark btn-sm" id="cp-open-weth">OPEN VS WETH</button> ` +
           `<button class="btn btn-dark btn-sm" id="cp-open-nvda">OPEN VS NVDA</button>` +
-          `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault ` +
-          `(or burned), not in a wallet. With the vault, anyone can sweep the 1% trading ` +
-          `fees into this chip's mining reserve: volume extends the emission.</span>`;
+          `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault, ` +
+          `not in a wallet. Anyone can sweep the accrued 1% trading fees at any time: ` +
+          `the reserve share extends the emission — volume keeps the chip paying.</span>`;
         let feeMode = "creator";
         const syncFee = () => {
-          const modes = { creator: "cp-fee-creator", vault: "cp-fee-vault", burn: "cp-fee-burn" };
-          const labels = { creator: "50% CREATOR / 50% RESERVE", vault: "100% RESERVE", burn: "BURNED" };
+          const modes = { creator: "cp-fee-creator", vault: "cp-fee-vault" };
+          const labels = { creator: "50% CREATOR / 50% RESERVE", vault: "100% RESERVE" };
           for (const [m, idEl] of Object.entries(modes)) {
             $("#" + idEl).style.opacity = feeMode === m ? "1" : ".55";
             $("#" + idEl).innerHTML = (feeMode === m ? "&#10003; " : "") + labels[m];
@@ -378,7 +379,6 @@
         };
         $("#cp-fee-creator").addEventListener("click", () => { feeMode = "creator"; syncFee(); });
         $("#cp-fee-vault").addEventListener("click", () => { feeMode = "vault"; syncFee(); });
-        $("#cp-fee-burn").addEventListener("click", () => { feeMode = "burn"; syncFee(); });
         $("#cp-open-weth").addEventListener("click", (e) =>
           walletOpenMarket(e.target, "weth", $("#cp-open-note"), feeMode));
         $("#cp-open-nvda").addEventListener("click", (e) =>
