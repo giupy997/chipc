@@ -144,7 +144,7 @@
     $("#chips-note").hidden = mine.length > 0;
     for (const c of mine) {
       const s = c.ins || { pc: 0, out: 0, halted: false, cycles: 0, behind: 0 };
-      const badge = s.halted ? ["HALTED", "halt"] : s.behind > 600 ? ["IDLE", "stall"] : ["RUNNING", "run"];
+      const badge = s.halted ? ["HALTED", "halt"] : s.behind > 36000 ? ["IDLE", "stall"] : ["RUNNING", "run"];
       const role = c.minter.toLowerCase() === state.me.toLowerCase() ? "CREATOR" : "HOLDER";
       const leds = Array.from({ length: 8 }, (_, i) => `<div class="gled${(s.out >> (7 - i)) & 1 ? " on" : ""}"></div>`).join("");
       const el = document.createElement("a");

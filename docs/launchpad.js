@@ -112,7 +112,7 @@
 
   function chipCard(id, c, s, logoURI, mcap) {
     const running = !s.halted;
-    const stalled = running && s.behindBlocks > 600; // ~1 minuto senza tick
+    const stalled = running && s.behindBlocks > 36000; // ~1 ora senza tick
     const badge = s.halted ? ["HALTED", "halt"] : stalled ? ["IDLE", "stall"] : ["RUNNING", "run"];
     const leds = Array.from({ length: 8 }, (_, i) =>
       `<div class="gled${(s.out >> (7 - i)) & 1 ? " on" : ""}"></div>`).join("");
@@ -142,7 +142,7 @@
   function renderGallery(items, total) {
     galleryItems = items;
     const host = $("#gal");
-    const key = JSON.stringify(items.map((it) => ({ ...it, s: { ...it.s, behindBlocks: it.s.behindBlocks > 600 } })));
+    const key = JSON.stringify(items.map((it) => ({ ...it, s: { ...it.s, behindBlocks: it.s.behindBlocks > 36000 } })));
     if (key === lastGallery) return; // niente flicker se nulla e' cambiato
     lastGallery = key;
     $("#gal-count").textContent = `${total} CHIP${total === 1 ? "" : "S"} MINTED`;

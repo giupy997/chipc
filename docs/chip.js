@@ -146,11 +146,13 @@
     const halted = BigInt("0x" + w(insHex, 2)) === 1n;
     const cycles = Number(BigInt("0x" + w(insHex, 3)));
     const behind = Number(BigInt(nowHex) - BigInt("0x" + w(insHex, 4)));
-    const badge = halted ? ["HALTED", "halt"] : behind > 600 ? ["IDLE", "stall"] : ["RUNNING", "run"];
+    const badge = halted ? ["HALTED", "halt"] : behind > 36000 ? ["IDLE", "stall"] : ["RUNNING", "run"];
     const el = $("#cp-badge");
     el.textContent = badge[0];
     el.className = "cp-badge " + badge[1];
-    $("#cp-live").textContent = badge[0] === "RUNNING" ? "● LIVE" : badge[0];
+    // quanto e' passato dall'ultimo tick (blocchi da 0.1 s)
+    const ago = behind * 0.1, agoTxt = ago < 90 ? "just now" : ago < 5400 ? `${Math.round(ago / 60)}m ago` : `${Math.round(ago / 3600)}h ago`;
+    $("#cp-live").textContent = cycles === 0 ? "NEVER TICKED" : badge[0] === "RUNNING" ? `● LIVE · last tick ${agoTxt}` : `${badge[0]} · last tick ${agoTxt}`;
     $("#cp-cycles").textContent = cycles.toLocaleString("en-US");
     $("#cp-pc").textContent = "0x" + pc.toString(16).padStart(3, "0");
     $("#cp-out").textContent = out;

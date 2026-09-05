@@ -7,6 +7,10 @@
  *     --cpu 0x...      RH-4 singola (oppure RH4_ADDRESS)
  *     --factory 0x...  fabbrica di chip (oppure RH4_FACTORY)
  *     --chip N         quale chip tenere acceso, insieme a --factory
+ *     --all            battito lento su TUTTI i chip della fabbrica: un
+ *                      tick a testa per giro, poi --interval di pausa
+ *                      (default 10 minuti). Salta i chip fermi o a riserva
+ *                      finita. Costo: un tick per chip per giro.
  *     --input N        il byte da passare al processore a ogni tick
  *                      (0-255, default 0). E' quello che il programma
  *                      legge con IN.
@@ -171,8 +175,113 @@ const FACTORY_ABI = [
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+const TOTAL_ABI = [{ type: "function", name: "totalChips", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }];
+
+/**
+ * --all: il battito. Non un clock a 5 Hz su un chip solo, ma un giro lento
+ * su tutti: un tick a testa, una pausa, da capo. Serve a tenere vivi i chip
+ * che nessuno mina ancora, senza svuotare il portafoglio.
+ */
+async function heartbeat(args) {
+  const rpc = args.rpc || process.env.RPC_URL || DEFAULT_RPC;
+  const dryRun = Boolean(args["dry-run"]);
+  const factory = args.factory || process.env.RH4_FACTORY;
+  if (!factory) { console.error("--all vuole --factory 0x<indirizzo>"); process.exit(2); }
+  const inputByte = Number(args.input || 0) & 0xff;
+  const interval = args.interval ? Number(args.interval) : 600_000;
+  const budget = args.budget ? parseEther(String(args.budget)) : null;
+  const gasLimit = BigInt(args.gas || 400000);
+  const sweepEvery = Number(args["sweep-every"] || 6); // in giri
+  const BURN = "0x000000000000000000000000000000000000dEaD";
+  let sweepTo = null;
+  if (args["sweep-to"]) {
+    const dest = String(args["sweep-to"]).toLowerCase();
+    sweepTo = dest === "factory" ? factory : dest === "burn" ? BURN : getAddress(args["sweep-to"]);
+  }
+
+  const chain = chainFor(rpc);
+  const account = accountFromEnv();
+  const pub = createPublicClient({ chain, transport: http(rpc), pollingInterval: 200 });
+  const wallet = createWalletClient({ account, chain, transport: http(rpc), pollingInterval: 200 });
+  const balance = await pub.getBalance({ address: account.address });
+
+  console.log("RH-4 keeper — battito su tutti i chip");
+  console.log(`  rete        ${chain.name} (${chain.id}) via ${rpc}`);
+  console.log(`  fabbrica    ${factory}`);
+  console.log(`  sponsor     ${account.address}  (${formatEther(balance)} ETH)`);
+  console.log(`  ritmo       un tick per chip ogni ${Math.round(interval / 1000)} s` +
+    `${budget ? `, budget ${formatEther(budget)} ETH` : ""}` +
+    `${sweepTo ? `, ricavato -> ${sweepTo === factory ? "la riserva" : sweepTo} ogni ${sweepEvery} giri` : ""}` +
+    `${dryRun ? ", DRY RUN" : ""}`);
+  console.log();
+
+  const stats = { landed: 0, lost: 0, skipped: 0, spent: 0n, rounds: 0, swept: 0 };
+  const tokens = new Map(); // id -> token
+  let running = true;
+  let nonce = await pub.getTransactionCount({ address: account.address });
+  for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { running = false; console.log(`\n${sig}: finisco il giro e mi fermo.`); });
+
+  const sweep = async () => {
+    if (!sweepTo || dryRun) return;
+    for (const [id, token] of tokens) {
+      try {
+        const bal = await pub.readContract({ address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [account.address] });
+        if (bal === 0n) continue;
+        const h = await wallet.writeContract({ address: token, abi: ERC20_ABI, functionName: "transfer", args: [sweepTo, bal], nonce });
+        nonce++;
+        const r = await pub.waitForTransactionReceipt({ hash: h, timeout: 60_000 });
+        stats.spent += r.gasUsed * r.effectiveGasPrice;
+        stats.swept++;
+        console.log(`  #${id}: spazzati ${formatEther(bal)} verso ${sweepTo === factory ? "la riserva" : sweepTo}`);
+      } catch (e) {
+        console.log(`  #${id}: spazzata fallita: ${short(e)}`);
+        nonce = await pub.getTransactionCount({ address: account.address });
+      }
+    }
+  };
+
+  while (running) {
+    if (budget && stats.spent >= budget) { console.log("budget esaurito."); break; }
+    const total = Number(await pub.readContract({ address: factory, abi: TOTAL_ABI, functionName: "totalChips" }));
+    stats.rounds++;
+    const t = new Date().toISOString().slice(11, 19);
+    let line = `  giro ${stats.rounds} (${t}) —`;
+    for (let id = 1; id <= total && running; id++) {
+      try {
+        const ins = await pub.readContract({ address: factory, abi: FACTORY_ABI, functionName: "inspect", args: [BigInt(id)] });
+        if (ins[2]) { stats.skipped++; line += ` #${id} HLT`; continue; }
+        const [token, , , cyclesLeft] = await pub.readContract({ address: factory, abi: EMISSION_ABI, functionName: "emission", args: [BigInt(id)] });
+        if (cyclesLeft === 0n) { stats.skipped++; line += ` #${id} esaurito`; continue; }
+        if (token !== "0x0000000000000000000000000000000000000000") tokens.set(id, token);
+        if (dryRun) { line += ` #${id} [dry]`; stats.landed++; continue; }
+        const hash = await wallet.writeContract({ address: factory, abi: FACTORY_ABI, functionName: "tick", args: [BigInt(id), inputByte], gas: gasLimit, nonce });
+        nonce++;
+        const r = await pub.waitForTransactionReceipt({ hash, timeout: 30_000 });
+        stats.spent += r.gasUsed * r.effectiveGasPrice;
+        if (r.status !== "success") { stats.lost++; line += ` #${id} perso`; continue; }
+        stats.landed++;
+        line += ` #${id} ok(${Number(ins[3]) + 1})`;
+      } catch (err) {
+        const msg = short(err);
+        if (/exceeds the balance|insufficient funds/i.test(msg)) { console.log(`  ETH finiti sul keeper: ricarica ${account.address} e riparti.`); running = false; break; }
+        line += ` #${id} errore(${msg.slice(0, 40)})`;
+        nonce = await pub.getTransactionCount({ address: account.address });
+      }
+    }
+    console.log(`${line} — speso ${formatEther(stats.spent)} ETH`);
+    if (sweepTo && stats.rounds % sweepEvery === 0) await sweep();
+    if (!running) break;
+    // pausa a fette, cosi' Ctrl-C non aspetta dieci minuti
+    for (let w = 0; w < interval && running; w += 500) await sleep(Math.min(500, interval - w));
+  }
+  await sweep();
+  console.log("\n--- riepilogo ---");
+  console.log(`  giri ${stats.rounds}, tick riusciti ${stats.landed}, persi ${stats.lost}, saltati ${stats.skipped}, speso ${formatEther(stats.spent)} ETH`);
+}
+
 async function main() {
-  const args = parseArgs(process.argv.slice(2), ["dry-run"]);
+  const args = parseArgs(process.argv.slice(2), ["dry-run", "all"]);
+  if (args.all) return heartbeat(args);
   const rpc = args.rpc || process.env.RPC_URL || DEFAULT_RPC;
   const dryRun = Boolean(args["dry-run"]);
 
