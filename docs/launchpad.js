@@ -138,7 +138,9 @@
   }
 
   let lastGallery = "";
+  let galleryItems = [];
   function renderGallery(items, total) {
+    galleryItems = items;
     const host = $("#gal");
     const key = JSON.stringify(items.map((it) => ({ ...it, s: { ...it.s, behindBlocks: it.s.behindBlocks > 600 } })));
     if (key === lastGallery) return; // niente flicker se nulla e' cambiato
@@ -271,6 +273,76 @@
     for (const t of list) if (!(t in out)) out[t] = null;
     try { sessionStorage.setItem("rh4_mcap", JSON.stringify({ t: Date.now(), data: out })); } catch (_) {}
     return out;
+  }
+
+  // ------------------------------------------------------------- la ricerca
+
+  /** ticker, nome, indirizzo del token o #id: la tendina mentre digiti. */
+  function buildSearch() {
+    const q = $("#gal-q"), dd = $("#gal-dd");
+    if (!q || !dd) return;
+    let sel = -1;
+
+    const matches = (raw) => {
+      const s = raw.trim().toLowerCase();
+      if (!s) return [];
+      const idQ = s.match(/^#?(\d+)$/);
+      const addrQ = s.startsWith("0x") ? s : null;
+      const score = (it) => {
+        const tick = (it.c.ticker || "").toLowerCase(), name = (it.c.label || "").toLowerCase(), tok = (it.c.token || "").toLowerCase();
+        if (idQ && String(it.id) === idQ[1]) return 100;
+        if (addrQ && tok.startsWith(addrQ)) return 90;
+        if (tick === s) return 80;
+        if (tick.startsWith(s)) return 70;
+        if (name.startsWith(s)) return 60;
+        if (tick.includes(s)) return 50;
+        if (name.includes(s)) return 40;
+        if (tok.includes(s.replace(/^0x/, ""))) return 30;
+        return 0;
+      };
+      return galleryItems.map((it) => [score(it), it]).filter((x) => x[0] > 0)
+        .sort((a, b) => b[0] - a[0] || capValue(b[1].mcap) - capValue(a[1].mcap)).slice(0, 8).map((x) => x[1]);
+    };
+
+    const render = () => {
+      const res = matches(q.value);
+      sel = -1;
+      if (!q.value.trim()) { dd.hidden = true; return; }
+      dd.innerHTML = res.length
+        ? res.map((it) => {
+            const cap = it.mcap && it.mcap.usd ? fmtUsd(it.mcap.usd) : it.mcap && it.mcap.eth ? fmtEth(it.mcap.eth) : "";
+            const tok = it.c.token && it.c.token !== "0x" + "0".repeat(40) ? it.c.token.slice(0, 6) + "…" + it.c.token.slice(-4) : "no token";
+            return `<a href="chip.html?id=${it.id}" data-id="${it.id}"><span class="t">${esc(it.c.ticker || "?")}</span>` +
+              `<span class="n">#${it.id} · <b>${esc(it.c.label || "unnamed")}</b> · ${esc(tok)}</span><span class="m">${cap}</span></a>`;
+          }).join("")
+        : `<div class="none">no chip matches — tickers, names, token addresses and #ids are searched</div>`;
+      dd.hidden = false;
+    };
+
+    let deb;
+    q.addEventListener("input", () => { clearTimeout(deb); deb = setTimeout(render, 60); });
+    q.addEventListener("focus", () => { if (q.value.trim()) render(); });
+    q.addEventListener("keydown", (e) => {
+      const rows = [...dd.querySelectorAll("a")];
+      if (e.key === "Escape") { dd.hidden = true; q.blur(); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        if (!rows.length) return;
+        e.preventDefault();
+        sel = e.key === "ArrowDown" ? Math.min(sel + 1, rows.length - 1) : Math.max(sel - 1, 0);
+        rows.forEach((r, i) => r.classList.toggle("is-on", i === sel));
+        rows[sel].scrollIntoView({ block: "nearest" });
+        return;
+      }
+      if (e.key === "Enter") {
+        const target = rows[sel >= 0 ? sel : 0];
+        if (target) location.href = target.getAttribute("href");
+      }
+    });
+    document.addEventListener("click", (e) => { if (!e.target.closest(".gal-search")) dd.hidden = true; });
+    // "/" porta il cursore nella ricerca, come sui siti seri
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "/" && !/input|textarea/i.test(document.activeElement.tagName)) { e.preventDefault(); q.focus(); }
+    });
   }
 
   // ------------------------------------------------------------- il calcolo
@@ -695,6 +767,7 @@
     wireChips("[data-mintprog]", (b) => { mintProg = b.dataset.mintprog; });
     wireChips("[data-pair]", (b) => { pair = b.dataset.pair; });
     drawEmission();
+    buildSearch();
     refreshGas();
     setInterval(refreshGas, 60000);
     buildUpload();

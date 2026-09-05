@@ -57,6 +57,28 @@
   .gchip .glogo { width: 34px; height: 34px; object-fit: cover; border: 1px solid var(--panel-line); }
   .gal-note { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 16px; }
 
+  /* ---- la ricerca: fissa sopra le card, a tendina mentre digiti ---- */
+  .gal-search { position: sticky; top: 0; z-index: 6; background: var(--paper); padding: 6px 0 14px; }
+  .gal-search-box { display: flex; align-items: center; gap: 10px; border: 2px solid var(--ink); background: var(--paper); padding: 0 12px; }
+  .gal-search-box svg { width: 18px; height: 18px; fill: var(--dim); flex: none; }
+  .gal-search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-family: var(--mono);
+    font-size: 14px; padding: 11px 0; color: var(--ink); }
+  .gal-search-box input::placeholder { color: var(--dim); }
+  .gal-search-box input::-webkit-search-cancel-button { -webkit-appearance: none; }
+  .gal-search-box kbd { font-family: var(--mono); font-size: 11px; color: var(--dim); border: 1px solid #bdbcb0; padding: 1px 6px; }
+  .gal-dd { position: absolute; left: 0; right: 0; top: calc(100% - 14px); background: var(--paper); border: 2px solid var(--ink);
+    border-top: 0; box-shadow: 0 10px 28px rgba(0,0,0,.14); max-height: 380px; overflow-y: auto; }
+  .gal-dd[hidden] { display: none; }
+  .gal-dd a { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 14px;
+    font-family: var(--mono); text-decoration: none; color: var(--ink); border-top: 1px solid #d4d3c8; }
+  .gal-dd a:first-child { border-top: 0; }
+  .gal-dd a:hover, .gal-dd a.is-on { background: var(--mint); }
+  .gal-dd .t { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; }
+  .gal-dd .n { font-size: 11.5px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gal-dd .n b { color: var(--ink); font-weight: 500; }
+  .gal-dd .m { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--mint-deep); }
+  .gal-dd .none { padding: 12px 14px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
+
   /* riuso il form della home: qui sta in colonna singola */
   .lp-grid .mintform { position: sticky; top: 20px; }
 
@@ -219,6 +241,14 @@
       <div class="gal-head">
         <span class="ck"><i class="sq sq-mint"></i> LIVE CHIPS</span>
         <span class="gal-count" id="gal-count">reading the factory&hellip;</span>
+      </div>
+      <div class="gal-search">
+        <div class="gal-search-box">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input id="gal-q" type="search" placeholder="find a chip: ticker, name, token address or #id" autocomplete="off" spellcheck="false" aria-label="find a chip">
+          <kbd>&#8629;</kbd>
+        </div>
+        <div class="gal-dd" id="gal-dd" hidden></div>
       </div>
       <div class="gal" id="gal"></div>
       <p class="gal-note">
