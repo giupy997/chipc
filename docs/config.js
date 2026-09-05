@@ -42,5 +42,5 @@ window.RH4_CONFIG = {
 
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
-  launchpadOpen: false,
+  launchpadOpen: true,
 };
