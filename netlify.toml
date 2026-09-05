@@ -10,6 +10,10 @@
   # Le funzioni stanno fuori da docs/: non vanno servite come file statici,
   # Netlify le monta come endpoint (vedi il `config.path` dentro pin.mjs).
   functions = "netlify/functions"
+  # Una build costa crediti: si costruisce solo se e' cambiato qualcosa che il
+  # sito serve davvero (docs/, le functions, questo file). Contratti, test,
+  # plugin e strumenti non toccano il sito e non devono farlo ricostruire.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- docs netlify netlify.toml"
 
 [[headers]]
   for = "/*"
