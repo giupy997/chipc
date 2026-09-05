@@ -686,6 +686,12 @@
       const ours = [t0.toLowerCase(), t1.toLowerCase()];
       if (ours.includes(state.token.toLowerCase()) && ours.includes(state.quote.toLowerCase())) {
         $("#cp-lp").textContent = label;
+        // la posizione vive in un contratto senza withdraw/transfer/burn:
+        // e' un burn di fatto, con le fee ancora vive. Lo si dice, con il link.
+        const lock = $("#cp-lock");
+        lock.innerHTML = `<b>LP LOCKED FOREVER</b> &middot; position #${tid} lives in a vault with no withdraw, no transfer, no burn function &middot; ` +
+          `<a href="${CFG().explorer}/address/${vault}?tab=contract" target="_blank" rel="noopener">verified code &nearr;</a>`;
+        lock.hidden = false;
         const head = $(".cp-mhead");
         const b = document.createElement("button");
         b.className = "btn btn-light btn-sm";
