@@ -591,7 +591,7 @@
     DEAD: "0x000000000000000000000000000000000000dEaD",
     VAULT: () => CFG().creatorVault || CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
     FEE: 10000, SPACING: 200,
-    FDV_START: 5, FDV_END: 50, SUPPLY: 1e9,
+    FDV_START: 5, SUPPLY: 1e9, TICK_EDGE: 887200, // il range order non ha tetto: fino al tick massimo (887272 arrotondato allo spacing)
   };
   const S_APPROVE = "0x095ea7b3", S_ALLOW = "0xdd62ed3e", S_BAL = "0x70a08231",
         S_GETPOOL = "0x1698ee82", S_CREATE = "0x13ead562", S_MINTPOS = "0x88316456",
@@ -659,17 +659,17 @@
 
       const ourIsToken0 = token.toLowerCase() < quote.toLowerCase();
       const [t0, t1] = ourIsToken0 ? [token, quote] : [quote, token];
-      const qStart = UNI.FDV_START / rate, qEnd = UNI.FDV_END / rate;
+      // da 5 ETH di FDV al tick massimo, senza tetto: col tetto (era 50 ETH)
+      // il pool si svuotava e sopra nessuno poteva piu' comprare
+      const qStart = UNI.FDV_START / rate;
       let lo, hi, init;
       if (ourIsToken0) {
         lo = floorSpacing(tickAtPrice(qStart / UNI.SUPPLY), UNI.SPACING);
-        hi = floorSpacing(tickAtPrice(qEnd / UNI.SUPPLY), UNI.SPACING);
-        if (hi <= lo) hi = lo + UNI.SPACING;
+        hi = UNI.TICK_EDGE;
         init = lo;
       } else {
-        lo = floorSpacing(tickAtPrice(UNI.SUPPLY / qEnd), UNI.SPACING);
+        lo = -UNI.TICK_EDGE;
         hi = floorSpacing(tickAtPrice(UNI.SUPPLY / qStart), UNI.SPACING);
-        if (hi <= lo) hi = lo + UNI.SPACING;
         init = hi;
       }
       const sqrtX96 = sqrtRatioAtTick(init);

@@ -43,7 +43,7 @@ window.RH4_CONFIG = {
   // Mercati aperti prima del 5 settembre 2026 ~19:30 UTC: range order con
   // tetto a 50 ETH di FDV (sopra, niente liquidita'). Dal fix in poi il
   // sito apre senza tetto, quindi la lista non cresce piu'.
-  cappedChips: [2, 3, 4, 5, 6, 9, 10, 11],
+  cappedChips: [2, 3, 4, 5, 6, 9, 10, 11, 12],
 
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
