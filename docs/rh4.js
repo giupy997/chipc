@@ -455,7 +455,7 @@
    * finirebbe piazzato su un cambio inventato.
    */
   const PAIRS = { weth: { label: "WETH", note: "priced in ether directly" } };
-  for (const q of ((window.RH4_CONFIG || {}).quotes || []))
+  for (const q of ((window.RH4_CONFIG || {}).quotes || []).filter((q) => q.enabled !== false))
     PAIRS[q.sym.toLowerCase()] = { label: q.sym, note: `${q.name} · tokenised stock, priced in ${q.sym}` };
 
   const RATES = [

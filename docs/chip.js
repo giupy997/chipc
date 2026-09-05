@@ -29,9 +29,10 @@
   };
 
   // le quote oltre a WETH vengono da config.js: pairKey = ticker minuscolo
-  const QUOTES = () => CFG().quotes || [];
+  const QUOTES = () => CFG().quotes || [];                       // tutte: per riconoscere i mercati
+  const QUOTES_ON = () => QUOTES().filter((q) => q.enabled !== false); // accese: per aprirne di nuovi
   const quoteByKey = (k) => k === "weth" ? { sym: "WETH", name: "ether", address: UNI.WETH }
-    : QUOTES().find((q) => q.sym.toLowerCase() === k) || null;
+    : QUOTES_ON().find((q) => q.sym.toLowerCase() === k) || null;
   const word = (v) => BigInt(v).toString(16).padStart(64, "0");
   const addrWord = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
   const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
@@ -757,7 +758,7 @@
           `<small style="font-size:9px;letter-spacing:.14em;margin-left:8px">INCOMING</small></button>` +
           `<br><br>` +
           `<button class="btn btn-dark btn-sm" data-open="weth">OPEN VS WETH</button> ` +
-          QUOTES().map((q) => `<button class="btn btn-dark btn-sm" data-open="${q.sym.toLowerCase()}" title="${esc(q.name)}">OPEN VS ${esc(q.sym)}</button> `).join("") +
+          QUOTES_ON().map((q) => `<button class="btn btn-dark btn-sm" data-open="${q.sym.toLowerCase()}" title="${esc(q.name)}">OPEN VS ${esc(q.sym)}</button> `).join("") +
           `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault, ` +
           `not in a wallet. Anyone can sweep the accrued 1% trading fees at any time: ` +
           `the reserve share of your token extends the emission, and the reserve share of ` +

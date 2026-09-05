@@ -600,9 +600,10 @@
     FDV_START: 5, SUPPLY: 1e9, TICK_EDGE: 887200, // il range order non ha tetto: fino al tick massimo (887272 arrotondato allo spacing)
   };
   // le quote oltre a WETH vengono da config.js: pairKey = ticker minuscolo
-  const QUOTES = () => CFG().quotes || [];
+  const QUOTES = () => CFG().quotes || [];                       // tutte: per riconoscere i mercati
+  const QUOTES_ON = () => QUOTES().filter((q) => q.enabled !== false); // accese: per aprirne di nuovi
   const quoteByKey = (k) => k === "weth" ? { sym: "WETH", name: "ether", address: UNI.WETH }
-    : QUOTES().find((q) => q.sym.toLowerCase() === k) || null;
+    : QUOTES_ON().find((q) => q.sym.toLowerCase() === k) || null;
   const S_APPROVE = "0x095ea7b3", S_ALLOW = "0xdd62ed3e", S_BAL = "0x70a08231",
         S_GETPOOL = "0x1698ee82", S_CREATE = "0x13ead562", S_MINTPOS = "0x88316456",
         S_MULTI = "0xac9650d8", S_SLOT0 = "0x3850c7bd", S_EMISSION = "0x58292a3d";
@@ -657,7 +658,7 @@
   function buildPairChips() {
     const host = $("#f-pair");
     if (!host) return;
-    for (const q of QUOTES()) {
+    for (const q of QUOTES_ON()) {
       const key = q.sym.toLowerCase();
       if (host.querySelector(`[data-pair="${key}"]`)) continue;
       const b = document.createElement("button");

@@ -45,11 +45,14 @@ window.RH4_CONFIG = {
   // trade panel e la conversione del vault, quindi senza pool niente quota.
   // Intel, AMD, Broadcom, Qualcomm esistono on-chain ma non hanno un pool
   // WETH (6 set 2026): fuori finche' qualcuno non lo apre.
-  // Pronte al bisogno: Micron MU 0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD
-  // (15 ETH, fee 1%), TSMC TSM 0x58FfE4a942d3885bAa22D7520691F611EF09e7AA (6.5 ETH).
+  // `enabled: false` = si riconoscono i mercati gia' aperti (pool, chart,
+  // fee, sweeper) ma il sito non offre di aprirne di nuovi. Per accendere
+  // una quota basta togliere il flag.
   quotes: [
     { sym: "NVDA", name: "NVIDIA", address: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC" },
     { sym: "SNDK", name: "SanDisk", address: "0xB90A19fF0Af67f7779afF50A882A9CfF42446400" },
+    { sym: "MU", name: "Micron", address: "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD", enabled: false },   // pool WETH 15 ETH, fee 1%
+    { sym: "TSM", name: "TSMC", address: "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA", enabled: false },    // pool WETH 6.5 ETH, fee 0.3%
   ],
 
   // Mercati aperti prima del 5 settembre 2026 ~19:30 UTC: range order con
