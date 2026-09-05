@@ -33,6 +33,10 @@ window.RH4_CONFIG = {
   socials: "0x355A7C6d677944979bf604080698f131E0B72891",
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
   defaultChip: 1,
+  // dove sta la function che pinna i loghi su IPFS. Relativa finche' il sito
+  // vive su Netlify; assoluta (https://<sito>.netlify.app/api/pin) quando il
+  // sito vive su GitHub Pages e Netlify serve solo la function.
+  pinEndpoint: "/api/pin",
   // da dove leggere gli eventi (poco prima della fabbrica di questa generazione)
   genesisBlock: 51500000,
 

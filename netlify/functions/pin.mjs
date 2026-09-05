@@ -33,10 +33,14 @@ const MAGIC = [
   },
 ];
 
+// Il sito puo' vivere su un altro host (GitHub Pages): le risposte portano
+// il CORS per le origini nostre, cosi' il browser le puo' leggere.
+let corsOrigin = "";
+const cors = () => (corsOrigin ? { "access-control-allow-origin": corsOrigin, "vary": "origin" } : {});
 const fail = (status, error) =>
   new Response(JSON.stringify({ error }), {
     status,
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...cors() },
   });
 
 // Un freno per chi volesse riempire l'account Pinata da fuori: solo dal
@@ -56,8 +60,10 @@ function throttled(ip) {
 }
 
 export default async (req, context) => {
-  if (req.method !== "POST") return fail(405, "solo POST");
   const origin = req.headers.get("origin") || "";
+  corsOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : "";
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: { ...cors(), "access-control-allow-methods": "POST", "access-control-max-age": "86400" } });
+  if (req.method !== "POST") return fail(405, "solo POST");
   if (origin && !ALLOWED_ORIGINS.includes(origin)) return fail(403, "origine non consentita");
   const ip = (context && context.ip) || req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "?";
   if (throttled(ip)) return fail(429, "troppi caricamenti: riprova fra un minuto");

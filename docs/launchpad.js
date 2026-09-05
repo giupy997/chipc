@@ -669,7 +669,7 @@
       try {
         const body = new FormData();
         body.append("file", file);
-        const res = await fetch("/api/pin", { method: "POST", body });
+        const res = await fetch(CFG().pinEndpoint || "/api/pin", { method: "POST", body });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
         logoURI = data.uri;
