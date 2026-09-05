@@ -141,8 +141,11 @@ Chip tokens trade on **Uniswap v3**, always:
 directly to either
 
 - the **ChipBuybackVault 50/50** `0x48B8…30Aa` (default), or
-- the **ChipBuybackVault 100%** `0x2F9D…3896`, or
-- `0x000000000000000000000000000000000000dEaD` (burned, fees unclaimable).
+- the **ChipBuybackVault 100%** `0x2F9D…3896`.
+
+Both vaults have **no withdraw, transfer or burn function**: custody is
+equivalent to a burn, with fees still alive. (A handful of early positions
+were sent to `0x…dEaD` directly; that option is no longer offered.)
 
 First-generation positions (opened before Sep 4, 2026) live in
 ChipCreatorVault `0xc7d4…1233` / ChipFeeVault `0xb5C4…491D`, whose public
@@ -186,10 +189,14 @@ ETH: `msg.value` with a path starting at WETH. Selling to native ETH:
 same multicall. For NVDA-paired chips, route `WETH → (500) → NVDA → (10000) → token`.
 Price/history: `slot0` and `Swap` events (each carries `sqrtPriceX96`).
 
-**Mother-token exception:** RH4 itself trades on
+**Mother-token exception:** RH4 itself launched on
 [pons](https://www.ponsfamily.com/launchpad/0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B)
-(bonding curve until 4.2 ETH raised, then graduation into a locked pool) —
-not on a v3 pool of ours.
+and has **graduated into Uniswap v4** (not a v3 pool of ours):
+PoolManager `0x8366a39CC670B4001A1121B8F6A443A643e40951`, PoolKey
+`{currency0: ETH (address 0), currency1: RH4, fee: 0, tickSpacing: 200,
+hooks: 0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044}` (the hook takes 1% in
+`afterSwap`), poolId `0x2f71a0c9…`. Spot: `extsload(keccak256(poolId, 6))`
+on the PoolManager. The launchpad's automatic buybacks land there.
 
 ## 6. Mining (the emission channel)
 
