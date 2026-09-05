@@ -696,6 +696,17 @@
         lock.innerHTML = `<b>LP LOCKED FOREVER</b> &middot; position #${tid} lives in a vault with no withdraw, no transfer, no burn function &middot; ` +
           `<a href="${CFG().explorer}/address/${vault}?tab=contract" target="_blank" rel="noopener">verified code &nearr;</a>`;
         lock.hidden = false;
+        // il tetto: un range order che non arriva al tick massimo
+        const tickOf = (k) => { let v = BigInt("0x" + pos.slice(2 + k * 64, 2 + (k + 1) * 64)); if (v >= 1n << 255n) v -= 1n << 256n; return Number(v); };
+        const tl = tickOf(5), tu = tickOf(6);
+        const ourIs0 = t0.toLowerCase() === state.token.toLowerCase();
+        if (ourIs0 ? tu < 887200 : tl > -887200) {
+          $("#cp-lp").textContent = label + " · CAP";
+          const cap = document.createElement("p");
+          cap.className = "cp-lock cp-cap";
+          cap.innerHTML = `<b>PRICE CEILING</b> &middot; this market was opened before Sep 5 with a 50 ETH FDV cap: above it there is no liquidity, buys wait for sells. Markets opened since have no ceiling.`;
+          lock.after(cap);
+        }
         const head = $(".cp-mhead");
         const b = document.createElement("button");
         b.className = "btn btn-light btn-sm";

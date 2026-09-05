@@ -110,6 +110,11 @@
   const fmtUsd = (n) => n >= 1e6 ? "$" + (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? "$" + (n / 1e3).toFixed(1) + "K" : "$" + Math.round(n);
   const fmtEth = (n) => "\u039e " + (n >= 1 ? n.toFixed(2) : n.toPrecision(2));
 
+  // i mercati vecchi col tetto: si vedono, ma in secondo piano e marcati
+  const isCapped = (id) => (CFG().cappedChips || []).includes(Number(id));
+  const CAP_TITLE = "market opened before Sep 5 with a 50 ETH FDV ceiling: no liquidity above it, buys wait for sells";
+  const capTag = (id) => isCapped(id) ? `<span class="captag" title="${CAP_TITLE}">CAP</span>` : "";
+
   function chipCard(id, c, s, logoURI, mcap) {
     const running = !s.halted;
     const stalled = running && s.behindBlocks > 36000; // ~1 ora senza tick
@@ -123,10 +128,10 @@
     const href = `chip.html?id=${id}`;
 
     const el = document.createElement("a");
-    el.className = "gchip";
+    el.className = "gchip" + (isCapped(id) ? " is-capped" : "");
     el.href = href;
-    const cap = mcap && mcap.usd ? `<span class="mcap" title="market cap">${fmtUsd(mcap.usd)}</span>`
-      : mcap && mcap.eth ? `<span class="mcap" title="fully diluted, on-chain">${fmtEth(mcap.eth)}</span>` : "";
+    const cap = (mcap && mcap.usd ? `<span class="mcap" title="market cap">${fmtUsd(mcap.usd)}</span>`
+      : mcap && mcap.eth ? `<span class="mcap" title="fully diluted, on-chain">${fmtEth(mcap.eth)}</span>` : "") + capTag(id);
     el.innerHTML =
       `<div class="row1"><span class="tick">${esc(c.ticker || "?")}${cap}</span>${logo}` +
       `<span class="badge ${badge[1]}">${badge[0]}</span></div>` +
@@ -313,7 +318,7 @@
             const cap = it.mcap && it.mcap.usd ? fmtUsd(it.mcap.usd) : it.mcap && it.mcap.eth ? fmtEth(it.mcap.eth) : "";
             const tok = it.c.token && it.c.token !== "0x" + "0".repeat(40) ? it.c.token.slice(0, 6) + "…" + it.c.token.slice(-4) : "no token";
             return `<a href="chip.html?id=${it.id}" data-id="${it.id}"><span class="t">${esc(it.c.ticker || "?")}</span>` +
-              `<span class="n">#${it.id} · <b>${esc(it.c.label || "unnamed")}</b> · ${esc(tok)}</span><span class="m">${cap}</span></a>`;
+              `<span class="n">#${it.id} · <b>${esc(it.c.label || "unnamed")}</b> · ${esc(tok)}</span><span class="m">${cap}${capTag(it.id)}</span></a>`;
           }).join("")
         : `<div class="none">no chip matches — tickers, names, token addresses and #ids are searched</div>`;
       dd.hidden = false;
