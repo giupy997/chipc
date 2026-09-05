@@ -40,7 +40,7 @@ const QUOTES = [NVDA]; // le quote non-WETH che i vault possono parcheggiare
 const NPM_ABI = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function tokenOfOwnerByIndex(address, uint256) view returns (uint256)",
-  "function positions(uint256) view returns (uint96, address, address, address token0, address token1, uint24, int24, int24, uint128, uint256, uint256, uint128, uint128)",
+  "function positions(uint256) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256, uint256, uint128, uint128)",
 ]);
 const VAULT_ABI = parseAbi([
   "function collect(uint256 tokenId) returns (uint256 amount0, uint256 amount1)",
