@@ -758,7 +758,9 @@
           `<small style="font-size:9px;letter-spacing:.14em;margin-left:8px">INCOMING</small></button>` +
           `<br><br>` +
           `<button class="btn btn-dark btn-sm" data-open="weth">OPEN VS WETH</button> ` +
-          QUOTES_ON().map((q) => `<button class="btn btn-dark btn-sm" data-open="${q.sym.toLowerCase()}" title="${esc(q.name)}">OPEN VS ${esc(q.sym)}</button> `).join("") +
+          QUOTES().map((q) => q.enabled !== false
+            ? `<button class="btn btn-dark btn-sm" data-open="${q.sym.toLowerCase()}" title="${esc(q.name)}">OPEN VS ${esc(q.sym)}</button> `
+            : `<button class="btn btn-dark btn-sm" style="opacity:.35;cursor:default" disabled title="${esc(q.name)} — incoming">OPEN VS ${esc(q.sym)}<small style="font-size:9px;letter-spacing:.14em;margin-left:8px">SOON</small></button> `).join("") +
           `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault, ` +
           `not in a wallet. Anyone can sweep the accrued 1% trading fees at any time: ` +
           `the reserve share of your token extends the emission, and the reserve share of ` +

@@ -50,7 +50,7 @@ window.RH4_CONFIG = {
   // una quota basta togliere il flag.
   quotes: [
     { sym: "NVDA", name: "NVIDIA", address: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC" },
-    { sym: "SNDK", name: "SanDisk", address: "0xB90A19fF0Af67f7779afF50A882A9CfF42446400" },
+    { sym: "SNDK", name: "SanDisk", address: "0xB90A19fF0Af67f7779afF50A882A9CfF42446400", enabled: false }, // pool WETH 32 ETH, fee 0.3%
     { sym: "MU", name: "Micron", address: "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD", enabled: false },   // pool WETH 15 ETH, fee 1%
     { sym: "TSM", name: "TSMC", address: "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA", enabled: false },    // pool WETH 6.5 ETH, fee 0.3%
   ],

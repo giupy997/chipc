@@ -547,6 +547,9 @@ main { max-width: var(--maxw); margin: 0 auto; }
   transition: all 0.12s;
 }
 .chip:hover { border-color: var(--ink); }
+/* una quota annunciata ma non ancora accesa: si vede, non si sceglie */
+.chip.is-soon { opacity: 0.4; cursor: default; pointer-events: none; }
+.chip.is-soon small { font-size: 8.5px; letter-spacing: 0.14em; margin-left: 7px; }
 
 .bar .chip { color: var(--paper); border-color: var(--panel-line); }
 .bar .chip:hover { border-color: var(--panel-dim); }

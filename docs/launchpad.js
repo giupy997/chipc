@@ -658,11 +658,15 @@
   function buildPairChips() {
     const host = $("#f-pair");
     if (!host) return;
-    for (const q of QUOTES_ON()) {
+    for (const q of QUOTES()) {
       const key = q.sym.toLowerCase();
       if (host.querySelector(`[data-pair="${key}"]`)) continue;
       const b = document.createElement("button");
-      b.className = "chip"; b.dataset.pair = key; b.textContent = q.sym; b.title = q.name;
+      const on = q.enabled !== false;
+      b.className = "chip" + (on ? "" : " is-soon");
+      b.title = q.name + (on ? "" : " — incoming");
+      b.innerHTML = esc(q.sym) + (on ? "" : "<small>SOON</small>");
+      if (on) b.dataset.pair = key; else b.disabled = true; // senza data-pair: wireChips non lo tocca
       host.appendChild(b);
     }
   }

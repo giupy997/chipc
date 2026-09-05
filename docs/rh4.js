@@ -455,8 +455,8 @@
    * finirebbe piazzato su un cambio inventato.
    */
   const PAIRS = { weth: { label: "WETH", note: "priced in ether directly" } };
-  for (const q of ((window.RH4_CONFIG || {}).quotes || []).filter((q) => q.enabled !== false))
-    PAIRS[q.sym.toLowerCase()] = { label: q.sym, note: `${q.name} · tokenised stock, priced in ${q.sym}` };
+  for (const q of ((window.RH4_CONFIG || {}).quotes || []))
+    PAIRS[q.sym.toLowerCase()] = { label: q.sym, note: `${q.name} · tokenised stock, priced in ${q.sym}`, soon: q.enabled === false };
 
   const RATES = [
     { hz: 10, label: "10 HZ", note: "one tick per block" },
@@ -916,7 +916,9 @@
       if (host) for (const [key, p] of Object.entries(PAIRS)) {
         if (host.querySelector(`[data-pair="${key}"]`)) continue;
         const b = document.createElement("button");
-        b.className = "chip"; b.dataset.pair = key; b.textContent = p.label;
+        b.className = "chip" + (p.soon ? " is-soon" : "");
+        b.innerHTML = p.label + (p.soon ? "<small>SOON</small>" : "");
+        if (p.soon) b.disabled = true; else b.dataset.pair = key;
         host.appendChild(b);
       }
 
