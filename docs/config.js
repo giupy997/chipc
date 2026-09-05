@@ -40,6 +40,18 @@ window.RH4_CONFIG = {
   // da dove leggere gli eventi (poco prima della fabbrica di questa generazione)
   genesisBlock: 51500000,
 
+  // Le quote oltre a WETH: azioni tokenizzate Robinhood con un pool WETH v3
+  // profondo (>= 0.05 ETH). Da quel pool passano il tasso, la rotta del
+  // trade panel e la conversione del vault, quindi senza pool niente quota.
+  // Intel, AMD, Broadcom, Qualcomm esistono on-chain ma non hanno un pool
+  // WETH (6 set 2026): fuori finche' qualcuno non lo apre.
+  // Pronte al bisogno: Micron MU 0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD
+  // (15 ETH, fee 1%), TSMC TSM 0x58FfE4a942d3885bAa22D7520691F611EF09e7AA (6.5 ETH).
+  quotes: [
+    { sym: "NVDA", name: "NVIDIA", address: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC" },
+    { sym: "SNDK", name: "SanDisk", address: "0xB90A19fF0Af67f7779afF50A882A9CfF42446400" },
+  ],
+
   // Mercati aperti prima del 5 settembre 2026 ~19:30 UTC: range order con
   // tetto a 50 ETH di FDV (sopra, niente liquidita'). Dal fix in poi il
   // sito apre senza tetto, quindi la lista non cresce piu'.

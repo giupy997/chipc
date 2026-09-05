@@ -132,7 +132,14 @@ ChipCreatorVault: `FeesSplit(uint256 indexed tokenId, uint256 indexed chipId, ad
 Chip tokens trade on **Uniswap v3**, always:
 
 - fee tier **10000 (1%)**, tick spacing 200
-- quote token: **WETH** or **tokenised NVDA** (more tech stocks planned)
+- quote token: **WETH** or a tokenised Robinhood stock from the site's
+  `quotes` list (`docs/config.js`): today **NVDA** `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC`
+  and **SNDK** (SanDisk) `0xB90A19fF0Af67f7779afF50A882A9CfF42446400`.
+  A stock qualifies only if it has a v3 pool with WETH holding ≥ 0.05 WETH;
+  the rate pool is the deepest of fee tiers 500/3000/10000 (NVDA: 500,
+  SNDK: 3000) and the same tier is used for the WETH leg of swaps and for
+  the vault's `convert`. Discover the pair by trying `getPool(token, quote,
+  10000)` for WETH first, then each listed quote.
 - pool discovery: `V3Factory.getPool(token, quote, 10000)`
 - opened as a **single-sided range order** from ≈ 5 ETH FDV equivalent
   up to the **max tick (no cap)**: only chip tokens in, the buy side is

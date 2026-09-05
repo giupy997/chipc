@@ -35,7 +35,7 @@ const NVDA = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
 const RH4 = "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B";
 const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951";
 const HOOK = "0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044";
-const QUOTES = [NVDA]; // le quote non-WETH che i vault possono parcheggiare
+let QUOTES = [NVDA]; // le quote non-WETH che i vault possono parcheggiare: da config.js, con NVDA di riserva
 
 const NPM_ABI = parseAbi([
   "function balanceOf(address) view returns (uint256)",
@@ -76,6 +76,7 @@ async function main() {
   const slipBps = BigInt(Math.round(num(args.slip, 200)));
 
   const cfg = siteConfig();
+  if (Array.isArray(cfg.quotes) && cfg.quotes.length) QUOTES = cfg.quotes.map((q) => q.address);
   const buybackVaults = [cfg.creatorVault, cfg.feeVault].filter(Boolean);
   const legacyVaults = cfg.legacyVaults || [];
 

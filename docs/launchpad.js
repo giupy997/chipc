@@ -250,17 +250,21 @@
     const missing = list.filter((t) => !out[t]);
     if (missing.length) {
       try {
-        const pools = await rpcBatch(missing.flatMap((t) => [
-          { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < UNI.WETH.toLowerCase() ? t : UNI.WETH) + addrWord(t < UNI.WETH.toLowerCase() ? UNI.WETH : t) + intWord(UNI.FEE) }, "latest"] },
-          { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < UNI.NVDA.toLowerCase() ? t : UNI.NVDA) + addrWord(t < UNI.NVDA.toLowerCase() ? UNI.NVDA : t) + intWord(UNI.FEE) }, "latest"] },
-        ]));
+        // WETH prima, poi ogni quota di config.js: il primo pool che esiste vince
+        const QL = [UNI.WETH, ...QUOTES().map((q) => q.address)];
+        const pools = await rpcBatch(missing.flatMap((t) => QL.map((q) => {
+          const ql = q.toLowerCase();
+          return { method: "eth_call", params: [{ to: UNI.V3F, data: S_GETPOOL + addrWord(t < ql ? t : q) + addrWord(t < ql ? q : t) + intWord(UNI.FEE) }, "latest"] };
+        })));
         const quotes = missing.map((t, i) => {
-          const pw = "0x" + String(pools[i * 2] || "").slice(26), pn = "0x" + String(pools[i * 2 + 1] || "").slice(26);
-          return pw.length === 42 && pw !== "0x" + "0".repeat(40) ? { pool: pw, q: UNI.WETH }
-            : pn.length === 42 && pn !== "0x" + "0".repeat(40) ? { pool: pn, q: UNI.NVDA } : null;
+          for (let j = 0; j < QL.length; j++) {
+            const p = "0x" + String(pools[i * QL.length + j] || "").slice(26);
+            if (p.length === 42 && p !== "0x" + "0".repeat(40)) return { pool: p, q: QL[j] };
+          }
+          return null;
         });
         const slots = await rpcBatch(quotes.filter(Boolean).map((qt) => ({ method: "eth_call", params: [{ to: qt.pool, data: S_SLOT0 }, "latest"] })));
-        let rate = null, k = 0;
+        const rates = new Map(); let k = 0;
         for (let i = 0; i < missing.length; i++) {
           const t = missing[i], quote = quotes[i];
           if (!quote) { out[t] = null; continue; }
@@ -269,7 +273,10 @@
           const p = Number(sqrtX96) ** 2 / 2 ** 192;
           const ourIsToken0 = t < quote.q.toLowerCase();
           let priceQ = ourIsToken0 ? p : 1 / p; // quote per token
-          if (quote.q === UNI.NVDA) { if (rate === null) rate = await ethPerQuote(UNI.NVDA).catch(() => 0); priceQ *= rate; }
+          if (quote.q !== UNI.WETH) {
+            if (!rates.has(quote.q)) rates.set(quote.q, await ethPerQuote(quote.q).catch(() => 0));
+            priceQ *= rates.get(quote.q);
+          }
           // un pool creato ma mai inizializzato ha sqrtP = 0: niente numeri infiniti in vetrina
           out[t] = Number.isFinite(priceQ) && priceQ > 0 ? { eth: priceQ * 1e9 } : null;
         }
@@ -587,12 +594,15 @@
     NPM: "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
     V3F: "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
     WETH: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
-    NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
     DEAD: "0x000000000000000000000000000000000000dEaD",
     VAULT: () => CFG().creatorVault || CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
     FEE: 10000, SPACING: 200,
     FDV_START: 5, SUPPLY: 1e9, TICK_EDGE: 887200, // il range order non ha tetto: fino al tick massimo (887272 arrotondato allo spacing)
   };
+  // le quote oltre a WETH vengono da config.js: pairKey = ticker minuscolo
+  const QUOTES = () => CFG().quotes || [];
+  const quoteByKey = (k) => k === "weth" ? { sym: "WETH", name: "ether", address: UNI.WETH }
+    : QUOTES().find((q) => q.sym.toLowerCase() === k) || null;
   const S_APPROVE = "0x095ea7b3", S_ALLOW = "0xdd62ed3e", S_BAL = "0x70a08231",
         S_GETPOOL = "0x1698ee82", S_CREATE = "0x13ead562", S_MINTPOS = "0x88316456",
         S_MULTI = "0xac9650d8", S_SLOT0 = "0x3850c7bd", S_EMISSION = "0x58292a3d";
@@ -625,7 +635,7 @@
   const tickAtPrice = (p) => Math.floor(Math.log(p) / Math.log(1.0001));
   const floorSpacing = (t, s2) => Math.floor(t / s2) * s2;
 
-  /** Quanto vale 1 NVDA in ETH: dal pool NVDA/WETH piu' fondo. */
+  /** Quanto vale 1 unita' di quota in ETH: dal suo pool con WETH piu' fondo. */
   async function ethPerQuote(quote) {
     let best = null;
     for (const fee of [500, 3000, 10000]) {
@@ -636,11 +646,24 @@
       const depth = BigInt(await rpc("eth_call", [{ to: UNI.WETH, data: S_BAL + addrWord(pool) }, "latest"]));
       if (!best || depth > best.depth) best = { pool, depth, t0 };
     }
-    if (!best || best.depth < 5n * 10n ** 16n) throw new Error("no usable NVDA/WETH pool — open vs WETH instead");
+    if (!best || best.depth < 5n * 10n ** 16n) throw new Error("no usable WETH pool for this quote — open vs WETH instead");
     const slot0 = await rpc("eth_call", [{ to: best.pool, data: S_SLOT0 }, "latest"]);
     const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
     const price = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0
     return best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / price : price;
+  }
+
+  /** I bottoni PAIR WITH: WETH sta nell'HTML, le quote arrivano da config.js. */
+  function buildPairChips() {
+    const host = $("#f-pair");
+    if (!host) return;
+    for (const q of QUOTES()) {
+      const key = q.sym.toLowerCase();
+      if (host.querySelector(`[data-pair="${key}"]`)) continue;
+      const b = document.createElement("button");
+      b.className = "chip"; b.dataset.pair = key; b.textContent = q.sym; b.title = q.name;
+      host.appendChild(b);
+    }
   }
 
   async function walletOpenMarket(btn, token, pairKey) {
@@ -654,8 +677,10 @@
       const balance = BigInt(await rpc("eth_call", [{ to: token, data: S_BAL + addrWord(account) }, "latest"]));
       if (balance === 0n) throw new Error("no liquidity slice in this wallet");
 
-      const quote = pairKey === "nvda" ? UNI.NVDA : UNI.WETH;
-      const rate = pairKey === "nvda" ? await ethPerQuote(quote) : 1;
+      const qd = quoteByKey(pairKey);
+      if (!qd) throw new Error(`unknown pair "${pairKey}"`);
+      const quote = qd.address;
+      const rate = pairKey === "weth" ? 1 : await ethPerQuote(quote);
 
       const ourIsToken0 = token.toLowerCase() < quote.toLowerCase();
       const [t0, t1] = ourIsToken0 ? [token, quote] : [quote, token];
@@ -770,6 +795,7 @@
     wireChips("[data-liq]", (b) => { liqBps = Number(b.dataset.liq); });
     wireChips("[data-span]", (b) => { spanSeconds = Number(b.dataset.span); });
     wireChips("[data-mintprog]", (b) => { mintProg = b.dataset.mintprog; });
+    buildPairChips();
     wireChips("[data-pair]", (b) => { pair = b.dataset.pair; });
     drawEmission();
     buildSearch();

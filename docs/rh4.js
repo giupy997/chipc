@@ -454,10 +454,9 @@
    * chain: senza quello non si sa quanto vale un'unita' in ETH, e il range
    * finirebbe piazzato su un cambio inventato.
    */
-  const PAIRS = {
-    weth: { label: "WETH", note: "priced in ether directly" },
-    nvda: { label: "NVDA", note: "NVIDIA · ~0.086 ETH a share" },
-  };
+  const PAIRS = { weth: { label: "WETH", note: "priced in ether directly" } };
+  for (const q of ((window.RH4_CONFIG || {}).quotes || []))
+    PAIRS[q.sym.toLowerCase()] = { label: q.sym, note: `${q.name} · tokenised stock, priced in ${q.sym}` };
 
   const RATES = [
     { hz: 10, label: "10 HZ", note: "one tick per block" },
@@ -913,6 +912,13 @@
       const note = $("#f-pair-note");
       if (!note) return;
       this.pair = "weth";
+      const host = $("#f-pair");
+      if (host) for (const [key, p] of Object.entries(PAIRS)) {
+        if (host.querySelector(`[data-pair="${key}"]`)) continue;
+        const b = document.createElement("button");
+        b.className = "chip"; b.dataset.pair = key; b.textContent = p.label;
+        host.appendChild(b);
+      }
 
       document.querySelectorAll("[data-pair]").forEach((b) => {
         b.addEventListener("click", () => {

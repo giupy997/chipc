@@ -20,7 +20,8 @@
   const TOPIC_CLAIMED = "0xf7a40077ff7a04c7e61f6f26fb13774259ddf1b6bce9ecf26a8276cdd3992683";
   const NPM = "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3";
   const WETH = "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73";
-  const NVDA = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
+  // WETH piu' le quote di config.js: le monete in cui possono arrivare le fee
+  const QUOTE_ADDRS = () => [WETH, ...(CFG().quotes || []).map((q) => q.address)];
   const ZERO = "0x" + "0".repeat(40);
 
   const word = (v) => BigInt(v).toString(16).padStart(64, "0");
@@ -221,7 +222,7 @@
     const host = $("#fees");
     host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
     const vaults = [[CFG().creatorVault, "50/50"], [CFG().feeVault, "100%"]].filter((v) => v[0]);
-    const tokens = [...new Set([...mine.map((c) => c.token).filter((t) => t !== ZERO), WETH, NVDA])];
+    const tokens = [...new Set([...mine.map((c) => c.token).filter((t) => t !== ZERO), ...QUOTE_ADDRS()])];
     const reqs = [];
     for (const [vault] of vaults) for (const t of tokens) reqs.push(ecall(vault, S_CLAIMABLE + addrWord(state.me) + addrWord(t)));
     const res = await rpcBatch(reqs);
@@ -245,7 +246,7 @@
         const done = claimed.get(vault.toLowerCase() + "|" + t.toLowerCase()) || 0n;
         if (amt === 0n && done === 0n) continue;
         const sym = await symbolOf(t);
-        const isQuote = t.toLowerCase() === WETH.toLowerCase() || t.toLowerCase() === NVDA.toLowerCase();
+        const isQuote = QUOTE_ADDRS().some((a) => a.toLowerCase() === t.toLowerCase());
         const row = document.createElement("div");
         row.className = "prow fees";
         row.innerHTML =

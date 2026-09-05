@@ -22,13 +22,16 @@
     NPM: "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
     V3F: "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
     WETH: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
-    NVDA: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
     DEAD: "0x000000000000000000000000000000000000dEaD",
     VAULT: () => CFG().feeVault || "0x000000000000000000000000000000000000dEaD",
     CVAULT: () => CFG().creatorVault || "0x000000000000000000000000000000000000dEaD",
     FEE: 10000,
   };
 
+  // le quote oltre a WETH vengono da config.js: pairKey = ticker minuscolo
+  const QUOTES = () => CFG().quotes || [];
+  const quoteByKey = (k) => k === "weth" ? { sym: "WETH", name: "ether", address: UNI.WETH }
+    : QUOTES().find((q) => q.sym.toLowerCase() === k) || null;
   const word = (v) => BigInt(v).toString(16).padStart(64, "0");
   const addrWord = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
   const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
@@ -274,7 +277,8 @@
 
   async function findPool() {
     if (state.token === ZERO) return null;
-    for (const [quote, sym] of [[UNI.WETH, "WETH"], [UNI.NVDA, "NVDA"]]) {
+    for (const q of [{ sym: "WETH", address: UNI.WETH }, ...QUOTES()]) {
+      const quote = q.address, sym = q.sym;
       const [t0, t1] = state.token.toLowerCase() < quote.toLowerCase()
         ? [state.token, quote] : [quote, state.token];
       const pool = "0x" + (await call(UNI.V3F,
@@ -373,8 +377,10 @@
       const balance = BigInt(await call(state.token, S_BAL + addrWord(account)));
       if (balance === 0n) throw new Error("this wallet holds none of this token — mine a few cycles first");
 
-      const quote = pairKey === "nvda" ? UNI.NVDA : UNI.WETH;
-      const rate = pairKey === "nvda" ? await ethPerQuote(quote) : 1;
+      const qd = quoteByKey(pairKey);
+      if (!qd) throw new Error(`unknown pair "${pairKey}"`);
+      const quote = qd.address;
+      const rate = pairKey === "weth" ? 1 : await ethPerQuote(quote);
       const ourIsToken0 = state.token.toLowerCase() < quote.toLowerCase();
       const [t0, t1] = ourIsToken0 ? [state.token, quote] : [quote, state.token];
       // Il range order parte da 5 ETH di FDV e NON ha un tetto: arriva al
@@ -545,14 +551,15 @@
       tellT("");
     };
 
-    // quanto vale 1 unita' di quote in ETH (1 per WETH, live per NVDA)
+    // quanto vale 1 unita' di quote in ETH (1 per WETH, live per le azioni)
     async function rate() {
-      if (state.sym !== "NVDA") return 1;
+      if (state.sym === "WETH") return 1;
       if (rateCache && Date.now() - rateAt < 60000) return rateCache;
-      rateCache = await ethPerQuote(UNI.NVDA); rateAt = Date.now();
+      rateCache = await ethPerQuote(state.quote); rateAt = Date.now();
       return rateCache;
     }
-    const feeFactor = () => (state.sym === "NVDA" ? 0.99 * 0.9995 : 0.99);
+    // 1% del pool del chip, piu' la fee del pool quota/WETH quando c'e' la seconda gamba
+    const feeFactor = () => 0.99 * (state.sym === "WETH" ? 1 : 1 - (state.rateFee || 500) / 1e6);
 
     /** stima dallo spot: l'impatto sul prezzo non c'e', ma il minimo
      *  garantito dal minOut si', ed e' quello che protegge davvero. */
@@ -617,8 +624,8 @@
         const minOut = minWei18(out * (1 - slip / 100));
 
         if (mode === "buy") {
-          const path = state.sym === "NVDA"
-            ? encPath([UNI.WETH, state.rateFee || 500, UNI.NVDA, 10000, state.token])
+          const path = state.sym !== "WETH"
+            ? encPath([UNI.WETH, state.rateFee || 500, state.quote, 10000, state.token])
             : encPath([UNI.WETH, 10000, state.token]);
           tellT("confirm in your wallet…");
           const h = await provider.request({ method: "eth_sendTransaction", params: [{
@@ -641,8 +648,8 @@
             await waitTx(hA, "approve");
           }
           tellT("sell: confirm in your wallet…");
-          const path = state.sym === "NVDA"
-            ? encPath([state.token, 10000, UNI.NVDA, state.rateFee || 500, UNI.WETH])
+          const path = state.sym !== "WETH"
+            ? encPath([state.token, 10000, state.quote, state.rateFee || 500, UNI.WETH])
             : encPath([state.token, 10000, UNI.WETH]);
           // lo swap lascia il WETH al router (address(2) = "me stesso" per il
           // Router02), l'unwrap lo consegna come ETH: due chiamate, una tx
@@ -749,8 +756,8 @@
           `<button class="btn btn-light btn-sm" id="cp-fee-holders" style="opacity:.35;cursor:default" disabled>100% HOLDERS` +
           `<small style="font-size:9px;letter-spacing:.14em;margin-left:8px">INCOMING</small></button>` +
           `<br><br>` +
-          `<button class="btn btn-dark btn-sm" id="cp-open-weth">OPEN VS WETH</button> ` +
-          `<button class="btn btn-dark btn-sm" id="cp-open-nvda">OPEN VS NVDA</button>` +
+          `<button class="btn btn-dark btn-sm" data-open="weth">OPEN VS WETH</button> ` +
+          QUOTES().map((q) => `<button class="btn btn-dark btn-sm" data-open="${q.sym.toLowerCase()}" title="${esc(q.name)}">OPEN VS ${esc(q.sym)}</button> `).join("") +
           `<br><br><span id="cp-open-note">the LP can never be pulled — it is born in the vault, ` +
           `not in a wallet. Anyone can sweep the accrued 1% trading fees at any time: ` +
           `the reserve share of your token extends the emission, and the reserve share of ` +
@@ -766,10 +773,8 @@
         };
         $("#cp-fee-creator").addEventListener("click", () => { feeMode = "creator"; syncFee(); });
         $("#cp-fee-vault").addEventListener("click", () => { feeMode = "vault"; syncFee(); });
-        $("#cp-open-weth").addEventListener("click", (e) =>
-          walletOpenMarket(e.target, "weth", $("#cp-open-note"), feeMode));
-        $("#cp-open-nvda").addEventListener("click", (e) =>
-          walletOpenMarket(e.target, "nvda", $("#cp-open-note"), feeMode));
+        nm.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", (e) =>
+          walletOpenMarket(e.target, b.dataset.open, $("#cp-open-note"), feeMode)));
       }
       $("#cp-price").textContent = "—";
       return;
