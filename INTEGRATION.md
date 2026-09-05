@@ -134,8 +134,11 @@ Chip tokens trade on **Uniswap v3**, always:
 - fee tier **10000 (1%)**, tick spacing 200
 - quote token: **WETH** or **tokenised NVDA** (more tech stocks planned)
 - pool discovery: `V3Factory.getPool(token, quote, 10000)`
-- opened as a **single-sided range order** (FDV range ≈ 5 → 50 ETH
-  equivalent): only chip tokens in, the buy side is built by buyers.
+- opened as a **single-sided range order** from ≈ 5 ETH FDV equivalent
+  up to the **max tick (no cap)**: only chip tokens in, the buy side is
+  built by buyers. 50% of the range sells by 4× the opening FDV, 68% by
+  10×, 90% by 100× — the pool never runs dry. (Markets opened before
+  Sep 5, 2026 ~19:30 UTC were capped at 50 ETH FDV and can sell out.)
 
 **LP custody (critical for safety labels):** the position NFT is minted
 directly to either

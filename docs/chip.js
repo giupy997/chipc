@@ -377,17 +377,19 @@
       const rate = pairKey === "nvda" ? await ethPerQuote(quote) : 1;
       const ourIsToken0 = state.token.toLowerCase() < quote.toLowerCase();
       const [t0, t1] = ourIsToken0 ? [state.token, quote] : [quote, state.token];
-      const qStart = 5 / rate, qEnd = 50 / rate, SUP = 1e9, SPACING = 200;
+      // Il range order parte da 5 ETH di FDV e NON ha un tetto: arriva al
+      // tick massimo. Con un tetto (era 50 ETH) il pool si svuotava e sopra
+      // quel prezzo nessuno poteva piu' comprare. Senza, la curva vende il
+      // 50% a 4x, il 68% a 10x, il 90% a 100x: mai tutto.
+      const qStart = 5 / rate, SUP = 1e9, SPACING = 200, TICK_EDGE = 887200; // MAX_TICK 887272 arrotondato allo spacing
       let lo, hi, init;
       if (ourIsToken0) {
         lo = floorSpacing(tickAtPrice(qStart / SUP), SPACING);
-        hi = floorSpacing(tickAtPrice(qEnd / SUP), SPACING);
-        if (hi <= lo) hi = lo + SPACING;
+        hi = TICK_EDGE;
         init = lo;
       } else {
-        lo = floorSpacing(tickAtPrice(SUP / qEnd), SPACING);
+        lo = -TICK_EDGE;
         hi = floorSpacing(tickAtPrice(SUP / qStart), SPACING);
-        if (hi <= lo) hi = lo + SPACING;
         init = hi;
       }
       const sqrtX96 = sqrtRatioAtTick(init);
