@@ -287,6 +287,18 @@
     const p = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0
     return ourIsToken0 ? p : 1 / p;
   }
+  // Quando uno swap chiede piu' liquidita' di quanta ce n'e', Uniswap porta
+  // il prezzo al limite (MIN/MAX sqrt price): un muro, non un prezzo. Vale
+  // per gli eventi Swap e per slot0 finche' nessuno riporta il pool in range.
+  const MIN_SQRT = 4295128739n, MAX_SQRT = 1461446703485210103287273052203988822378723970342n;
+  const atLimit = (sqrt) => sqrt <= MIN_SQRT + 1n || sqrt >= MAX_SQRT - 1n;
+  /** spot da slot0; al muro torna l'ultimo prezzo scambiato davvero (o null). */
+  async function spotPrice() {
+    const slot0 = await call(state.pool, S_SLOT0);
+    const sqrt = BigInt("0x" + slot0.slice(2, 66));
+    if (!atLimit(sqrt)) { state.lastPrice = priceFrom(sqrt, state.ourIsToken0); return state.lastPrice; }
+    return state.lastPrice || null;
+  }
   const fmtP = (p) => p >= 1 ? p.toFixed(4) : p.toPrecision(4);
 
 
@@ -541,8 +553,8 @@
     /** stima dallo spot: l'impatto sul prezzo non c'e', ma il minimo
      *  garantito dal minOut si', ed e' quello che protegge davvero. */
     async function quote(amt) {
-      const [slot0, r] = await Promise.all([call(state.pool, S_SLOT0), rate()]);
-      const price = priceFrom(BigInt("0x" + slot0.slice(2, 66)), state.ourIsToken0);
+      const [price, r] = await Promise.all([spotPrice(), rate()]);
+      if (!price) throw new Error("no price yet: the pool is at its range edge, wait for a trade");
       return mode === "buy"
         ? (amt / r) / price * feeFactor()
         : amt * price * feeFactor() * r;
@@ -753,12 +765,12 @@
     dex.href = `https://dexscreener.com/robinhood/${state.pool}`;
     dex.hidden = false;
 
-    // prezzo corrente
-    const slot0 = await call(state.pool, S_SLOT0);
-    const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
-    const price = priceFrom(sqrtX96, state.ourIsToken0);
-    $("#cp-price").textContent = `${fmtP(price)} ${state.sym}`;
-    $("#cp-fdv").textContent = `${(price * 1e9).toLocaleString("en-US", { maximumFractionDigits: 0 })} ${state.sym}`;
+    // prezzo corrente (se lo spot e' al muro, arriva dall'ultimo trade vero)
+    const showPrice = (price) => {
+      $("#cp-price").textContent = price ? `${fmtP(price)} ${state.sym}` : "—";
+      $("#cp-fdv").textContent = price ? `${(price * 1e9).toLocaleString("en-US", { maximumFractionDigits: 0 })} ${state.sym}` : "—";
+    };
+    showPrice(await spotPrice());
 
     // eventi Swap, a fette dal blocco di nascita del chip: il mercato non
     // puo' esistere prima del chip, e le fette tengono buono l'RPC pubblico
@@ -818,16 +830,17 @@
     const series = [];
     const rows = [];
     let lastT = 0;
+    // gli swap che hanno svuotato il range stanno al muro: niente prezzo
     for (const log of logs) {
       const d = log.data.slice(2);
       const a0 = i256(d.slice(0, 64));
       const a1 = i256(d.slice(64, 128));
       const sqrt = BigInt("0x" + d.slice(128, 192));
-      const p = priceFrom(sqrt, state.ourIsToken0);
+      const p = atLimit(sqrt) ? null : priceFrom(sqrt, state.ourIsToken0);
       let time = timeOf(log.blockNumber);
       if (time <= lastT) time = lastT + 1; // il grafico vuole tempi crescenti
       lastT = time;
-      series.push({ time, value: p });
+      if (p !== null && Number.isFinite(p) && p > 0) series.push({ time, value: p });
 
       const ourAmt = state.ourIsToken0 ? a0 : a1;
       const quoteAmt = state.ourIsToken0 ? a1 : a0;
@@ -840,8 +853,11 @@
       });
     }
 
+    if (!state.lastPrice && series.length) { state.lastPrice = series[series.length - 1].value; showPrice(state.lastPrice); }
+
     // grafico: area sui toni del progetto, fluido
     if (series.length && window.LightweightCharts) {
+      const floor = Math.min(...series.map((x) => x.value)) / 100;
       const chart = LightweightCharts.createChart($("#chart"), {
         layout: { background: { color: "#0c0d0b" }, textColor: "#6f7669",
           fontFamily: "'JetBrains Mono', monospace", fontSize: 11 },
@@ -855,7 +871,8 @@
       const area = chart.addAreaSeries({
         lineColor: "#8fe8b0", topColor: "rgba(143,232,176,0.25)",
         bottomColor: "rgba(143,232,176,0.02)", lineWidth: 2,
-        priceFormat: { type: "custom", formatter: fmtP, minMove: 1e-12 },
+        // l'asse tocca quasi lo zero: sotto un centesimo del minimo scambiato e' zero
+        priceFormat: { type: "custom", formatter: (v) => v < floor ? "0" : fmtP(v), minMove: 1e-12 },
       });
       area.setData(series);
       chart.timeScale().fitContent();
@@ -875,7 +892,7 @@
         `<span class="side ${r.buy ? "buy" : "sell"}">${r.buy ? "BUY" : "SELL"}</span>` +
         `<span class="num">${r.tokens.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>` +
         `<span class="num">${r.quote.toFixed(5)} ${state.sym}</span>` +
-        `<span class="num">${fmtP(r.p)}</span>` +
+        `<span class="num">${r.p === null ? "&mdash;" : fmtP(r.p)}</span>` +
         `<a href="${CFG().explorer}/tx/${r.tx}" target="_blank">${r.tx.slice(0, 8)}…</a>`;
       host.appendChild(el);
     }
