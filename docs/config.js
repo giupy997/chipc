@@ -54,6 +54,9 @@ window.RH4_CONFIG = {
     { sym: "MU", name: "Micron", address: "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD" },     // pool WETH 15 ETH, fee 1% — live 6 set 2026
     { sym: "TSM", name: "TSMC", address: "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA" },      // pool WETH 8.6 ETH, fee 0.3% — live 6 set 2026
     { sym: "AAPL", name: "Apple", address: "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9" },    // pool WETH 21 ETH, fee 0.05% — live 6 set 2026
+    { sym: "QUBT", name: "Quantum Computing", address: "0x59818904ab4cE163b3cE4FfB64f2D6Ca02c434B4" }, // pool WETH 13 ETH, fee 1% — live 6 set 2026
+    // USDG ha 6 decimali (le azioni e WETH 18): `decimals` guida prezzi, tick e soglie.
+    { sym: "USDG", name: "Global Dollar", address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", decimals: 6 }, // pool WETH 5,600 ETH, fee 0.01% — live 6 set 2026
   ],
 
   // Mercati aperti prima del 5 settembre 2026 ~19:30 UTC: range order con

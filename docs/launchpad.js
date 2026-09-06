@@ -272,7 +272,7 @@
           const sqrtX96 = BigInt("0x" + String(slot0 || "").slice(2, 66) || "0");
           const p = Number(sqrtX96) ** 2 / 2 ** 192;
           const ourIsToken0 = t < quote.q.toLowerCase();
-          let priceQ = ourIsToken0 ? p : 1 / p; // quote per token
+          let priceQ = (ourIsToken0 ? p : 1 / p) * quoteScale(quote.q); // quote per token, unita' umane
           if (quote.q !== UNI.WETH) {
             if (!rates.has(quote.q)) rates.set(quote.q, await ethPerQuote(quote.q).catch(() => 0));
             priceQ *= rates.get(quote.q);
@@ -604,6 +604,8 @@
   const QUOTES_ON = () => QUOTES().filter((q) => q.enabled !== false); // accese: per aprirne di nuovi
   const quoteByKey = (k) => k === "weth" ? { sym: "WETH", name: "ether", address: UNI.WETH }
     : QUOTES_ON().find((q) => q.sym.toLowerCase() === k) || null;
+  // decimali della quota (USDG: 6): i rapporti Uniswap sono fra unita' grezze
+  const quoteScale = (addr) => { const q = QUOTES().find((x) => x.address.toLowerCase() === String(addr).toLowerCase()); return 10 ** (18 - (q && q.decimals ? q.decimals : 18)); };
   const S_APPROVE = "0x095ea7b3", S_ALLOW = "0xdd62ed3e", S_BAL = "0x70a08231",
         S_GETPOOL = "0x1698ee82", S_CREATE = "0x13ead562", S_MINTPOS = "0x88316456",
         S_MULTI = "0xac9650d8", S_SLOT0 = "0x3850c7bd", S_EMISSION = "0x58292a3d";
@@ -639,7 +641,7 @@
   /** Quanto vale 1 unita' di quota in ETH: dal suo pool con WETH piu' fondo. */
   async function ethPerQuote(quote) {
     let best = null;
-    for (const fee of [500, 3000, 10000]) {
+    for (const fee of [100, 500, 3000, 10000]) {
       const [t0, t1] = quote.toLowerCase() < UNI.WETH.toLowerCase() ? [quote, UNI.WETH] : [UNI.WETH, quote];
       const pool = "0x" + (await rpc("eth_call", [{ to: UNI.V3F,
         data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(fee) }, "latest"])).slice(26);
@@ -650,8 +652,8 @@
     if (!best || best.depth < 5n * 10n ** 16n) throw new Error("no usable WETH pool for this quote — open vs WETH instead");
     const slot0 = await rpc("eth_call", [{ to: best.pool, data: S_SLOT0 }, "latest"]);
     const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
-    const price = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0
-    return best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / price : price;
+    const price = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0, unita' grezze
+    return (best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / price : price) / quoteScale(quote); // ETH per unita' umana
   }
 
   /** I bottoni PAIR WITH: WETH sta nell'HTML, le quote arrivano da config.js. */
@@ -692,14 +694,15 @@
       // da 5 ETH di FDV al tick massimo, senza tetto: col tetto (era 50 ETH)
       // il pool si svuotava e sopra nessuno poteva piu' comprare
       const qStart = UNI.FDV_START / rate;
+      const pRaw = (qStart / UNI.SUPPLY) / quoteScale(quote); // rapporto grezzo per i tick
       let lo, hi, init;
       if (ourIsToken0) {
-        lo = floorSpacing(tickAtPrice(qStart / UNI.SUPPLY), UNI.SPACING);
+        lo = floorSpacing(tickAtPrice(pRaw), UNI.SPACING);
         hi = UNI.TICK_EDGE;
         init = lo;
       } else {
         lo = -UNI.TICK_EDGE;
-        hi = floorSpacing(tickAtPrice(UNI.SUPPLY / qStart), UNI.SPACING);
+        hi = floorSpacing(tickAtPrice(1 / pRaw), UNI.SPACING);
         init = hi;
       }
       const sqrtX96 = sqrtRatioAtTick(init);

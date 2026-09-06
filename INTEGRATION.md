@@ -132,14 +132,18 @@ ChipCreatorVault: `FeesSplit(uint256 indexed tokenId, uint256 indexed chipId, ad
 Chip tokens trade on **Uniswap v3**, always:
 
 - fee tier **10000 (1%)**, tick spacing 200
-- quote token: **WETH** or a tokenised Robinhood stock from the site's
-  `quotes` list (`docs/config.js`): today **NVDA** `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC`
-  and **SNDK** (SanDisk) `0xB90A19fF0Af67f7779afF50A882A9CfF42446400`.
-  A stock qualifies only if it has a v3 pool with WETH holding ≥ 0.05 WETH;
-  the rate pool is the deepest of fee tiers 500/3000/10000 (NVDA: 500,
-  SNDK: 3000) and the same tier is used for the WETH leg of swaps and for
-  the vault's `convert`. Discover the pair by trying `getPool(token, quote,
-  10000)` for WETH first, then each listed quote.
+- quote token: **WETH**, **USDG** (Global Dollar, **6 decimals**), or a
+  tokenised Robinhood stock from the site's `quotes` list (`docs/config.js`).
+  Live today: NVDA `0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC`, SNDK
+  `0xB90A19fF0Af67f7779afF50A882A9CfF42446400`, MU `0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD`,
+  TSM `0x58FfE4a942d3885bAa22D7520691F611EF09e7AA`, AAPL `0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9`,
+  QUBT `0x59818904ab4cE163b3cE4FfB64f2D6Ca02c434B4`, USDG `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`.
+  A quote qualifies only if it has a v3 pool with WETH holding ≥ 0.05 WETH;
+  the rate pool is the deepest of fee tiers 100/500/3000/10000 and the same
+  tier is used for the WETH leg of swaps and for the vault's `convert`.
+  Discover the pair by trying `getPool(token, quote, 10000)` for WETH first,
+  then each listed quote. Mind decimals: pool prices are ratios of raw units,
+  so a USDG-quoted price must be scaled by 10^(18−6) to read as USDG per token.
 - pool discovery: `V3Factory.getPool(token, quote, 10000)`
 - opened as a **single-sided range order** from ≈ 5 ETH FDV equivalent
   up to the **max tick (no cap)**: only chip tokens in, the buy side is

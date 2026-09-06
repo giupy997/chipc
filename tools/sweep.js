@@ -25,7 +25,7 @@
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
-const { createPublicClient, createWalletClient, http, parseAbi, formatEther, decodeFunctionResult, encodeFunctionData, keccak256, encodeAbiParameters, encodePacked } = require("viem");
+const { createPublicClient, createWalletClient, http, parseAbi, formatEther, formatUnits, decodeFunctionResult, encodeFunctionData, keccak256, encodeAbiParameters, encodePacked } = require("viem");
 const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
 
 const NPM = "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3";
@@ -35,7 +35,7 @@ const NVDA = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC";
 const RH4 = "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B";
 const POOL_MANAGER = "0x8366a39CC670B4001A1121B8F6A443A643e40951";
 const HOOK = "0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044";
-let QUOTES = [NVDA]; // le quote non-WETH che i vault possono parcheggiare: da config.js, con NVDA di riserva
+let QUOTES = [{ address: NVDA, decimals: 18 }]; // le quote non-WETH che i vault possono parcheggiare: da config.js, con NVDA di riserva
 
 const NPM_ABI = parseAbi([
   "function balanceOf(address) view returns (uint256)",
@@ -76,7 +76,7 @@ async function main() {
   const slipBps = BigInt(Math.round(num(args.slip, 200)));
 
   const cfg = siteConfig();
-  if (Array.isArray(cfg.quotes) && cfg.quotes.length) QUOTES = cfg.quotes.map((q) => q.address);
+  if (Array.isArray(cfg.quotes) && cfg.quotes.length) QUOTES = cfg.quotes.map((q) => ({ address: q.address, decimals: q.decimals || 18 }));
   const buybackVaults = [cfg.creatorVault, cfg.feeVault].filter(Boolean);
   const legacyVaults = cfg.legacyVaults || [];
 
@@ -130,11 +130,12 @@ async function main() {
 
   // ---- 2. convertire le quote in attesa: minimo dallo spot v3, letto qui ----
   async function convertPending(vault) {
-    for (const token of QUOTES) {
+    for (const { address: token, decimals } of QUOTES) {
       const pend = await pub.readContract({ address: vault, abi: VAULT_ABI, functionName: "pending", args: [token] });
-      if (pend < min) continue;
+      // la soglia e' pensata a 18 decimali: per USDG (6) si riscala
+      if (pend < min / 10n ** BigInt(18 - decimals)) continue;
       let best = null;
-      for (const fee of [500, 3000, 10000]) {
+      for (const fee of [100, 500, 3000, 10000]) {
         const pool = await pub.readContract({ address: V3F, abi: V3F_ABI, functionName: "getPool", args: [token, WETH, fee] });
         if (pool === "0x0000000000000000000000000000000000000000") continue;
         const depth = await pub.readContract({ address: WETH, abi: ERC20_ABI, functionName: "balanceOf", args: [pool] });
@@ -148,7 +149,7 @@ async function main() {
         ? ((pend * sp) >> 96n) * sp >> 96n
         : ((pend << 96n) / sp << 96n) / sp;
       const minOut = wethOut * (10000n - slipBps) / 10000n;
-      await send(`convert ${vault.slice(0, 8)}: ${formatEther(pend)} ${await sym(token)} -> >= ${formatEther(minOut)} ETH (fee ${best.fee})`,
+      await send(`convert ${vault.slice(0, 8)}: ${formatUnits(pend, decimals)} ${await sym(token)} -> >= ${formatEther(minOut)} ETH (fee ${best.fee})`,
         vault, "convert", [token, pend, minOut, best.fee]);
     }
   }

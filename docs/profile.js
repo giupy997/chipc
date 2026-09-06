@@ -30,7 +30,8 @@
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
   const fmt = (wei, d = 2) => (Number(wei) / 1e18).toLocaleString("en-US", { maximumFractionDigits: d });
-  const fmtQ = (wei) => { const n = Number(wei) / 1e18; return n >= 1 ? n.toFixed(4) : n.toPrecision(4); };
+  const decOf = (t) => { const q = (CFG().quotes || []).find((x) => x.address.toLowerCase() === String(t).toLowerCase()); return q && q.decimals ? q.decimals : 18; };
+  const fmtQ = (wei, dec = 18) => { const n = Number(wei) / 10 ** dec; return n >= 1 ? n.toFixed(4) : n.toPrecision(4); };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function b32ToString(hex) {
@@ -195,7 +196,7 @@
       const isLegacy = (CFG().legacyVaults || []).map((v) => v.toLowerCase()).includes(f.vault.toLowerCase());
       el.innerHTML = a0 === 0n && a1 === 0n
         ? `market fees waiting: <b>none yet</b>`
-        : `market fees waiting: <b>${fmt(a0, 0)} ${esc(s0)}</b> + <b>${fmtQ(a1)} ${esc(s1)}</b>` +
+        : `market fees waiting: <b>${fmt(a0, 0)} ${esc(s0)}</b> + <b>${fmtQ(a1, decOf(f.t1))} ${esc(s1)}</b>` +
           ` &middot; <button class="btn btn-light btn-sm" data-sweep="${f.vault}|${f.tokenId}" style="padding:4px 9px;font-size:10px">SWEEP</button>` +
           (isLegacy ? `<br><span style="opacity:.7">(first-generation vault: your half is paid at the sweep)</span>` : "");
       const b = el.querySelector("[data-sweep]");
@@ -251,8 +252,8 @@
         row.className = "prow fees";
         row.innerHTML =
           `<span><b>${esc(sym)}</b></span>` +
-          `<span class="num">${isQuote ? fmtQ(amt) : fmt(amt, 0)}</span>` +
-          `<span class="dim">${isQuote ? fmtQ(done) : fmt(done, 0)}</span>` +
+          `<span class="num">${isQuote ? fmtQ(amt, decOf(t)) : fmt(amt, 0)}</span>` +
+          `<span class="dim">${isQuote ? fmtQ(done, decOf(t)) : fmt(done, 0)}</span>` +
           `<span class="sm">${label}</span>` +
           `<span></span>`;
         host.appendChild(row);

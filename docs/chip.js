@@ -33,6 +33,10 @@
   const QUOTES_ON = () => QUOTES().filter((q) => q.enabled !== false); // accese: per aprirne di nuovi
   const quoteByKey = (k) => k === "weth" ? { sym: "WETH", name: "ether", address: UNI.WETH }
     : QUOTES_ON().find((q) => q.sym.toLowerCase() === k) || null;
+  // decimali della quota (USDG ne ha 6): i prezzi Uniswap sono rapporti fra
+  // unita' grezze, per parlare in "quote per token" si riscala di 10^(18-dec)
+  const quoteDecimals = (addr) => { const q = QUOTES().find((x) => x.address.toLowerCase() === String(addr).toLowerCase()); return q && q.decimals ? q.decimals : 18; };
+  const quoteScale = (addr) => 10 ** (18 - quoteDecimals(addr));
   const word = (v) => BigInt(v).toString(16).padStart(64, "0");
   const addrWord = (a) => a.toLowerCase().replace("0x", "").padStart(64, "0");
   const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
@@ -284,15 +288,15 @@
         ? [state.token, quote] : [quote, state.token];
       const pool = "0x" + (await call(UNI.V3F,
         S_GETPOOL + addrWord(t0) + addrWord(t1) + word(UNI.FEE))).slice(26);
-      if (pool !== ZERO) return { pool, quote, sym, ourIsToken0: t0.toLowerCase() === state.token.toLowerCase() };
+      if (pool !== ZERO) return { pool, quote, sym, qDec: quoteDecimals(quote), qScale: quoteScale(quote), ourIsToken0: t0.toLowerCase() === state.token.toLowerCase() };
     }
     return null;
   }
 
-  /** prezzo (quote per token) da sqrtPriceX96, orientato al nostro token. */
+  /** prezzo (quote per token, unita' umane) da sqrtPriceX96, orientato al nostro token. */
   function priceFrom(sqrtX96, ourIsToken0) {
-    const p = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0
-    return ourIsToken0 ? p : 1 / p;
+    const p = Number(sqrtX96) ** 2 / 2 ** 192; // token1 per token0, unita' grezze
+    return (ourIsToken0 ? p : 1 / p) * (state.qScale || 1);
   }
   // Quando uno swap chiede piu' liquidita' di quanta ce n'e', Uniswap porta
   // il prezzo al limite (MIN/MAX sqrt price): un muro, non un prezzo. Vale
@@ -339,7 +343,7 @@
 
   async function ethPerQuote(quote) {
     let best = null;
-    for (const fee of [500, 3000, 10000]) {
+    for (const fee of [100, 500, 3000, 10000]) {
       const [t0, t1] = quote.toLowerCase() < UNI.WETH.toLowerCase() ? [quote, UNI.WETH] : [UNI.WETH, quote];
       const pool = "0x" + (await call(UNI.V3F, S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(fee))).slice(26);
       if (pool === ZERO) continue;
@@ -351,7 +355,8 @@
     const slot0 = await call(best.pool, S_SLOT0);
     const sqrtX96 = BigInt("0x" + slot0.slice(2, 66));
     const p = Number(sqrtX96) ** 2 / 2 ** 192;
-    return best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / p : p;
+    // ETH per 1 unita' umana di quota: il rapporto grezzo va riscalato per i decimali
+    return (best.t0.toLowerCase() === UNI.WETH.toLowerCase() ? 1 / p : p) / quoteScale(quote);
   }
 
   async function walletOpenMarket(btn, pairKey, statusEl, feeMode) {
@@ -389,14 +394,16 @@
       // quel prezzo nessuno poteva piu' comprare. Senza, la curva vende il
       // 50% a 4x, il 68% a 10x, il 90% a 100x: mai tutto.
       const qStart = 5 / rate, SUP = 1e9, SPACING = 200, TICK_EDGE = 887200; // MAX_TICK 887272 arrotondato allo spacing
+      // i tick vivono sul rapporto grezzo quote_raw/token_raw: (quote per token) / 10^(18-dec)
+      const pRaw = (qStart / SUP) / quoteScale(quote);
       let lo, hi, init;
       if (ourIsToken0) {
-        lo = floorSpacing(tickAtPrice(qStart / SUP), SPACING);
+        lo = floorSpacing(tickAtPrice(pRaw), SPACING);
         hi = TICK_EDGE;
         init = lo;
       } else {
         lo = -TICK_EDGE;
-        hi = floorSpacing(tickAtPrice(SUP / qStart), SPACING);
+        hi = floorSpacing(tickAtPrice(1 / pRaw), SPACING);
         init = hi;
       }
       const sqrtX96 = sqrtRatioAtTick(init);
@@ -877,7 +884,7 @@
       rows.push({
         buy, p, time,
         tokens: Number(ourAmt < 0n ? -ourAmt : ourAmt) / 1e18,
-        quote: Number(quoteAmt < 0n ? -quoteAmt : quoteAmt) / 1e18,
+        quote: Number(quoteAmt < 0n ? -quoteAmt : quoteAmt) / 10 ** (state.qDec || 18),
         tx: log.transactionHash,
       });
     }
