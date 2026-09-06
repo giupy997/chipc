@@ -174,7 +174,28 @@ code {
 }
 .nav-links a:hover { color: var(--ink); border-bottom-color: var(--ink); }
 
-@media (max-width: 900px) { .nav-links { display: none; } .btn-sm { margin-left: auto; } }
+/* Sotto i 900px i link non spariscono: diventano una striscia scorrevole
+   sotto il logo. Prima erano nascosti, e dal telefono il launchpad non si
+   raggiungeva. Il logo sta a sinistra, il wallet e i bottoni a destra. */
+@media (max-width: 900px) {
+  .nav { flex-wrap: wrap; gap: 8px 10px; }
+  .nav .wal { margin-left: auto; }
+  .nav-links {
+    order: 10; flex: 1 1 100%; margin-left: 0; gap: 18px;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    padding: 6px 0 2px; border-top: 1px solid rgba(17, 17, 16, 0.12);
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links a { white-space: nowrap; font-size: 10.5px; }
+}
+@media (max-width: 560px) {
+  .nav { padding: 10px var(--gutter); }
+  .nav .btn-sm { padding: 8px 10px; font-size: 10px; letter-spacing: 0.08em; }
+  .nav a.btn[href*="github"] { display: none; }   /* Source sta nel footer */
+  .logo-word { font-size: 14px; }
+  .logo { gap: 8px; }
+  body { font-size: 16px; }
+}
 
 /* ============================================================= buttons == */
 

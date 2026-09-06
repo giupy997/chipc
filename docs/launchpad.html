@@ -59,10 +59,11 @@
   .gchip .grow { display: flex; justify-content: space-between; font-size: 11px; color: var(--panel-dim); letter-spacing: 0.08em; }
   .gchip .grow b { color: var(--mint); font-weight: 700; }
   .gchip .glogo { width: 34px; height: 34px; object-fit: cover; border: 1px solid var(--panel-line); }
+  .gchip .glogo[hidden] { display: none; }
   .gal-note { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 16px; }
 
   /* ---- la ricerca: fissa sopra le card, a tendina mentre digiti ---- */
-  .gal-search { position: sticky; top: 0; z-index: 6; background: var(--paper); padding: 6px 0 14px; }
+  .gal-search { position: sticky; top: var(--nav-h, 0px); z-index: 6; background: var(--paper); padding: 6px 0 14px; }
   .gal-search-box { display: flex; align-items: center; gap: 10px; border: 2px solid var(--ink); background: var(--paper); padding: 0 12px; }
   .gal-search-box svg { width: 18px; height: 18px; fill: var(--dim); flex: none; }
   .gal-search-box input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-family: var(--mono);
@@ -84,7 +85,7 @@
   .gal-dd .none { padding: 12px 14px; font-family: var(--mono); font-size: 12px; color: var(--dim); }
 
   /* riuso il form della home: qui sta in colonna singola */
-  .lp-grid .mintform { position: sticky; top: 20px; }
+  .lp-grid .mintform { position: sticky; top: calc(var(--nav-h, 0px) + 20px); }
 
   /* i tre link, uno accanto all'altro */
   .links-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
@@ -100,14 +101,10 @@
 <div class="ticker" aria-hidden="true">
   <div class="ticker-track">
     <span class="ticker-set">
-      <span>EVERY CHIP IS A PROCESSOR</span><i>|</i><span>YOUR PROGRAM IN ROM</span><i>|</i>
-      <span>TICKERS: ONCE TAKEN, TAKEN FOREVER</span><i>|</i><span>ONE TICK PER BLOCK</span><i>|</i>
-      <span>THE RESERVE LEAVES ONE CYCLE AT A TIME</span><i>|</i><span>CHAIN ROBINHOOD // 4663</span><i>|</i>
+      <b>EVERY CHIP IS A PROCESSOR</b><b>YOUR PROGRAM IN ROM</b><b>TICKERS: ONCE TAKEN, TAKEN FOREVER</b><b>ONE TICK PER BLOCK</b><b>THE RESERVE LEAVES ONE CYCLE AT A TIME</b><b>CHAIN ROBINHOOD // 4663</b>
     </span>
     <span class="ticker-set">
-      <span>EVERY CHIP IS A PROCESSOR</span><i>|</i><span>YOUR PROGRAM IN ROM</span><i>|</i>
-      <span>TICKERS: ONCE TAKEN, TAKEN FOREVER</span><i>|</i><span>ONE TICK PER BLOCK</span><i>|</i>
-      <span>THE RESERVE LEAVES ONE CYCLE AT A TIME</span><i>|</i><span>CHAIN ROBINHOOD // 4663</span><i>|</i>
+      <b>EVERY CHIP IS A PROCESSOR</b><b>YOUR PROGRAM IN ROM</b><b>TICKERS: ONCE TAKEN, TAKEN FOREVER</b><b>ONE TICK PER BLOCK</b><b>THE RESERVE LEAVES ONE CYCLE AT A TIME</b><b>CHAIN ROBINHOOD // 4663</b>
     </span>
   </div>
 </div>

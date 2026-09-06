@@ -57,10 +57,20 @@
     } catch (_) {}
   }
 
+  // la nav e' sticky: chi vuole appiccicarsi sotto di lei (la ricerca della
+  // galleria, il form sul desktop) legge la sua altezza da --nav-h
+  function measureNav() {
+    const nav = document.querySelector("header.nav");
+    if (nav) document.documentElement.style.setProperty("--nav-h", nav.offsetHeight + "px");
+  }
+  window.addEventListener("resize", measureNav);
+  window.addEventListener("load", measureNav);
+
   let host, btn, menu;
   function build() {
     const nav = document.querySelector("header.nav");
     if (!nav) return;
+    measureNav();
     host = document.createElement("div");
     host.className = "wal";
     host.innerHTML =
