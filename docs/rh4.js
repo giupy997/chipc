@@ -294,7 +294,7 @@
       // davanti a quel processore, non a quello di default.
       const asked = Number(new URLSearchParams(location.search).get("chip"));
       this.chipId = Number.isInteger(asked) && asked > 0 ? asked : (cfg.defaultChip || 1);
-      this.tickBtn.textContent = `POWER CHIP #${this.chipId}`;
+      this.tickBtn.textContent = `MINE CHIP #${this.chipId}`;
 
       if (cfg.factory) {
         const cli = $("#w-cli");

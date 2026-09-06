@@ -312,7 +312,7 @@
       host.appendChild(row);
       total += v.n;
     }
-    if (!per.size) { const d = document.createElement("div"); d.className = "pf-empty-row"; d.textContent = "no cycles paid yet — power a chip from its page and the reward lands here."; host.appendChild(d); }
+    if (!per.size) { const d = document.createElement("div"); d.className = "pf-empty-row"; d.textContent = "no cycles paid yet — mine a chip from its page and the reward lands here."; host.appendChild(d); }
     $("#c-mine").textContent = total ? `${total.toLocaleString("en-US")} CYCLES` : "—";
   }
 
