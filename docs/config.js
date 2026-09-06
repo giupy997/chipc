@@ -55,6 +55,8 @@ window.RH4_CONFIG = {
     { sym: "TSM", name: "TSMC", address: "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA" },      // pool WETH 8.6 ETH, fee 0.3% — live 6 set 2026
     { sym: "AAPL", name: "Apple", address: "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9" },    // pool WETH 21 ETH, fee 0.05% — live 6 set 2026
     { sym: "QUBT", name: "Quantum Computing", address: "0x59818904ab4cE163b3cE4FfB64f2D6Ca02c434B4" }, // pool WETH 13 ETH, fee 1% — live 6 set 2026
+    { sym: "SPCX", name: "SpaceX", address: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa" },   // pool WETH 91 ETH, fee 0.05% — live 6 set 2026
+    { sym: "TSLA", name: "Tesla", address: "0x322F0929c4625eD5bAd873c95208D54E1c003b2d" },    // pool WETH 66 ETH, fee 0.3% — live 6 set 2026
     // USDG ha 6 decimali (le azioni e WETH 18): `decimals` guida prezzi, tick e soglie.
     { sym: "USDG", name: "Global Dollar", address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", decimals: 6 }, // pool WETH 5,600 ETH, fee 0.01% — live 6 set 2026
   ],
