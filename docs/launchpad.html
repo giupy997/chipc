@@ -86,6 +86,9 @@
 
   /* riuso il form della home: qui sta in colonna singola */
   .lp-grid .mintform { position: sticky; top: calc(var(--nav-h, 0px) + 20px); }
+  /* a una colonna il form NON deve restare appiccicato: Chrome lo tiene fermo
+     per tutta l'altezza della griglia e la galleria gli scorre sopra */
+  @media (max-width: 1000px) { .lp-grid .mintform { position: static; } }
 
   /* i tre link, uno accanto all'altro */
   .links-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
