@@ -551,6 +551,11 @@ main { max-width: var(--maxw); margin: 0 auto; }
 }
 
 .controls, .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+/* la casella "custom" fra i preset: stessa pelle di un chip, dentro un input */
+.chip-custom { display: inline-flex; align-items: center; gap: 2px; padding: 0 10px 0 8px; cursor: text; }
+.chip-custom input, .field .chip-custom input { width: 6ch; border: 0; background: transparent; font: inherit; font-size: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; outline: none; padding: 7px 0; text-align: right; box-shadow: none; }
+.chip-custom input::placeholder { color: inherit; opacity: 0.45; text-transform: lowercase; letter-spacing: 0.06em; }
+.chip.is-bad { border-color: #b4432b; color: #b4432b; }
 
 /* Nasce nella barra scura ma vive anche dentro le card chiare: il colore
    di base e' l'inchiostro, ed e' la barra a schiarirlo. Al contrario il

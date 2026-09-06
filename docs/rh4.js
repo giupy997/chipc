@@ -575,11 +575,31 @@
       this.liqBps = 2000;
       this.spanSeconds = 7776000; // 90 giorni, come il chip #1
 
+      const liqCustom = $("#f-liq-custom");
+      if (liqCustom) {
+        const note = $("#f-liq-note");
+        liqCustom.addEventListener("input", () => {
+          const raw = liqCustom.value.trim().replace(",", ".");
+          const v = Number(raw);
+          const ok = raw !== "" && Number.isFinite(v) && v >= 0 && v <= 60;
+          liqCustom.parentElement.classList.toggle("is-on", ok);
+          liqCustom.parentElement.classList.toggle("is-bad", raw !== "" && !ok);
+          if (note) { note.textContent = raw !== "" && !ok ? "between 0% and 60% — the factory caps liquidity at 60%" : "or type any share, 0–60%"; note.classList.toggle("is-bad", raw !== "" && !ok); }
+          if (!ok) return;
+          this.liqBps = Math.round(v * 100);
+          document.querySelectorAll("[data-liq]").forEach((x) => x.classList.remove("is-on"));
+          this.drawEmission();
+        });
+      }
       document.querySelectorAll("[data-liq]").forEach((b) => {
         b.addEventListener("click", () => {
           this.liqBps = Number(b.dataset.liq);
           document.querySelectorAll("[data-liq]").forEach((x) =>
             x.classList.toggle("is-on", x === b));
+          const c = $("#f-liq-custom");
+          if (c) { c.value = ""; c.parentElement.classList.remove("is-on", "is-bad"); }
+          const n = $("#f-liq-note");
+          if (n) { n.textContent = "or type any share, 0–60%"; n.classList.remove("is-bad"); }
           this.drawEmission();
         });
       });
