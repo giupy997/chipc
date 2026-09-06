@@ -51,8 +51,8 @@ window.RH4_CONFIG = {
   quotes: [
     { sym: "NVDA", name: "NVIDIA", address: "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC" },
     { sym: "SNDK", name: "SanDisk", address: "0xB90A19fF0Af67f7779afF50A882A9CfF42446400" },   // pool WETH 32 ETH, fee 0.3% — live 6 set 2026
-    { sym: "MU", name: "Micron", address: "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD", enabled: false },   // pool WETH 15 ETH, fee 1%
-    { sym: "TSM", name: "TSMC", address: "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA", enabled: false },    // pool WETH 6.5 ETH, fee 0.3%
+    { sym: "MU", name: "Micron", address: "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD" },     // pool WETH 15 ETH, fee 1% — live 6 set 2026
+    { sym: "TSM", name: "TSMC", address: "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA" },      // pool WETH 8.6 ETH, fee 0.3% — live 6 set 2026
   ],
 
   // Mercati aperti prima del 5 settembre 2026 ~19:30 UTC: range order con
