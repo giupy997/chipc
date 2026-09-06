@@ -1,7 +1,7 @@
 {
   "name": "@rh4cpu/plugin-rh4",
-  "version": "0.1.1",
-  "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips — real gate-level processors on Robinhood Chain",
+  "version": "0.1.2",
+  "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips \u2014 real gate-level processors on Robinhood Chain",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,10 @@
     "prepublishOnly": "tsc"
   },
   "peerDependencies": {
-    "@elizaos/core": ">=0.1.7"
+    "@elizaos/core": ">=1.7.2"
+  },
+  "dependencies": {
+    "viem": "^2.56.3"
   },
   "repository": {
     "type": "git",
@@ -29,8 +32,7 @@
   "license": "MIT",
   "devDependencies": {
     "@elizaos/core": "^1.7.2",
-    "typescript": "^7.0.2",
-    "viem": "^2.56.3"
+    "typescript": "^7.0.2"
   },
   "files": [
     "dist",
