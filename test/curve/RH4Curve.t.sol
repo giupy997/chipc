@@ -52,6 +52,8 @@ contract MockNPM {
 }
 
 contract MockFactory { address public owner; constructor(address o) { owner = o; } }
+/// La fabbrica v3 finta: nessun pool esiste prima della graduazione.
+contract MockV3F { function getPool(address, address, uint24) external pure returns (address) { return address(0); } }
 
 contract RH4CurveTest is Test {
     RH4Curve curve; CurveFeeVault vault; MockNPM npm; MockWETH weth; Tok nvda; Tok rh4; MockFactory factory;
@@ -64,7 +66,7 @@ contract RH4CurveTest is Test {
     function setUp() public {
         weth = new MockWETH(); nvda = new Tok("NVDA"); rh4 = new Tok("RH4"); npm = new MockNPM();
         factory = new MockFactory(address(this));
-        curve = new RH4Curve(address(weth), address(0xF), address(npm), address(this));
+        curve = new RH4Curve(address(weth), address(new MockV3F()), address(npm), address(this));
         vault = new CurveFeeVault(INPM(address(npm)), address(factory), address(rh4), address(weth), ISwapRouter02(address(0)), IPoolManager(address(0)), address(0), address(curve), keeper);
         curve.setFeeVault(address(vault));
         curve.setQuote(address(weth), true, 0.1 ether);
@@ -96,6 +98,10 @@ contract RH4CurveTest is Test {
         curve.launch("a", "A", address(weth), 0.01 ether, 5000);
         vm.expectRevert(RH4Curve.BadCreatorBps.selector);
         curve.launch("a", "A", address(weth), 1 ether, 2500);
+        vm.expectRevert(RH4Curve.BadName.selector);
+        curve.launch("", "A", address(weth), 1 ether, 5000);
+        vm.expectRevert(RH4Curve.ThresholdTooLow.selector);
+        curve.setQuote(address(rh4), true, 0);
         vm.expectRevert(RH4Curve.NotOwner.selector);
         vm.prank(alice);
         curve.setQuote(address(rh4), true, 0);
@@ -164,6 +170,12 @@ contract RH4CurveTest is Test {
         curve.buy{value: 0.2 ether}(token, 0, 0);
         vm.prank(alice);
         curve.buy{value: 0.02 ether}(token, 0, 0);   // piccola: ok
+        // ...ma spezzare non aiuta: il tetto e' per blocco, sommando le compre
+        (uint256 more, ) = curve.quoteBuy(token, 0.15 ether);
+        assertGt(more + curve.soldInBlock(token, block.number), curve.MAX_EARLY_BUY());
+        vm.prank(bob);
+        vm.expectRevert(RH4Curve.EarlyBuyTooBig.selector);
+        curve.buy{value: 0.15 ether}(token, 0, 0);
         vm.roll(block.number + 100);
         vm.prank(alice);
         curve.buy{value: 0.2 ether}(token, 0, 0);    // dopo: libera

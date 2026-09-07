@@ -21,6 +21,13 @@ interface INPMCurve {
     function mint(MintParams calldata params) external payable returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1);
 }
 
+interface IV3PoolMin {
+    function slot0() external view returns (uint160 sqrtPriceX96, int24, uint16, uint16, uint16, uint8, bool);
+    function initialize(uint160) external;
+    function swap(address recipient, bool zeroForOne, int256 amountSpecified, uint160 sqrtPriceLimitX96, bytes calldata data) external returns (int256, int256);
+}
+interface IV3FactoryMin { function getPool(address, address, uint24) external view returns (address); }
+
 interface ICurveFeeVault {
     function register(address token, address creator, uint16 creatorBps) external;
     function deposit(address token, address quote, uint256 amount) external;
@@ -40,8 +47,9 @@ interface ICurveFeeVault {
  * Quote: WETH (si paga anche in ETH nudo) o qualsiasi ERC-20 ammessa.
  * Fee: 1% su ogni compra e vendita, in quota, al CurveFeeVault, che le
  * divide secondo il modo scelto al lancio (creatorBps: 5000 o 0).
- * Anti-snipe: nei primi SNIPE_BLOCKS blocchi ogni compra prende al massimo
- * MAX_EARLY_BUY token.
+ * Anti-snipe: nei primi SNIPE_BLOCKS blocchi in ogni blocco escono al massimo
+ * MAX_EARLY_BUY token, sommando tutte le compre di quel blocco: spezzare
+ * la compra in tante chiamate non aiuta.
  */
 contract RH4Curve is ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -79,6 +87,7 @@ contract RH4Curve is ReentrancyGuard {
         address[4] pools;       // i pool v3 possibili (fee 100/500/3000/10000): chiusi fino alla graduazione
     }
     mapping(address => Launch) public launches;   // token -> lancio
+    mapping(address => mapping(uint256 => uint256)) public soldInBlock;   // token -> blocco -> venduti (finestra anti-snipe)
     address[] public tokens;
     mapping(address => bool) public quoteAllowed;
     mapping(address => uint256) public minThreshold; // per quota
@@ -100,6 +109,7 @@ contract RH4Curve is ReentrancyGuard {
     error NothingToDo();
     error TooLittleOut(uint256 got, uint256 min);
     error EarlyBuyTooBig();
+    error BadName();
     error NotWETHQuote();
     error VaultAlreadySet();
 
@@ -107,12 +117,13 @@ contract RH4Curve is ReentrancyGuard {
         weth = weth_; v3Factory = v3Factory_; npm = npm_; owner = owner_;
     }
 
-    receive() external payable {}
+    receive() external payable { if (msg.sender != weth) revert Unknown(); }   // solo il WETH che si scarta
 
     // ---- dell'owner: solo la lista delle quote e il vault (una volta) -----------
 
     function setQuote(address quote, bool allowed, uint256 minThreshold_) external {
         if (msg.sender != owner) revert NotOwner();
+        if (allowed && minThreshold_ == 0) revert ThresholdTooLow();   // una soglia zero rende il lancio ingraduabile
         quoteAllowed[quote] = allowed;
         minThreshold[quote] = minThreshold_;
         emit QuoteSet(quote, allowed, minThreshold_);
@@ -185,9 +196,10 @@ contract RH4Curve is ReentrancyGuard {
         external returns (address token)
     {
         if (!quoteAllowed[quote]) revert QuoteNotAllowed();
-        if (threshold < minThreshold[quote]) revert ThresholdTooLow();
+        if (threshold < minThreshold[quote] || threshold * 30 / 85 == 0) revert ThresholdTooLow();
         if (creatorBps != 5000 && creatorBps != 0) revert BadCreatorBps();
         if (address(feeVault) == address(0)) revert Unknown();
+        if (bytes(name).length == 0 || bytes(name).length > 32 || bytes(symbol).length == 0 || bytes(symbol).length > 12) revert BadName();
 
         token = address(new CurveToken(name, symbol, SUPPLY, address(this)));
 
@@ -222,7 +234,11 @@ contract RH4Curve is ReentrancyGuard {
 
         uint256 fee;
         (tokensOut, fee) = quoteBuy(token, quoteIn);
-        if (block.number < l.startBlock + SNIPE_BLOCKS && tokensOut > MAX_EARLY_BUY) revert EarlyBuyTooBig();
+        if (block.number < l.startBlock + SNIPE_BLOCKS) {
+            uint256 sold = soldInBlock[token][block.number] + tokensOut;
+            if (sold > MAX_EARLY_BUY) revert EarlyBuyTooBig();
+            soldInBlock[token][block.number] = sold;
+        }
         if (tokensOut < minTokensOut) revert TooLittleOut(tokensOut, minTokensOut);
         if (tokensOut == 0) revert NothingToDo();
 
@@ -236,16 +252,15 @@ contract RH4Curve is ReentrancyGuard {
         l.quoteRaised += spent - fee;
         l.tokensSold += tokensOut;
 
-        IERC20(l.quote).forceApprove(address(feeVault), fee);
-        feeVault.deposit(token, l.quote, fee);
+        if (fee != 0) { IERC20(l.quote).forceApprove(address(feeVault), fee); feeVault.deposit(token, l.quote, fee); }
         IERC20(token).safeTransfer(msg.sender, tokensOut);
-        if (refund != 0) _payQuote(l.quote, msg.sender, refund, msg.value != 0);
+        if (refund != 0) _payQuote(l.quote, msg.sender, refund, msg.value != 0 && msg.sender.code.length == 0);
         emit Bought(token, msg.sender, spent, fee, tokensOut, l.tokensSold, l.quoteRaised);
 
         if (l.tokensSold == CURVE_SUPPLY) _graduate(l);
     }
 
-    /// @notice Vende `tokensIn` (gia' approvati) e riceve quota; con quota WETH arriva ETH nudo.
+    /// @notice Vende `tokensIn` (gia' approvati) e riceve quota; con quota WETH un wallet riceve ETH nudo, un contratto WETH.
     function sell(address token, uint256 tokensIn, uint256 minQuoteOut) external nonReentrant returns (uint256 quoteOut) {
         Launch storage l = launches[token];
         if (l.token == address(0)) revert Unknown();
@@ -257,40 +272,80 @@ contract RH4Curve is ReentrancyGuard {
         IERC20(token).safeTransferFrom(msg.sender, address(this), tokensIn);
         l.tokensSold -= tokensIn;
         l.quoteRaised -= quoteOut + fee;
-        IERC20(l.quote).forceApprove(address(feeVault), fee);
-        feeVault.deposit(token, l.quote, fee);
-        _payQuote(l.quote, msg.sender, quoteOut, l.quote == weth);
+        if (fee != 0) { IERC20(l.quote).forceApprove(address(feeVault), fee); feeVault.deposit(token, l.quote, fee); }
+        _payQuote(l.quote, msg.sender, quoteOut, l.quote == weth && msg.sender.code.length == 0);   // ai contratti WETH, non ETH nudo
         emit Sold(token, msg.sender, tokensIn, quoteOut, fee, l.tokensSold, l.quoteRaised);
     }
 
     // ---- interno -----------------------------------------------------------
 
     /// @dev Il pool v3 a range pieno con i 200M e tutta la raccolta, la LP nel vault.
+    address private _swapPool;   // il pool autorizzato a chiamare il callback, solo durante la graduazione
+
     function _graduate(Launch storage l) internal {
         l.graduated = true;
-        (address t0, address t1) = l.token < l.quote ? (l.token, l.quote) : (l.quote, l.token);
-        // prezzo di fine curva, in sqrtX96: sqrt(quote/token) o il suo inverso
+        bool tokenIs0 = l.token < l.quote;
         uint256 quoteAmt = l.quoteRaised;
-        uint160 sqrtP = _sqrtPriceX96(t0 == l.token ? LP_SUPPLY : quoteAmt, t0 == l.token ? quoteAmt : LP_SUPPLY);
-        address pool = INPMCurve(npm).createAndInitializePoolIfNecessary(t0, t1, POOL_FEE, sqrtP);
-        IERC20(l.token).forceApprove(npm, LP_SUPPLY);
-        IERC20(l.quote).forceApprove(npm, quoteAmt);
-        (uint256 tokenId, , uint256 a0, uint256 a1) = INPMCurve(npm).mint(INPMCurve.MintParams({
-            token0: t0, token1: t1, fee: POOL_FEE, tickLower: -TICK_EDGE, tickUpper: TICK_EDGE,
-            amount0Desired: t0 == l.token ? LP_SUPPLY : quoteAmt, amount1Desired: t0 == l.token ? quoteAmt : LP_SUPPLY,
-            amount0Min: 0, amount1Min: 0, recipient: address(feeVault), deadline: block.timestamp
-        }));
-        uint256 usedQuote = t0 == l.token ? a1 : a0;
-        uint256 usedToken = t0 == l.token ? a0 : a1;
-        uint256 leftover = quoteAmt - usedQuote;
-        if (leftover != 0) {                                     // gli spiccioli della quota: al buyback
+        uint160 sqrtP = _sqrtPriceX96(tokenIs0 ? LP_SUPPLY : quoteAmt, tokenIs0 ? quoteAmt : LP_SUPPLY);
+        (address pool, uint256 tokenAmt, uint256 quoteLeft) = _poolAtTarget(
+            tokenIs0 ? l.token : l.quote, tokenIs0 ? l.quote : l.token, tokenIs0, sqrtP, quoteAmt);
+        (uint256 tokenId, uint256 usedToken, uint256 usedQuote) = _mintLP(l, tokenIs0, tokenAmt, quoteLeft);
+        uint256 leftover = quoteLeft - usedQuote;
+        if (leftover != 0) {
             IERC20(l.quote).forceApprove(address(feeVault), leftover);
             feeVault.deposit(l.token, l.quote, leftover);
         }
-        uint256 dust = LP_SUPPLY - usedToken;
+        uint256 dust = tokenAmt - usedToken;
         if (dust != 0) IERC20(l.token).safeTransfer(0x000000000000000000000000000000000000dEaD, dust);
         l.lpTokenId = tokenId; l.pool = pool;
         emit Graduated(l.token, pool, tokenId, usedToken, usedQuote, leftover);
+    }
+
+    function _mintLP(Launch storage l, bool tokenIs0, uint256 tokenAmt, uint256 quoteAmt)
+        internal returns (uint256 tokenId, uint256 usedToken, uint256 usedQuote)
+    {
+        IERC20(l.token).forceApprove(npm, tokenAmt);
+        IERC20(l.quote).forceApprove(npm, quoteAmt);
+        (uint256 id, , uint256 a0, uint256 a1) = INPMCurve(npm).mint(INPMCurve.MintParams({
+            token0: tokenIs0 ? l.token : l.quote, token1: tokenIs0 ? l.quote : l.token, fee: POOL_FEE,
+            tickLower: -TICK_EDGE, tickUpper: TICK_EDGE,
+            amount0Desired: tokenIs0 ? tokenAmt : quoteAmt, amount1Desired: tokenIs0 ? quoteAmt : tokenAmt,
+            amount0Min: 0, amount1Min: 0, recipient: address(feeVault), deadline: block.timestamp
+        }));
+        return (id, tokenIs0 ? a0 : a1, tokenIs0 ? a1 : a0);
+    }
+
+    /// @dev pool creato o riportato al prezzo target; restituisce quanto resta da mettere in LP
+    function _poolAtTarget(address t0, address t1, bool tokenIs0, uint160 sqrtP, uint256 quoteAmt)
+        internal returns (address pool, uint256 tokenAmt, uint256 quoteLeft)
+    {
+        tokenAmt = LP_SUPPLY; quoteLeft = quoteAmt;
+        pool = IV3FactoryMin(v3Factory).getPool(t0, t1, POOL_FEE);
+        if (pool == address(0)) {
+            pool = INPMCurve(npm).createAndInitializePoolIfNecessary(t0, t1, POOL_FEE, sqrtP);
+            return (pool, tokenAmt, quoteLeft);
+        }
+        (uint160 cur, , , , , , ) = IV3PoolMin(pool).slot0();
+        if (cur == 0) { IV3PoolMin(pool).initialize(sqrtP); return (pool, tokenAmt, quoteLeft); }
+        if (cur == sqrtP) return (pool, tokenAmt, quoteLeft);
+        bool zeroForOne = cur > sqrtP;                       // prezzo troppo alto: vendiamo token0
+        bool payToken = zeroForOne == tokenIs0;              // quale lato paghiamo noi
+        uint256 budget = (payToken ? LP_SUPPLY : quoteAmt) * 9 / 10;   // mai tutto: il mint vuole entrambi i lati
+        _swapPool = pool;
+        (int256 d0, int256 d1) = IV3PoolMin(pool).swap(address(this), zeroForOne, int256(budget), sqrtP, "");
+        _swapPool = address(0);
+        tokenAmt = uint256(int256(tokenAmt) - (tokenIs0 ? d0 : d1));
+        quoteLeft = uint256(int256(quoteLeft) - (tokenIs0 ? d1 : d0));
+    }
+
+    function uniswapV3SwapCallback(int256 a0, int256 a1, bytes calldata) external {
+        if (msg.sender != _swapPool || _swapPool == address(0)) revert Unknown();
+        (address t0, address t1) = (address(0), address(0));
+        // il pool ci dice cosa deve ricevere; i token vengono dal nostro saldo (from == curve: mai bloccato)
+        (bool ok, bytes memory r0) = msg.sender.staticcall(abi.encodeWithSignature("token0()")); require(ok); t0 = abi.decode(r0, (address));
+        (ok, r0) = msg.sender.staticcall(abi.encodeWithSignature("token1()")); require(ok); t1 = abi.decode(r0, (address));
+        if (a0 > 0) IERC20(t0).safeTransfer(msg.sender, uint256(a0));
+        if (a1 > 0) IERC20(t1).safeTransfer(msg.sender, uint256(a1));
     }
 
     function _payQuote(address quote, address to, uint256 amount, bool asEth) internal {
