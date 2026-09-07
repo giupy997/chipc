@@ -116,7 +116,7 @@
     const label = b32ToString(w(chipHex, 1));
     state.token = "0x" + w(chipHex, 6).slice(24);
     state.bornBlock = Number(BigInt("0x" + w(chipHex, 4)));
-    if ((CFG().hiddenChips || []).map(Number).includes(Number(id))) {
+    if ((CFG().hiddenChips || []).map(Number).includes(Number(id)) || b32ToString(w(chipHex, 1)) === "quote lock") {
       // il token di questo chip non e' nato dalla fabbrica: agganciato a mano, ricompensa azzerata
       const main = document.querySelector("main");
       if (main) main.insertAdjacentHTML("afterbegin",

@@ -199,7 +199,7 @@
           }
         } catch (_) {}
         return { id, c, s: s2, logoURI };
-      });
+      }).filter((it) => it.c.label !== "quote lock");   // i chip-guardia del team (una quota agganciata, un HLT): non sono chip da mostrare
 
       // prima i chip con il mercato piu' grande: DexScreener (in dollari) e,
       // per i mercati che DexScreener non ha ancora visto, l'FDV letto dal pool
