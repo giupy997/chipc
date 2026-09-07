@@ -70,9 +70,14 @@ window.RH4_CONFIG = {
   // stockVault vuoto = sezione nascosta nel profilo. I pesi (bps) guidano il
   // keeper (tools/dividend.js) nel dividere l'ETH fra le azioni attive.
   stockVault: "0x6A3DF83dbC7A6d4879B8bA68B295f022be5594b7",   // deploy 7 set 2026, owner rh4-dev2, executor keeper
+  // (solo le azioni attive nel vault contano; i pesi si rinormalizzano fra loro)
   stockVaultWeights: {
-    "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC": 5000,   // NVDA
-    "0xB90A19fF0Af67f7779afF50A882A9CfF42446400": 5000,   // SNDK
+    "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC": 3000,   // NVDA
+    "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9": 2000,   // AAPL
+    "0xB90A19fF0Af67f7779afF50A882A9CfF42446400": 1500,   // SNDK
+    "0x322F0929c4625eD5bAd873c95208D54E1c003b2d": 1500,   // TSLA
+    "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD": 1000,   // MU
+    "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA": 1000,   // TSM
   },
   dividendsPath: "dividends",
 
