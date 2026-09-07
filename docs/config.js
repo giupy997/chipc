@@ -81,6 +81,12 @@ window.RH4_CONFIG = {
   },
   dividendsPath: "dividends",
 
+  // ChipHoldersVault: la casa HOLDERS per le posizioni LP dei chip. 80% delle
+  // fee agli holder del chip (a epoche, keeper: tools/holders.js), 20% riserva
+  // e buyback RH4. Vuoto = la modalita' resta "incoming" sul sito.
+  holdersVault: "",
+  holdersPath: "holders",
+
   // Il launchpad a curva (src/curve: RH4Curve + CurveFeeVault). Contratti
   // scritti e testati, NON deployati. La pagina curve.html non ha link da
   // nessuna parte: con `enabled: false` mostra solo una porta chiusa, e con

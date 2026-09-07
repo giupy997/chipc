@@ -142,12 +142,18 @@
   }
 
   // ---- il cancello --------------------------------------------------------------
-  const LIVE = Boolean(CV().enabled && CV().address);
+  // `?dev` accende tutto anche con enabled: false: la porta resta chiusa per il
+  // sito, ma chi conosce l'URL prova lanci e trade veri
+  const DEV = /[?&]dev\b/.test(location.search);
+  const LIVE = Boolean(CV().address && (CV().enabled || DEV));
   const PREVIEW = /[?&]preview/.test(location.search);
   const READABLE = Boolean(CV().address);
 
   function gate() {
-    if (LIVE) return true;
+    if (LIVE) {
+      if (!CV().enabled) { const b = $("#cv-banner"); b.hidden = false; b.innerHTML = `<b>DEV</b> &mdash; live for you, closed for everyone else. Real chain, real ETH.`; }
+      return true;
+    }
     if (!PREVIEW) {
       $("#cv-main").innerHTML =
         `<div class="cv-closed"><p class="pill"><span class="pill-n">FACTORY</span>THE CURVE</p>` +

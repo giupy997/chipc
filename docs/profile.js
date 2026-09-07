@@ -141,7 +141,7 @@
     for (const c of chips) if (c.token !== ZERO) state.symbols.set(c.token.toLowerCase(), c.ticker || "?");
 
     renderChips(mine);
-    await Promise.all([loadFees(mine), loadMining(), loadHoldings(chips), loadDividends().catch(() => {})]);
+    await Promise.all([loadFees(mine), loadMining(), loadHoldings(chips), loadDividends().catch(() => {}), loadChipFees().catch(() => {})]);
     loadPending(mine).catch(() => {});
   }
 
@@ -363,11 +363,87 @@
     $("#c-div").textContent = claimableRows ? "CLAIMABLE" : rows ? "ALL CLAIMED" : unread ? "RETRY" : "—";
   }
 
-  /** epoch(uint256) -> (root, totalEligible, publishedAt, expiresAt, address[] tokens, uint256[] amounts, uint256[] claimed, bool expired) */
-  function decodeEpoch(hex) {
+  /** Le fee dei chip in modalita' HOLDERS: stesse epoche Merkle del vault delle azioni,
+   *  ma per chip, e con l'indirizzo del chip token davanti alla struct. */
+  async function loadChipFees() {
+    const vault = CFG().holdersVault;
+    const sec = $("#hf-sec");
+    if (!vault || !sec) return;
+    sec.hidden = false;
+    const host = $("#hf");
+    host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
+    const seq = state.seq;
+    const base = CFG().holdersPath || "holders";
+    let idx;
+    try { idx = await fetch(`${base}/index.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { idx = { epochs: [] }; }
+    const me = state.me.toLowerCase();
+    let rows = 0, claimableRows = 0, unread = 0;
+    for (const e of idx.epochs) {
+      let snap;
+      try { snap = await fetch(`${base}/epoch-${e.id}.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { unread++; continue; }
+      if (seq !== state.seq) return;
+      const mine = Object.entries(snap.claims).find(([a]) => a.toLowerCase() === me);
+      if (!mine) continue;
+      const [, entry] = mine;
+      let epHex = null, doneHex = null;
+      for (let k = 0; k < 3 && !epHex; k++) {
+        [epHex, doneHex] = await rpcBatch([ecall(vault, S_DIV_EPOCH + word(e.id)), ecall(vault, S_DIV_HASCLAIMED + word(e.id) + addrWord(state.me))]);
+        if (!epHex) await sleep(800 * (k + 1));
+      }
+      if (seq !== state.seq) return;
+      const head = `<span><b>#${esc(String(snap.chip))} ${esc(snap.symbol || "")}</b><br><span class="sm">epoch ${e.id} · block ${esc(String(snap.block))}</span></span>`;
+      if (!epHex) {
+        unread++;
+        const row = document.createElement("div");
+        row.className = "prow div";
+        row.innerHTML = head + `<span class="num">${fmt(BigInt(entry.balance), 0)}</span>` +
+          `<span class="sm">network busy — could not read this epoch</span><span></span>` +
+          `<span><button class="btn btn-light btn-sm">RETRY</button></span>`;
+        row.querySelector("button").addEventListener("click", () => loadChipFees().catch(() => {}));
+        host.appendChild(row);
+        continue;
+      }
+      // epoch(id) -> (token, root, totalEligible, publishedAt, expiresAt, assets[], amounts[], claimed[], expired)
+      const ep = decodeEpoch("0x" + epHex.slice(2 + 64), 1);
+      const done = doneHex && BigInt(doneHex) === 1n;
+      const balance = BigInt(entry.balance);
+      const parts = [];
+      for (let i = 0; i < ep.tokens.length; i++) {
+        const amt = ep.amounts[i] * balance / ep.totalEligible;
+        const sym = await symbolOf(ep.tokens[i]);
+        parts.push(`<b>${fmtStock(amt, decOf(ep.tokens[i]))}</b> ${esc(sym)}`);
+      }
+      const until = new Date(Number(ep.expiresAt) * 1000).toISOString().slice(0, 10);
+      const status = ep.expired ? "closed" : done ? "paid" : "open";
+      const row = document.createElement("div");
+      row.className = "prow div";
+      row.innerHTML = head + `<span class="num">${fmt(balance, 0)}</span>` +
+        `<span class="num">${parts.join(" + ")}</span>` +
+        `<span class="sm">${status === "open" ? until : status.toUpperCase()}</span>` +
+        `<span>${status === "open" ? `<button class="btn btn-dark btn-sm">CLAIM</button>` : status === "paid" ? `<span class="sm">✓</span>` : ""}</span>`;
+      host.appendChild(row);
+      rows++;
+      if (status === "open") {
+        claimableRows++;
+        row.querySelector("button").addEventListener("click", (ev) => claimDividend(ev.target, vault, e.id, balance, entry.proof));
+      }
+    }
+    if (!rows && !unread) {
+      const d = document.createElement("div"); d.className = "pf-empty-row";
+      d.textContent = idx.epochs.length ? "no chip fees for this wallet yet — hold a chip token whose market pays its holders."
+        : "no epoch published yet — the first snapshot is coming.";
+      host.appendChild(d);
+    }
+    $("#c-hf").textContent = claimableRows ? "CLAIMABLE" : rows ? "ALL PAID" : unread ? "RETRY" : "—";
+  }
+
+  /** epoch(uint256) -> (root, totalEligible, publishedAt, expiresAt, address[] tokens, uint256[] amounts, uint256[] claimed, bool expired)
+   *  `shift` = parole statiche che precedono la struct nel ritorno (il vault holders ne ha una: il token). */
+  function decodeEpoch(hex, shift = 0) {
     const d = hex.slice(2);
     const W = (i) => d.slice(i * 64, (i + 1) * 64);
-    const arr = (off) => { const o = Number(BigInt("0x" + off)) / 32; const n = Number(BigInt("0x" + W(o))); const out = []; for (let i = 0; i < n; i++) out.push(W(o + 1 + i)); return out; };
+    // gli offset degli array contano dall'inizio del ritorno vero: con lo shift si riallineano
+    const arr = (off) => { const o = Number(BigInt("0x" + off)) / 32 - shift; const n = Number(BigInt("0x" + W(o))); const out = []; for (let i = 0; i < n; i++) out.push(W(o + 1 + i)); return out; };
     return {
       root: "0x" + W(0), totalEligible: BigInt("0x" + W(1)), publishedAt: BigInt("0x" + W(2)), expiresAt: BigInt("0x" + W(3)),
       tokens: arr(W(4)).map((x) => "0x" + x.slice(24)), amounts: arr(W(5)).map((x) => BigInt("0x" + x)), claimed: arr(W(6)).map((x) => BigInt("0x" + x)),

@@ -563,6 +563,8 @@
       `<h2>${esc(name || ticker)}</h2>` +
       `<div class="sub">${esc(ticker)} &middot; its token exists, its clock is waiting</div>` +
       `<div class="acts">` +
+      (token && CFG().holdersVault ? `<div class="chips mode" id="lp-fee" style="margin-bottom:2px"><button class="chip is-on" data-fee="creator" title="half the fees to you forever, half to the reserve and RH4 buybacks">FEES 50/50</button>` +
+        `<button class="chip" data-fee="holders" title="80% of the fees to whoever holds your token, epoch by epoch; 20% reserve and RH4 buybacks">FEES TO HOLDERS</button></div>` : "") +
       (token ? `<button class="btn btn-dark btn-block" data-act="market">OPEN THE MARKET vs ${esc(String(pairKey).toUpperCase())} &mdash; LP SEALED, FEES 50/50</button>` : "") +
       (hasLinks ? `<button class="btn btn-light btn-block" data-act="links">ADD LINKS TO CHIP #${id}</button>` : "") +
       `<a class="btn btn-light btn-block" href="chip.html?id=${id}">GO TO YOUR CHIP &rarr;</a>` +
@@ -571,7 +573,15 @@
     m.querySelector(".x").addEventListener("click", () => m.remove());
     m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
     const mb = m.querySelector('[data-act="market"]');
-    if (mb) mb.addEventListener("click", () => walletOpenMarket(mb, token, pairKey));
+    let feeMode = "creator";
+    const fm = m.querySelector("#lp-fee");
+    if (fm) fm.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-fee]"); if (!b) return;
+      fm.querySelectorAll(".chip").forEach((c) => c.classList.toggle("is-on", c === b));
+      feeMode = b.dataset.fee;
+      mb.textContent = `OPEN THE MARKET vs ${String(pairKey).toUpperCase()} — LP SEALED, ${feeMode === "holders" ? "FEES TO HOLDERS" : "FEES 50/50"}`;
+    });
+    if (mb) mb.addEventListener("click", () => walletOpenMarket(mb, token, pairKey, feeMode));
     const lb = m.querySelector('[data-act="links"]');
     if (lb) lb.addEventListener("click", () => walletSetLinks(lb, id, links.x, links.web, links.tg));
     return m;
@@ -758,7 +768,8 @@
     }
   }
 
-  async function walletOpenMarket(btn, token, pairKey) {
+  async function walletOpenMarket(btn, token, pairKey, feeMode) {
+    const vaultFor = feeMode === "holders" && CFG().holdersVault ? CFG().holdersVault : UNI.VAULT();
     const provider = window.ethereum;
     if (!provider) { say("no wallet found in this browser", true); return; }
     btn.disabled = true;
@@ -816,7 +827,7 @@
         (ourIsToken0 ? balance : 0n).toString(16).padStart(64, "0") +
         (ourIsToken0 ? 0n : balance).toString(16).padStart(64, "0") +
         intWord(0) + intWord(0) +
-        addrWord(UNI.VAULT()) +              // la posizione nasce nel vault: fee alla riserva
+        addrWord(vaultFor) +                 // la posizione nasce nel vault: 50/50 o holders
         intWord(deadline);
       // multicall(bytes[]) con due chiamate
       const enc = (hex) => {
@@ -839,7 +850,9 @@
         data: S_GETPOOL + addrWord(t0) + addrWord(t1) + intWord(UNI.FEE) }, "latest"])).slice(26);
       btn.textContent = "MARKET OPEN — LP SEALED ✓";
       btn.style.background = "var(--mint-deep)";
-      say(`the LP is sealed — nobody can ever pull it. Half the 1% fees go to you forever; the rest feeds the reserve and buys back RH4. ` +
+      say((feeMode === "holders"
+        ? `the LP is sealed — nobody can ever pull it. 80% of the 1% fees go to whoever holds your token, epoch by epoch; the rest feeds the reserve and buys back RH4. `
+        : `the LP is sealed — nobody can ever pull it. Half the 1% fees go to you forever; the rest feeds the reserve and buys back RH4. `) +
         `Pool: ${CFG().explorer}/address/${pool}`);
       loadGallery();
     } catch (e) {

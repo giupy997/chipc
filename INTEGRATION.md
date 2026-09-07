@@ -270,6 +270,31 @@ stock until `expiresAt`; unclaimed amounts roll into the next epoch via
 | `SplitsSet(uint256,uint256,uint256)` | `0xc7f22f04a087740384063910623cd17386d43aeded4ed39765034c128e3411a3` |
 | `StockSet(address,bool,uint24)` | `0x48551244564561afc0c70bb02bc9a3ad2f7f9449c69cd62f8b78bbf8c4178d4f` |
 
+
+## 5c. Chip fees to holders (ChipHoldersVault)
+
+A chip's market can be opened with the LP position sent to the
+**ChipHoldersVault** (`holdersVault` in `docs/config.js`; empty until deployed).
+Same custody as the other vaults (no withdraw, no transfer), different fee
+routing, applied to whatever `collect(tokenId)` pulls, in both coins:
+
+- 80% (`HOLDERS_BPS`) accrues per chip in `undistributed(token, asset)` for the
+  token's holders;
+- 20% of the chip token goes to the factory (mining reserve), 20% of the quote
+  becomes ETH and buys back RH4 for the mother (executor: `convert`, `buyback`).
+
+Distribution is by Merkle epochs, per chip: the executor calls
+`publish(token, root, totalEligible, assets[], amounts[], duration)` with
+amounts taken from that chip's pile; anyone can call
+`claim(id, account, balance, proof)` (the keeper pushes payouts, so app-wallet
+holders receive without connecting). Leaf and selectors are the same as
+RH4StockVault (`claim` `0x2e7ba6ef`, `hasClaimed` `0x873f6f9e`, `epoch`
+`0x5487c577`, `epochCount` `0x829965cc`); `epoch(id)` returns the chip token
+address first, then the same fields. Snapshots live in `docs/holders/`.
+Expired epochs return the unclaimed part to the chip's pile. Keeper:
+`tools/holders.js` (`status`, `collect`, `snapshot`, `publish`, `push`,
+`expire`, `round`).
+
 ## 6. Mining (the emission channel)
 
 `tick(uint256 id, uint8 inPort)` — selector `0xe5bbf637` — is permissionless,
