@@ -26,9 +26,10 @@ export const mintChipAction: Action = {
   description:
     "Mint a new RH-4 chip on Robinhood Chain: a real 8-bit processor (echo " +
     "program: it echoes every byte the sponsor sends) plus its own fixed-supply " +
-    "token, 20% to liquidity, 80% sealed in the factory as mining reserve over " +
-    "90 days. Needs a name (max 32 chars) and a unique ticker (1-8 of A-Z 0-9 " +
-    "dash), and a funded wallet.",
+    "token: 50% lands in the agent's wallet as the liquidity slice (open the " +
+    "market next with OPEN_RH4_MARKET), 50% is sealed in the factory as mining " +
+    "reserve over a 12-hour emission. Needs a name (max 32 chars), a unique " +
+    "ticker (1-8 of A-Z 0-9 dash), and a funded wallet.",
 
   validate: async (runtime: IAgentRuntime) => {
     return Boolean(runtime.getSetting("RH4_PRIVATE_KEY"));
@@ -55,8 +56,9 @@ export const mintChipAction: Action = {
       const text =
         `Minted. Chip #${r.id} "${name}" ($${ticker}) is alive on Robinhood Chain — ` +
         `an 8-bit processor with my program in its ROM, and its token at ${r.token}. ` +
-        `80% of the supply is sealed in the factory as mining reserve: it leaves one ` +
-        `clock cycle at a time, to whoever keeps the processor running. ` +
+        `Half the supply is in my wallet for the market, half is sealed in the factory as mining ` +
+        `reserve: it leaves one clock cycle at a time, to whoever keeps the processor running. ` +
+        `Next: open the market (OPEN_RH4_MARKET). ` +
         `Live card: ${DEFAULTS.site}/chip.html?id=${r.id} · tx ${r.hash}`;
       await callback?.({ text });
       return { success: true, text, data: { chipId: r.id, token: r.token, tx: r.hash } } satisfies ActionResult;

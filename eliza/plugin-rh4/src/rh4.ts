@@ -294,8 +294,8 @@ export class Rh4Client {
       toB32(p.name.slice(0, 32)),
       toB32(p.ticker.toUpperCase()),
       p.logoURI ?? "",
-      p.liquidityBps ?? 2000,
-      BigInt(p.targetCycles ?? 7_776_000), // 90 days at one cycle/second
+      p.liquidityBps ?? 5000,
+      BigInt(p.targetCycles ?? 432_000), // the site's team pick: a 12-hour emission at ten cycles a second
     ] as const;
     const { request, result } = await this.pub.simulateContract({
       account, address: this.cfg.factory, abi: FACTORY_ABI,

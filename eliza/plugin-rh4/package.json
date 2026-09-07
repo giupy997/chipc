@@ -1,6 +1,6 @@
 {
   "name": "@rh4cpu/plugin-rh4",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "ElizaOS plugin: let an agent own, power and read RH-4 chips \u2014 real gate-level processors on Robinhood Chain",
   "type": "module",
   "main": "dist/index.js",
