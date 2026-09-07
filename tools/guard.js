@@ -80,6 +80,8 @@ async function main() {
       // la madre (RH4, chip #1) e' agganciata a mano dall'owner: legittima
       if (id === 1 || token.toLowerCase() === mother || token.toLowerCase() === String(cfg.token || "").toLowerCase()) continue;
       if (await isChipToken(token, id)) continue;
+      // i chip-guardia del team ("quote lock", un HLT): la quota e' agganciata apposta, e sono gia' fermi
+      if (c.label === "0x71756f7465206c6f636b00000000000000000000000000000000000000000000") { console.log(`  chip #${id}: lucchetto del team, ok`); continue; }
       foreign++;
       const sym = await pub.readContract({ address: token, abi: TOKEN_ABI, functionName: "symbol" }).catch(() => token.slice(0, 8));
       const dec = await pub.readContract({ address: token, abi: TOKEN_ABI, functionName: "decimals" }).catch(() => 18);
@@ -91,6 +93,9 @@ async function main() {
       for (let k = 0; k < 6; k++) {
         if (dryRun) { console.log(`  [dry] tick(${id})`); break; }
         try {
+          // prima la simulazione: un chip gia' fermo (AlreadyHalted) non si tocca, e non si paga gas per niente
+          try { await pub.simulateContract({ account, address: factory, abi: FACTORY_ABI, functionName: "tick", args: [BigInt(id), 0] }); }
+          catch (e) { console.log(`    tick non passerebbe (${short(e)}): fermo qui`); break; }
           const hash = await wallet.writeContract({ address: factory, abi: FACTORY_ABI, functionName: "tick", args: [BigInt(id), 0], gas: 500_000n });
           const rc = await pub.waitForTransactionReceipt({ hash, timeout: 90_000 });
           const after = await readF("chip", [BigInt(id)]);
