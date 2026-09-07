@@ -1,1 +1,11 @@
-{"epochs":[]}
+{
+ "epochs": [
+  {
+   "epoch": 0,
+   "block": "56665095",
+   "root": "0x8c3f89a0eccf1ffbe02734ed0d74b021c2707f883013b969826d86778d5d79e6",
+   "holders": 841,
+   "totalEligible": "577813400451380118882159831"
+  }
+ ]
+}
