@@ -77,7 +77,8 @@ async function main() {
       const c = await readF("chip", [BigInt(id)]);
       const token = c.token;
       if (!token || /^0x0{40}$/.test(token)) continue;
-      if (token.toLowerCase() === mother) continue;                 // la madre e' agganciata dall'owner, legittima
+      // la madre (RH4, chip #1) e' agganciata a mano dall'owner: legittima
+      if (id === 1 || token.toLowerCase() === mother || token.toLowerCase() === String(cfg.token || "").toLowerCase()) continue;
       if (await isChipToken(token, id)) continue;
       foreign++;
       const sym = await pub.readContract({ address: token, abi: TOKEN_ABI, functionName: "symbol" }).catch(() => token.slice(0, 8));
