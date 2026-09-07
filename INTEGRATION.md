@@ -215,6 +215,61 @@ hooks: 0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044}` (the hook takes 1% in
 `afterSwap`), poolId `0x2f71a0c9…`. Spot: `extsload(keccak256(poolId, 6))`
 on the PoolManager. The launchpad's automatic buybacks land there.
 
+## 5b. Stock dividends for RH4 holders (RH4StockVault)
+
+`RH4StockVault` `0x6A3DF83dbC7A6d4879B8bA68B295f022be5594b7` (verified). ETH
+sent to it (creator fees of the mother chip) is split by `allocate()` into a
+holders share (converted into tokenised stocks: NVDA `0xd060…9EEC`, SNDK
+`0xB90A…6400` today), a marketing share (paid out immediately, capped at
+20%) and a buyback share (RH4 bought on the v4 pool and delivered to the
+factory). Splits are on-chain (`holdersBps/marketingBps/buybackBps`, sum
+10 000) and owner-adjustable; **the owner cannot withdraw ETH or stocks**.
+
+Distribution is by epoch: the keeper snapshots RH4 balances off-chain
+(`tools/snapshot.js`, excluding system contracts, minimum 1 000 RH4),
+publishes an OpenZeppelin StandardMerkleTree root with leaf
+`(uint256 epoch, address account, uint256 balance)` (double-hashed, see
+`leaf()`), and holders claim `amounts[i] * balance / totalEligible` of each
+stock until `expiresAt`; unclaimed amounts roll into the next epoch via
+`expire()`. Snapshot files with per-address proofs are public at
+`https://rh4cpu.tech/dividends/index.json` and `epoch-N.json`.
+
+| function | selector |
+|---|---|
+| `claim(uint256,address,uint256,bytes32[])` | `0x2e7ba6ef` |
+| `claimMany(uint256[],address,uint256[],bytes32[][])` | `0xfae68828` |
+| `epoch(uint256)` | `0x5487c577` |
+| `epochCount()` | `0x829965cc` |
+| `hasClaimed(uint256,address)` | `0x873f6f9e` |
+| `shareOf(uint256,uint256)` | `0x43dd7cc8` |
+| `leaf(uint256,address,uint256)` | `0x78bb02dd` |
+| `unallocated()` | `0xdf1c455c` |
+| `ethForStocks()` | `0x9f72e77f` |
+| `ethForBuyback()` | `0x13df081b` |
+| `undistributed(address)` | `0x803ebcc3` |
+| `stockInfo(address)` | `0x4949a2e7` |
+| `allocate()` | `0xabaa9916` |
+| `convert(address,uint256,uint256)` | `0x6310c722` |
+| `buyback(uint256,uint256)` | `0x460ddf8d` |
+| `publish(bytes32,uint256,address[],uint256[],uint64)` | `0x228bb54f` |
+| `expire(uint256)` | `0xbf81bf43` |
+| `setSplits(uint256,uint256,uint256)` | `0x700cd48e` |
+| `setStock(address,bool,uint24)` | `0x8521ece3` |
+| `setMarketing(address)` | `0x8b0414d5` |
+| `setExecutor(address)` | `0x1c3c0ea8` |
+
+| event | topic0 |
+|---|---|
+| `Funded(address,uint256)` | `0x5af8184bef8e4b45eb9f6ed7734d04da38ced226495548f46e0c8ff8d7d9a524` |
+| `Allocated(uint256,uint256,uint256)` | `0x2daf7483bd1eea3ef9b7f22119cc10298e3a9eac8950530f9a9bfa2c8689a618` |
+| `Converted(address,uint256,uint256)` | `0xe6a45eea08a42f7c3f90f290e8ecf15e16174981943adf509fc9ea49808a64c6` |
+| `Buyback(uint256,uint256,address)` | `0x19dce436477c8ec377992306a402bd2728800a3be453520cd9bcf8ef12946325` |
+| `EpochPublished(uint256,bytes32,uint256,address[],uint256[],uint64)` | `0x7add2623af5ed079c8c3129b076d7baeb667725d16923ade5f2adbfa3a78ef99` |
+| `Claimed(uint256,address,uint256,address[],uint256[])` | `0xe5dec33f582ae716cb40f9d43bd4bb12210a92c261245bd4a0ee801c3be871e3` |
+| `EpochExpired(uint256,address[],uint256[])` | `0xc9d2bfb8c05cf008148c23335cae7522ed37f7ae7ebfe8979345c15be94cd0b3` |
+| `SplitsSet(uint256,uint256,uint256)` | `0xc7f22f04a087740384063910623cd17386d43aeded4ed39765034c128e3411a3` |
+| `StockSet(address,bool,uint24)` | `0x48551244564561afc0c70bb02bc9a3ad2f7f9449c69cd62f8b78bbf8c4178d4f` |
+
 ## 6. Mining (the emission channel)
 
 `tick(uint256 id, uint8 inPort)` — selector `0xe5bbf637` — is permissionless,

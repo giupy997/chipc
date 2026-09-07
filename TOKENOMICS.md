@@ -51,6 +51,16 @@ back into the factory reserve** automatically
 ([ChipBuybackVault](src/ChipBuybackVault.sol), verified). Bought-back RH4
 follows the same emission rule: it only leaves through `tick()`.
 
+## Stock dividends for holders
+
+Since 7 Sep 2026 a share of the mother chip's creator fees flows into
+**RH4StockVault** (`0x6A3DF83dbC7A6d4879B8bA68B295f022be5594b7`, verified):
+60% is converted into tokenised stocks (NVDA, SNDK) and distributed to RH4
+holders by snapshot epochs (claimable from the profile page), 20% funds
+marketing, 20% buys RH4 back into the factory reserve. Splits are on-chain
+and owner-adjustable with a hard 20% cap on marketing; the owner cannot
+withdraw. Details and selectors: [INTEGRATION.md](INTEGRATION.md).
+
 ## What holders should know
 
 - No unlocks, no cliffs, no vesting: there is nothing scheduled to hit the market.

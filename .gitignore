@@ -2,6 +2,7 @@
 # dipendenze
 # intermedi rigenerabili con `make`
 .DS_Store
+broadcast/
 build/
 cache/
 lib/
