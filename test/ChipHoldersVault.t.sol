@@ -180,6 +180,52 @@ contract ChipHoldersVaultTest is Test {
         vault.publish(address(chipTok), bytes32(uint256(1)), 1, a, m, 7 days);
     }
 
+    function test_claim_by_executor_is_refunded_from_the_buyback_eth() public {
+        _publishFixture();
+        string memory json = vm.readFile("test/fixtures/merkle.json");
+        bytes32[] memory pa = vm.parseJsonBytes32Array(json, ".leaves[0].proof");
+        bytes32[] memory pb = vm.parseJsonBytes32Array(json, ".leaves[1].proof");
+        uint256 vaultEth = address(vault).balance;   // il 20% della quote, gia' ETH
+        assertGt(vaultEth, 0);
+        vm.txGasPrice(1 gwei);
+        // bob ritira da solo: nessun rimborso
+        vm.prank(bob);
+        vault.claim(3, bob, 300e18, pb);
+        assertEq(address(vault).balance, vaultEth);
+        // il keeper spinge per alice: il gas torna a lui, dal vault
+        uint256 kBefore = keeper.balance;
+        vm.prank(keeper);
+        vault.claim(3, alice, 600e18, pa);
+        uint256 refund = keeper.balance - kBefore;
+        assertGt(refund, 0);
+        assertLe(refund, vault.MAX_GAS_REFUND());
+        assertEq(address(vault).balance, vaultEth - refund);
+        // a 1 gwei un claim costa fra 60k e 300k gas: il rimborso e' in quel range
+        assertGt(refund, 60_000 gwei); assertLt(refund, 300_000 gwei);
+    }
+
+    function test_no_refund_when_the_vault_has_no_eth() public {
+        // fee solo in NVDA: niente ETH nel vault
+        chipTok.mint(address(npm), 1000e18); nvda.mint(address(npm), 10e18);
+        bool chipIs0 = address(chipTok) < address(nvda);
+        npm.set(chipIs0 ? address(chipTok) : address(nvda), chipIs0 ? address(nvda) : address(chipTok), chipIs0 ? 1000e18 : 10e18, chipIs0 ? 10e18 : 1000e18);
+        vault.collect(1);
+        assertEq(address(vault).balance, 0);
+        string memory json = vm.readFile("test/fixtures/merkle.json");
+        address[] memory a = new address[](1); a[0] = address(nvda);
+        uint256[] memory m = new uint256[](1); m[0] = 1;
+        vm.startPrank(keeper);
+        for (uint256 i; i < 3; ++i) vault.publish(address(chipTok), bytes32(uint256(1)), 1, a, m, 7 days);
+        m[0] = 8e18 - 3;
+        vault.publish(address(chipTok), vm.parseJsonBytes32(json, ".root"), 1000e18, a, m, 7 days);
+        vm.txGasPrice(1 gwei);
+        uint256 kBefore = keeper.balance;
+        vault.claim(3, alice, 600e18, vm.parseJsonBytes32Array(json, ".leaves[0].proof"));
+        vm.stopPrank();
+        assertEq(keeper.balance, kBefore);           // niente da cui rimborsare: si paga lui, e va bene lo stesso
+        assertEq(nvda.balanceOf(alice), uint256(8e18 - 3) * 600e18 / 1000e18);
+    }
+
     function test_executor_named_by_factory_owner() public {
         vm.prank(alice);
         vm.expectRevert(ChipHoldersVault.NotFactoryOwner.selector);

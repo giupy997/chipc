@@ -291,6 +291,9 @@ holders receive without connecting). Leaf and selectors are the same as
 RH4StockVault (`claim` `0x2e7ba6ef`, `hasClaimed` `0x873f6f9e`, `epoch`
 `0x5487c577`, `epochCount` `0x829965cc`); `epoch(id)` returns the chip token
 address first, then the same fields. Snapshots live in `docs/holders/`.
+When the executor calls `claim` or `publish`, the vault refunds its gas from
+its own ETH (the 20% buyback share, `MAX_GAS_REFUND` 0.001 ETH per call, only
+while it has ETH): the fees pay for their own delivery.
 Expired epochs return the unclaimed part to the chip's pile. Keeper:
 `tools/holders.js` (`status`, `collect`, `snapshot`, `publish`, `push`,
 `expire`, `round`).

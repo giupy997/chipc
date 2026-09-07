@@ -156,7 +156,9 @@ async function main() {
 
   // ---- 3. ricomprare: minimo dallo spot v4 (extsload), letto qui ----
   async function buybackAll(vault) {
-    let bal = await pub.getBalance({ address: vault });
+    // il vault holders rimborsa al keeper il gas dei push dal suo ETH: gliene si lascia una scorta
+    const floor = cfg.holdersVault && vault.toLowerCase() === cfg.holdersVault.toLowerCase() ? 5n * 10n ** 15n : 0n;
+    let bal = await pub.getBalance({ address: vault }) - floor;
     if (bal < min) return;
     const key = encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint24" }, { type: "int24" }, { type: "address" }],
       ["0x0000000000000000000000000000000000000000", RH4, 0, 200, HOOK]);
@@ -169,7 +171,7 @@ async function main() {
       const minOut = spotOut * (10000n - slipBps) / 10000n;
       const ok = await send(`buyback ${vault.slice(0, 8)}: ${formatEther(amountIn)} ETH -> >= ${formatEther(minOut)} RH4`, vault, "buyback", [amountIn, minOut]);
       if (!ok || dryRun) break;
-      bal = await pub.getBalance({ address: vault });
+      bal = await pub.getBalance({ address: vault }) - floor;
     }
   }
 

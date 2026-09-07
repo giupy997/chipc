@@ -29,6 +29,11 @@ import {ISwapRouter02, IPoolManager, PoolKey, SwapParams, IWETH9, IOwned} from "
  * foglia e' quella del RH4StockVault: (id, account, balance). Cio' che
  * un'epoca scaduta non ha pagato torna nel mucchio del suo chip.
  *
+ * Il gas della consegna lo pagano le fee stesse: quando e' l'executor a
+ * chiamare claim() o publish(), il vault gli rimborsa il gas speso dal suo
+ * ETH (il 20% della quote), con un tetto per chiamata e solo se ne ha.
+ * Il keeper tiene una scorta iniziale e basta; il resto compra RH4.
+ *
  * Nessun owner, nessun prelievo. L'executor lo nomina l'owner della
  * fabbrica e puo' solo: pubblicare epoche (con importi presi dal mucchio
  * del chip giusto), chiuderle a scadenza, convertire la quota buyback e
@@ -40,6 +45,8 @@ contract ChipHoldersVault is ReentrancyGuard {
     uint256 public constant HOLDERS_BPS = 8000;
     uint256 public constant MIN_EPOCH_DURATION = 7 days;
     uint256 public constant MIN_SQRT_PRICE_PLUS_ONE = 4295128740;
+    uint256 public constant MAX_GAS_REFUND = 0.001 ether;   // tetto per chiamata: il gas qui costa ~1e-5 ETH
+    uint256 public constant REFUND_OVERHEAD = 35_000;       // il gas della transazione fuori dal corpo (base + calldata + il rimborso stesso)
 
     INPM public immutable npm;
     IChipFactoryLite public immutable factory;
@@ -74,6 +81,7 @@ contract ChipHoldersVault is ReentrancyGuard {
     event QuotePending(address indexed asset, uint256 amount, uint256 total);
     event EpochPublished(uint256 indexed id, address indexed token, bytes32 root, uint256 totalEligible, address[] assets, uint256[] amounts, uint64 expiresAt);
     event Claimed(uint256 indexed id, address indexed account, uint256 balance, address[] assets, uint256[] amounts);
+    event GasRefunded(address indexed executor, uint256 amount);
     event EpochExpired(uint256 indexed id, address[] assets, uint256[] returned);
     event Converted(address indexed asset, uint256 amountIn, uint256 ethOut);
     event Buyback(uint256 ethIn, uint256 rh4Out, address indexed by);
@@ -130,6 +138,7 @@ contract ChipHoldersVault is ReentrancyGuard {
     /// @notice Paga a `account` la sua quota di un'epoca. Lo puo' chiamare
     ///         chiunque: il keeper spinge, l'holder ritira, il risultato e' lo stesso.
     function claim(uint256 id, address account, uint256 balance, bytes32[] calldata proof) public nonReentrant {
+        uint256 gasStart = gasleft();
         if (id >= _epochs.length) revert BadEpoch();
         Epoch storage e = _epochs[id];
         if (e.expired) revert BadEpoch();
@@ -147,6 +156,7 @@ contract ChipHoldersVault is ReentrancyGuard {
             IERC20(e.assets[i]).safeTransfer(account, amt);
         }
         emit Claimed(id, account, balance, e.assets, out);
+        _refundGas(gasStart);
     }
 
     function claimMany(uint256[] calldata ids, address account, uint256[] calldata balances, bytes32[][] calldata proofs) external {
@@ -160,6 +170,7 @@ contract ChipHoldersVault is ReentrancyGuard {
     function publish(address token, bytes32 root, uint256 totalEligible, address[] calldata assets, uint256[] calldata amounts, uint64 duration)
         external onlyExecutor returns (uint256 id)
     {
+        uint256 gasStart = gasleft();
         if (root == bytes32(0) || totalEligible == 0 || assets.length == 0 || assets.length != amounts.length) revert BadEpoch();
         if (duration < MIN_EPOCH_DURATION) revert BadEpoch();
         id = _epochs.length;
@@ -174,6 +185,7 @@ contract ChipHoldersVault is ReentrancyGuard {
             e.amounts.push(amounts[i]);
         }
         emit EpochPublished(id, token, root, totalEligible, assets, amounts, e.expiresAt);
+        _refundGas(gasStart);
     }
 
     /// @notice Chiude un'epoca scaduta: il non ritirato torna nel mucchio del chip.
@@ -260,6 +272,17 @@ contract ChipHoldersVault is ReentrancyGuard {
     }
 
     // ---- interno -----------------------------------------------------------
+
+    /// @dev Se chiama l'executor, il gas della chiamata torna a lui dall'ETH del
+    ///      vault: le fee pagano la consegna. Con tetto, e solo se c'e' di che.
+    function _refundGas(uint256 gasStart) internal {
+        if (msg.sender != executor) return;
+        uint256 amount = (gasStart - gasleft() + REFUND_OVERHEAD) * tx.gasprice;
+        if (amount > MAX_GAS_REFUND) amount = MAX_GAS_REFUND;
+        if (amount == 0 || amount > address(this).balance) return;
+        (bool ok, ) = executor.call{value: amount}("");
+        if (ok) emit GasRefunded(executor, amount);
+    }
 
     /// @dev `token` e' il chip token della posizione; `asset` cio' che e' arrivato.
     function _route(address token, address asset, uint256 amount) internal {

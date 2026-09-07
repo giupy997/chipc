@@ -26,6 +26,8 @@
  *
  * Chi puo' fare cosa: collect e claim sono di tutti; publish ed expire solo
  * dell'executor, quindi la chiave qui deve essere quella nominata nel vault.
+ * Il gas di publish e dei push torna al keeper dal vault (dal 20% buyback),
+ * finche' il vault ha ETH: il keeper anticipa e basta.
  * La conversione del 20% buyback (convert/buyback) la fa tools/sweep.js,
  * che conosce anche questo vault.
  */
@@ -310,6 +312,7 @@ async function main() {
       }
     }
     console.log(`\n  push epoca ${id}: spediti ${sent}, riusciti ${ok}, falliti ${failed}, gia' pagati ${skippedDone}, pool saltati ${skippedPool}`);
+    if (!dryRun) console.log(`  keeper ${formatEther(await pub.getBalance({ address: account.address }))} ETH · vault ${formatEther(await pub.getBalance({ address: vault }))} ETH (il gas dei push torna qui dentro dal vault)`);
   }
 
   async function expire() {
