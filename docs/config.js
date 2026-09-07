@@ -69,7 +69,7 @@ window.RH4_CONFIG = {
   // RH4StockVault: le fee della madre che diventano azioni per gli holder.
   // stockVault vuoto = sezione nascosta nel profilo. I pesi (bps) guidano il
   // keeper (tools/dividend.js) nel dividere l'ETH fra le azioni attive.
-  stockVault: "",
+  stockVault: "0x6A3DF83dbC7A6d4879B8bA68B295f022be5594b7",   // deploy 7 set 2026, owner rh4-dev2, executor keeper
   stockVaultWeights: {
     "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC": 5000,   // NVDA
     "0xB90A19fF0Af67f7779afF50A882A9CfF42446400": 5000,   // SNDK
