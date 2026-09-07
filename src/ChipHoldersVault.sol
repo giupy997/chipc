@@ -9,6 +9,12 @@ import {INPM} from "./ChipFeeVault.sol";
 import {IChipFactoryLite} from "./ChipCreatorVault.sol";
 import {ISwapRouter02, IPoolManager, PoolKey, SwapParams, IWETH9, IOwned} from "./ChipBuybackVault.sol";
 
+/// Un ChipToken vero sa da dove viene.
+interface IChipTokenLite {
+    function factory() external view returns (address);
+    function chipId() external view returns (uint256);
+}
+
 /**
  * @title ChipHoldersVault — le fee che tornano a chi tiene il token
  *
@@ -33,6 +39,12 @@ import {ISwapRouter02, IPoolManager, PoolKey, SwapParams, IWETH9, IOwned} from "
  * chiamare claim() o publish(), il vault gli rimborsa il gas speso dal suo
  * ETH (il 20% della quote), con un tetto per chiamata e solo se ne ha.
  * Il keeper tiene una scorta iniziale e basta; il resto compra RH4.
+ *
+ * Il chip token di una posizione NON e' "quello che la fabbrica dice": la
+ * fabbrica lascia agganciare a un chip un ERC20 qualsiasi (attachToken), e
+ * il 7 set 2026 un chip si e' preso NVDA. Qui un token e' un chip token solo
+ * se e' nato dalla fabbrica: factory() e chipId() devono rispondere giusto.
+ * Cosi' un'azione resta un'azione e non finisce mai nella riserva.
  *
  * Nessun owner, nessun prelievo. L'executor lo nomina l'owner della
  * fabbrica e puo' solo: pubblicare epoche (con importi presi dal mucchio
@@ -121,9 +133,9 @@ contract ChipHoldersVault is ReentrancyGuard {
     ///         del chip, 20% riserva (token) o buyback (quote). Niente swap.
     function collect(uint256 tokenId) external returns (uint256 amount0, uint256 amount1) {
         (, , address token0, address token1, , , , , , , , ) = npm.positions(tokenId);
-        uint256 chipId = factory.chipByToken(token0);
+        uint256 chipId = chipOf(token0);
         address token = token0;
-        if (chipId == 0) { chipId = factory.chipByToken(token1); token = token1; }
+        if (chipId == 0) { chipId = chipOf(token1); token = token1; }
         if (chipId == 0) revert NotAChipPosition();
 
         (amount0, amount1) = npm.collect(INPM.CollectParams({
@@ -258,6 +270,15 @@ contract ChipHoldersVault is ReentrancyGuard {
 
     function epochCount() external view returns (uint256) { return _epochs.length; }
 
+    /// @notice L'id del chip di `token`, ma solo se il token e' nato dalla
+    ///         fabbrica: la mappa della fabbrica da sola non basta.
+    function chipOf(address token) public view returns (uint256 id) {
+        id = factory.chipByToken(token);
+        if (id == 0) return 0;
+        try IChipTokenLite(token).factory() returns (address f) { if (f != address(factory)) return 0; } catch { return 0; }
+        try IChipTokenLite(token).chipId() returns (uint256 c) { if (c != id) return 0; } catch { return 0; }
+    }
+
     function epoch(uint256 id) external view returns (
         address token, bytes32 root, uint256 totalEligible, uint64 publishedAt, uint64 expiresAt,
         address[] memory assets, uint256[] memory amounts, uint256[] memory claimed, bool expired
@@ -295,7 +316,7 @@ contract ChipHoldersVault is ReentrancyGuard {
         amount -= share;
         if (amount == 0) return;
         if (asset == token) {
-            IERC20(asset).safeTransfer(address(factory), amount);   // riserva di mining
+            IERC20(asset).safeTransfer(address(factory), amount);   // riserva di mining (solo un vero chip token arriva qui)
         } else if (asset == weth) {
             IWETH9(weth).withdraw(amount);                           // pronto per il buyback
         } else {

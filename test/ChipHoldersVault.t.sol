@@ -15,6 +15,12 @@ contract Tok is ERC20 {
     function mint(address to, uint256 a) external { _mint(to, a); }
 }
 
+/// Un ChipToken finto: sa da quale fabbrica viene e per quale chip.
+contract ChipTok is Tok {
+    address public factory; uint256 public chipId;
+    constructor(address f, uint256 id) Tok("CHIP") { factory = f; chipId = id; }
+}
+
 contract MockWETH is ERC20 {
     constructor() ERC20("WETH", "WETH") {}
     function deposit() external payable { _mint(msg.sender, msg.value); }
@@ -44,14 +50,15 @@ contract MockFactory {
 }
 
 contract ChipHoldersVaultTest is Test {
-    ChipHoldersVault vault; MockNPM npm; MockWETH weth; Tok chipTok; Tok nvda; Tok rh4; MockFactory factory;
+    ChipHoldersVault vault; MockNPM npm; MockWETH weth; ChipTok chipTok; Tok nvda; Tok rh4; MockFactory factory;
     address keeper = makeAddr("keeper");
     address alice = 0x1111111111111111111111111111111111111111;   // nella fixture merkle: 600
     address bob = 0x2222222222222222222222222222222222222222;     // 300
 
     function setUp() public {
-        weth = new MockWETH(); chipTok = new Tok("CHIP"); nvda = new Tok("NVDA"); rh4 = new Tok("RH4"); npm = new MockNPM();
+        weth = new MockWETH(); nvda = new Tok("NVDA"); rh4 = new Tok("RH4"); npm = new MockNPM();
         factory = new MockFactory(address(this));
+        chipTok = new ChipTok(address(factory), 7);
         factory.setChip(address(chipTok), 7);
         vault = new ChipHoldersVault(INPM(address(npm)), IChipFactoryLite(address(factory)), address(rh4), address(weth),
             ISwapRouter02(address(0)), IPoolManager(address(0)), address(0), keeper);
@@ -91,6 +98,32 @@ contract ChipHoldersVaultTest is Test {
         npm.set(address(nvda), address(weth), 0, 0);
         vm.expectRevert(ChipHoldersVault.NotAChipPosition.selector);
         vault.collect(1);
+    }
+
+    /// Il caso del 7 settembre: NVDA agganciata a un chip via attachToken. La
+    /// fabbrica la mappa a un chip, ma NVDA non risponde a factory(): per il
+    /// vault resta una quota, e non va mai in riserva.
+    function test_attached_stock_is_not_a_chip_token() public {
+        factory.setChip(address(nvda), 28);
+        assertEq(vault.chipOf(address(nvda)), 0);
+        assertEq(vault.chipOf(address(chipTok)), 7);
+        // posizione chipTok/NVDA: il chip e' chipTok, NVDA e' la quota -> 20% in pending, zero alla fabbrica
+        chipTok.mint(address(npm), 100e18); nvda.mint(address(npm), 10e18);
+        bool chipIs0 = address(chipTok) < address(nvda);
+        npm.set(chipIs0 ? address(chipTok) : address(nvda), chipIs0 ? address(nvda) : address(chipTok), chipIs0 ? 100e18 : 10e18, chipIs0 ? 10e18 : 100e18);
+        vault.collect(1);
+        assertEq(vault.undistributed(address(chipTok), address(nvda)), 8e18);
+        assertEq(vault.pending(address(nvda)), 2e18);
+        assertEq(nvda.balanceOf(address(factory)), 0);
+        assertEq(chipTok.balanceOf(address(factory)), 20e18);
+        // una posizione NVDA/WETH resta estranea anche se la fabbrica "conosce" NVDA
+        npm.set(address(nvda), address(weth), 0, 0);
+        vm.expectRevert(ChipHoldersVault.NotAChipPosition.selector);
+        vault.collect(2);
+        // e un token che dice di venire dalla fabbrica ma per un altro chip non passa
+        ChipTok liar = new ChipTok(address(factory), 99);
+        factory.setChip(address(liar), 5);
+        assertEq(vault.chipOf(address(liar)), 0);
     }
 
     // ---- epoche: publish, claim, expire ---------------------------------------------
