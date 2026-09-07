@@ -57,6 +57,10 @@ window.RH4_CONFIG = {
     { sym: "QUBT", name: "Quantum Computing", address: "0x59818904ab4cE163b3cE4FfB64f2D6Ca02c434B4" }, // pool WETH 13 ETH, fee 1% — live 6 set 2026
     { sym: "SPCX", name: "SpaceX", address: "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa" },   // pool WETH 91 ETH, fee 0.05% — live 6 set 2026
     { sym: "TSLA", name: "Tesla", address: "0x322F0929c4625eD5bAd873c95208D54E1c003b2d" },    // pool WETH 66 ETH, fee 0.3% — live 6 set 2026
+    { sym: "SPY", name: "S&P 500 ETF", address: "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C" },   // pool WETH 182 ETH, fee 0.05% — live 7 set 2026
+    { sym: "MSTR", name: "Strategy", address: "0xec262a75e413fAfD0dF80480274532C79D42da09" },    // pool WETH 176 ETH, fee 1% — live 7 set 2026
+    { sym: "COIN", name: "Coinbase", address: "0x6330D8C3178a418788dF01a47479c0ce7CCF450b" },    // pool WETH 71 ETH, fee 0.3% — live 7 set 2026
+    { sym: "RDDT", name: "Reddit", address: "0x05b37Fb53A299a1b874A619e1c4C404D52C36F4C" },      // pool WETH 179 ETH, fee 1% — live 7 set 2026
     // USDG ha 6 decimali (le azioni e WETH 18): `decimals` guida prezzi, tick e soglie.
     { sym: "USDG", name: "Global Dollar", address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", decimals: 6 }, // pool WETH 5,600 ETH, fee 0.01% — live 6 set 2026
   ],
@@ -72,12 +76,8 @@ window.RH4_CONFIG = {
   stockVault: "0x6A3DF83dbC7A6d4879B8bA68B295f022be5594b7",   // deploy 7 set 2026, owner rh4-dev2, executor keeper
   // (solo le azioni attive nel vault contano; i pesi si rinormalizzano fra loro)
   stockVaultWeights: {
-    "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC": 3000,   // NVDA
-    "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9": 2000,   // AAPL
-    "0xB90A19fF0Af67f7779afF50A882A9CfF42446400": 1500,   // SNDK
-    "0x322F0929c4625eD5bAd873c95208D54E1c003b2d": 1500,   // TSLA
-    "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD": 1000,   // MU
-    "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA": 1000,   // TSM
+    "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC": 5000,   // NVDA
+    "0xB90A19fF0Af67f7779afF50A882A9CfF42446400": 5000,   // SNDK
   },
   dividendsPath: "dividends",
 
