@@ -81,6 +81,13 @@ window.RH4_CONFIG = {
   },
   dividendsPath: "dividends",
 
+  // Il launchpad a curva (src/curve: RH4Curve + CurveFeeVault). Contratti
+  // scritti e testati, NON deployati. La pagina curve.html non ha link da
+  // nessuna parte: con `enabled: false` mostra solo una porta chiusa, e con
+  // `?preview` nell'URL la pagina in sola lettura (con `address` legge i
+  // lanci veri). Per accendere: deploy, indirizzi qui, enabled: true.
+  curve: { address: "", vault: "", enabled: false },
+
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
   launchpadOpen: true,
