@@ -123,6 +123,17 @@
     if (state.token !== ZERO) {
       $("#cp-token-link").href = `${CFG().explorer}/token/${state.token}`;
       $("#cp-token-link").hidden = false;
+      // verificato su Blockscout? se no, un bottone lo fa dal browser
+      if (window.RH4_VERIFY) window.RH4_VERIFY.isVerified(state.token).then((v) => {
+        const b = $("#cp-verify");
+        if (!b || v !== false) return;
+        b.hidden = false;
+        b.addEventListener("click", async () => {
+          b.disabled = true; b.textContent = "VERIFYING…";
+          try { const r = await window.RH4_VERIFY.verifyChip(id); b.textContent = r === "ok" || r === "already" ? "VERIFIED ✓" : "RETRY"; if (r !== "ok" && r !== "already") { b.title = r; b.disabled = false; } }
+          catch (e) { b.textContent = "RETRY"; b.title = e.message; b.disabled = false; }
+        });
+      });
       $("#cp-ca").hidden = false;
       $("#cp-ca-addr").textContent = state.token;
       $("#cp-ca-copy").onclick = async () => {

@@ -640,6 +640,8 @@
           try { const emiHex = await rpc("eth_call", [{ to: CFG().factory, data: S_EMISSION + word(id) }, "latest"]); tokenAddr = "0x" + emiHex.slice(2 + 24, 2 + 64); } catch (_) {}
         }
         showMinted({ id, name, ticker, token: tokenAddr, pairKey: pair, hasLinks: Boolean(CFG().socials && (lx || lweb || ltg)), links: { x: lx, web: lweb, tg: ltg } });
+        // il sorgente del token su Blockscout: lo presentiamo noi, in silenzio
+        if (window.RH4_VERIFY) setTimeout(() => window.RH4_VERIFY.verifyChip(id).then((r) => console.log("verify:", r)).catch((e) => console.log("verify:", e.message)), 4000);
       }
 
       // i link, se ne ha messi: una seconda firma, incisa accanto al chip
