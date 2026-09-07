@@ -60,7 +60,7 @@ async function main() {
   const outDir = args.out || path.join(__dirname, "..", "docs", "dividends");
   const cfg = siteConfig();
   const exclude = new Set([
-    ...SYSTEM, cfg.feeVault, cfg.creatorVault, cfg.holdersVault, ...(cfg.legacyVaults || []), cfg.stockVault, cfg.curve && cfg.curve.address, cfg.curve && cfg.curve.vault,
+    ...SYSTEM, cfg.feeVault, cfg.creatorVault, cfg.holdersVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []), cfg.stockVault, cfg.curve && cfg.curve.address, cfg.curve && cfg.curve.vault,
     ...String(args.exclude || "").split(",").filter(Boolean),
   ].filter(Boolean).map((a) => a.toLowerCase()));
 

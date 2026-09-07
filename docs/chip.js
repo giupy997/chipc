@@ -711,7 +711,8 @@
    *  spazzare le fee nella riserva: il bottone e' un servizio pubblico. */
   async function detectVaulted() {
     const list = [[CFG().creatorVault, "CREATOR 50/50"], [CFG().holdersVault, "HOLDERS 80/20"], [CFG().feeVault, "VAULTED"]];
-    for (const v of CFG().legacyVaults || []) list.push([v, "VAULTED"]);
+    for (const v of CFG().creatorVaultsLegacy || []) list.push([v, "CREATOR 50/50"]);
+    for (const v of [...(CFG().feeVaultsLegacy || []), ...(CFG().legacyVaults || [])]) list.push([v, "VAULTED"]);
     for (const [vault, label] of list) {
       if (vault && await _detectIn(vault, label)) return;
     }

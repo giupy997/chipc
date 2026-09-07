@@ -23,8 +23,14 @@ window.RH4_CONFIG = {
   // I vault buyback v2: collect() di tutti (accredita, riserva, parcheggia),
   // convert()/buyback() solo dell'executor con minOut deciso fuori chain.
   // I v1 buyback (0xAbc4…, 0xc126…) sono ritirati: vuoti, mai usati.
-  feeVault: "0x2F9D010BE1D2b8F304Bb1c0a02fe9277Fcdb3896",       // 100% riserva + buyback RH4
-  creatorVault: "0x48B8CdbF29d65981F9dFbc4176A868AcE28c30Aa",   // 50/50 (claim) + buyback RH4
+  // v3 (7 set 2026): un chip token e' solo un token nato dalla fabbrica
+  // (factory()/chipId()), non "quello che la fabbrica mappa": attachToken
+  // lascia agganciare a un chip qualsiasi ERC20, e il v2 si fidava.
+  feeVault: "0xEE42d4708A0Faec9f896C9283001dCb1e4C15CAC",       // 100% riserva + buyback RH4
+  creatorVault: "0x99cbC09CF1221237565Edc3EE77f11D9D1Ba3c7A",   // 50/50 (claim) + buyback RH4
+  // i v2, con le loro posizioni: si riscuotono, si convertono e pagano i creator come prima
+  creatorVaultsLegacy: ["0x48B8CdbF29d65981F9dFbc4176A868AcE28c30Aa"],   // 50/50 v2
+  feeVaultsLegacy: ["0x2F9D010BE1D2b8F304Bb1c0a02fe9277Fcdb3896"],       // 100% v2
   legacyVaults: [
     "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",   // 50/50 prima generazione
     "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",   // 100% riserva prima generazione
@@ -73,7 +79,7 @@ window.RH4_CONFIG = {
   // Chip nascosti dal sito. Il 28 ("poison") ha agganciato NVDA come suo token
   // via attachToken (7 set 2026): la factory ha azzerato la sua ricompensa,
   // ma il chip resta e mostrerebbe il mcap di NVDA. Non e' un chip token.
-  hiddenChips: [28],
+  hiddenChips: [28, 31],   // 31 = LOCKWETH, il chip-guardia del team che tiene occupato lo slot di WETH
 
   // RH4StockVault: le fee della madre che diventano azioni per gli holder.
   // stockVault vuoto = sezione nascosta nel profilo. I pesi (bps) guidano il

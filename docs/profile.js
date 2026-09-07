@@ -171,7 +171,7 @@
 
   /** le posizioni LP dei miei chip nei vault: fee in attesa di sweep */
   async function loadPending(mine) {
-    const vaults = [CFG().creatorVault, CFG().feeVault, ...(CFG().legacyVaults || [])].filter(Boolean);
+    const vaults = [CFG().creatorVault, CFG().feeVault, ...(CFG().creatorVaultsLegacy || []), ...(CFG().feeVaultsLegacy || []), ...(CFG().legacyVaults || [])].filter(Boolean);
     const byToken = new Map(mine.filter((c) => c.token !== ZERO).map((c) => [c.token.toLowerCase(), c]));
     const found = new Map(); // chipId -> {vault, tokenId, t0, t1}
     for (const vault of vaults) {
@@ -228,7 +228,8 @@
   async function loadFees(mine) {
     const host = $("#fees");
     host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
-    const vaults = [[CFG().creatorVault, "50/50"], [CFG().feeVault, "100%"]].filter((v) => v[0]);
+    const vaults = [[CFG().creatorVault, "50/50"], [CFG().feeVault, "100%"],
+      ...(CFG().creatorVaultsLegacy || []).map((v) => [v, "50/50"]), ...(CFG().feeVaultsLegacy || []).map((v) => [v, "100%"])].filter((v) => v[0]);
     const tokens = [...new Set([...mine.map((c) => c.token).filter((t) => t !== ZERO), ...QUOTE_ADDRS()])];
     const reqs = [];
     for (const [vault] of vaults) for (const t of tokens) reqs.push(ecall(vault, S_CLAIMABLE + addrWord(state.me) + addrWord(t)));

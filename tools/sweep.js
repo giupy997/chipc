@@ -79,7 +79,8 @@ async function main() {
 
   const cfg = siteConfig();
   if (Array.isArray(cfg.quotes) && cfg.quotes.length) QUOTES = cfg.quotes.map((q) => ({ address: q.address, decimals: q.decimals || 18 }));
-  const buybackVaults = [cfg.creatorVault, cfg.feeVault, cfg.holdersVault].filter(Boolean);   // il vault holders ha lo stesso convert/buyback per la sua quota 20%
+  // tutti i vault con convert/buyback: i v3, il vault holders (per la sua quota 20%) e i v2 con le loro posizioni
+  const buybackVaults = [cfg.creatorVault, cfg.feeVault, cfg.holdersVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || [])].filter(Boolean);
   const legacyVaults = cfg.legacyVaults || [];
 
   const chain = chainFor(rpc);
