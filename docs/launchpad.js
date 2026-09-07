@@ -376,7 +376,54 @@
     } catch (_) {}
   }
 
+  // ---- SIMPLE / ADVANCED: stessi contratti, meno campi ---------------------
+  // In SIMPLE si vedono nome, ticker, logo e pair; il resto e' fisso sul team
+  // pick (50% liquidita', 12H, echo). ADVANCED mostra tutto.
+  const SIMPLE = { liq: 5000, span: 43200, prog: "echo" };
+  let mode = "simple";
+  function setMode(m) {
+    mode = m;
+    const form = document.querySelector(".mintform");
+    if (form) form.classList.toggle("is-simple", m === "simple");
+    document.querySelectorAll("#f-mode [data-mode]").forEach((b) => b.classList.toggle("is-on", b.dataset.mode === m));
+    if (m === "simple") {
+      liqBps = SIMPLE.liq; spanSeconds = SIMPLE.span; mintProg = SIMPLE.prog;
+      document.querySelectorAll("[data-liq]").forEach((x) => x.classList.toggle("is-on", Number(x.dataset.liq) === SIMPLE.liq));
+      document.querySelectorAll("[data-span]").forEach((x) => x.classList.toggle("is-on", Number(x.dataset.span) === SIMPLE.span));
+      document.querySelectorAll("[data-mintprog]").forEach((x) => x.classList.toggle("is-on", x.dataset.mintprog === SIMPLE.prog));
+      const c = $("#f-liq-custom"); if (c) { c.value = ""; c.parentElement.classList.remove("is-on", "is-bad"); }
+    }
+    try { localStorage.setItem("rh4_lp_mode", m); } catch (_) {}
+    drawEmission();
+  }
+
+  // ETH in dollari dal pool USDG/WETH (fee 0.01%), per parlare di market cap in $
+  let ethUsdCache = null;
+  async function ethUsd() {
+    if (ethUsdCache) return ethUsdCache;
+    try {
+      const s0 = await rpc("eth_call", [{ to: "0x52e65b17fb6e5ba00ed806f37afcd2daa50271ca", data: S_SLOT0 }, "latest"]);
+      const sq = Number(BigInt("0x" + s0.slice(2, 66))) ** 2 / 2 ** 192;
+      const usdgIs0 = "0x5fc5360d0400a0fd4f2af552add042d716f1d168" < UNI.WETH.toLowerCase();
+      ethUsdCache = 1 / ((usdgIs0 ? sq : 1 / sq) / 1e12);
+    } catch (_) { ethUsdCache = null; }
+    return ethUsdCache;
+  }
+
+  async function drawSimpleNote() {
+    const el = $("#f-simple-be");
+    if (!el || mode !== "simple") return;
+    if (!gasGwei) { el.textContent = "Mining pays for itself once the token is worth more than the gas of a tick."; return; }
+    const SUPPLY = 1e9, perCycle = SUPPLY * (1 - SIMPLE.liq / 10000) / (SIMPLE.span * 10);
+    const beEth = GAS_PER_TICK * gasGwei * 1e-9 * SUPPLY / perCycle;
+    const usd = await ethUsd();
+    el.innerHTML = usd
+      ? `Mining pays for itself above a market cap of about <b>$${Math.round(beEth * usd / 1000) * 1000 >= 1000 ? (Math.round(beEth * usd / 1000)).toLocaleString("en-US") + "K" : Math.round(beEth * usd)}</b> (${beEth.toFixed(0)} ETH) at today&rsquo;s gas; below that, every tick is sponsorship.`
+      : `Mining pays for itself above a market cap of about <b>${beEth.toFixed(0)} ETH</b> at today&rsquo;s gas; below that, every tick is sponsorship.`;
+  }
+
   function drawEmission() {
+    drawSimpleNote().catch(() => {});
     const host = $("#f-emission");
     if (!host) return;
     const SUPPLY = 1e9;
@@ -801,6 +848,10 @@
   // ------------------------------------------------------------------ init
 
   function init() {
+    document.querySelectorAll("#f-mode [data-mode]").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); setMode(b.dataset.mode); }));
+    let savedMode = "simple";
+    try { savedMode = localStorage.getItem("rh4_lp_mode") || "simple"; } catch (_) {}
+    setMode(savedMode === "advanced" ? "advanced" : "simple");
     wireChips("[data-liq]", (b) => {
       liqBps = Number(b.dataset.liq);
       const c = $("#f-liq-custom");

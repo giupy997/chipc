@@ -43,6 +43,12 @@
   .gchip .tick { font-size: 17px; font-weight: 700; letter-spacing: 0.06em; color: #fff; display: inline-flex; align-items: center; gap: 10px; }
   .gchip .mcap { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--mint);
     border: 1px solid var(--panel-line); padding: 3px 7px; }
+  .mode-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .chips.mode .chip { font-size: 9.5px; padding: 6px 10px; }
+  .mintform.is-simple .adv { display: none !important; }
+  .mintform:not(.is-simple) .simple-only { display: none !important; }
+  .simple-note { border: var(--rule); background: rgba(143, 232, 176, 0.14); padding: 14px 16px; font-size: 14px; line-height: 1.55; }
+  .simple-note b { font-family: var(--mono); }
   .gchip.is-capped { opacity: .5; }
   .gchip.is-capped:hover { opacity: 1; }
   .captag { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; color: #e08b8b; border: 1px solid #6a3a3a; padding: 3px 6px; margin-left: 6px; }
@@ -141,8 +147,14 @@
 
   <div class="lp-grid">
 
-    <div class="card card-pad mintform">
-      <span class="ck"><i class="sq"></i> DESIGN YOUR CHIP</span>
+    <div class="card card-pad mintform is-simple">
+      <div class="mode-row">
+        <span class="ck"><i class="sq"></i> DESIGN YOUR CHIP</span>
+        <div class="chips mode" id="f-mode" title="simple: name, ticker, logo, pair — the rest is set to the team pick">
+          <button class="chip is-on" data-mode="simple">SIMPLE</button>
+          <button class="chip" data-mode="advanced">ADVANCED</button>
+        </div>
+      </div>
 
       <label class="field">
         <span class="field-k">NAME</span>
@@ -165,7 +177,7 @@
         <span class="field-note" id="f-logo-note">optional &mdash; without one the NFT shows the live card</span>
       </div>
 
-      <div class="field">
+      <div class="field adv">
         <span class="field-k">LINKS</span>
         <div class="links-grid">
           <input id="f-x" type="url" placeholder="https://x.com/yourchip" autocomplete="off" spellcheck="false">
@@ -177,7 +189,7 @@
       </div>
 
       <div class="field-split">
-        <label class="field">
+        <label class="field adv">
           <span class="field-k">PROGRAM</span>
           <div class="chips">
             <button class="chip is-on" data-mintprog="echo">ECHO</button>
@@ -195,7 +207,7 @@
         </label>
       </div>
 
-      <div class="field-split">
+      <div class="field-split adv">
         <label class="field">
           <span class="field-k">TO LIQUIDITY</span>
           <span class="field-tip">team pick: <b>50% liquidity</b> with a <b>12H emission</b> — deepest market, mining that pays soonest</span>
@@ -222,8 +234,14 @@
         </label>
       </div>
 
-      <div class="emission" id="f-emission"></div>
-      <p class="field-note">Want your chip to pay miners more? Keep <strong>TO
+      <div class="emission adv" id="f-emission"></div>
+      <div class="simple-note simple-only" id="f-simple">
+        <b>50%</b> of your token trades from day one, in a market nobody can ever pull.
+        The other <b>50%</b> is mined out by whoever keeps your chip running, over a 12-hour
+        clock. <span id="f-simple-be">Mining pays for itself above a market cap of about &hellip;</span>
+        Fees on every trade: half to you, half buys back RH4.
+      </div>
+      <p class="field-note adv">Want your chip to pay miners more? Keep <strong>TO
       LIQUIDITY</strong> low and the <strong>emission short</strong>: the reserve
       is what&rsquo;s left after your slice, split across fewer cycles &mdash; both
       levers raise the per-cycle reward, and lower the market cap where mining
@@ -233,7 +251,7 @@
 
       <button class="btn btn-dark btn-block" id="f-mint" disabled>MINTING INCOMING</button>
       <p class="field-note" id="f-mint-note" hidden></p>
-      <p class="field-note">Two steps, both yours to sign: the mint launches chip and
+      <p class="field-note adv">Two steps, both yours to sign: the mint launches chip and
       token; then <strong>open the market</strong> &mdash; a single-sided range order
       whose LP position is <strong>sealed at birth</strong>: nobody, you included, can
       ever pull the liquidity out. By default the 1% trading fees split
