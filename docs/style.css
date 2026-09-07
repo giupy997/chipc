@@ -951,6 +951,8 @@ main { max-width: var(--maxw); margin: 0 auto; }
 }
 
 .field-note { font-size: 11.5px; color: var(--dim); line-height: 1.45; }
+.field-tip { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; color: var(--mint-deep); margin: -2px 0 4px; }
+.field-tip b { font-weight: 700; }
 .field-note.is-bad { color: #b4432b; }
 
 .btn-block { width: 100%; }

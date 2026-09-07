@@ -382,6 +382,11 @@
       // aprire il mercato con quello che hanno estratto
       const balance = BigInt(await call(state.token, S_BAL + addrWord(account)));
       if (balance === 0n) throw new Error("this wallet holds none of this token — mine a few cycles first");
+      // Un mercato aperto con le briciole e' una trappola: 64 token in range e la
+      // prima compra manda la FDV a miliardi, la seconda non riceve nulla. Minimo
+      // l'1% della supply (10M token) prima di aprire.
+      const MIN_OPEN = 10_000_000n * 10n ** 18n;
+      if (balance < MIN_OPEN) throw new Error(`too thin to open a market: this wallet holds ${(Number(balance) / 1e18).toLocaleString("en-US", { maximumFractionDigits: 0 })} tokens, at least 10,000,000 (1% of supply) are needed — mine more or gather them first`);
 
       const qd = quoteByKey(pairKey);
       if (!qd) throw new Error(`unknown pair "${pairKey}"`);

@@ -683,6 +683,7 @@
 
       const balance = BigInt(await rpc("eth_call", [{ to: token, data: S_BAL + addrWord(account) }, "latest"]));
       if (balance === 0n) throw new Error("no liquidity slice in this wallet");
+      if (balance < 10_000_000n * 10n ** 18n) throw new Error("too thin to open a market: at least 10,000,000 tokens (1% of supply) are needed");
 
       const qd = quoteByKey(pairKey);
       if (!qd) throw new Error(`unknown pair "${pairKey}"`);
@@ -805,7 +806,7 @@
       const c = $("#f-liq-custom");
       if (c) { c.value = ""; c.parentElement.classList.remove("is-on", "is-bad"); }
       const n = $("#f-liq-note");
-      if (n) { n.textContent = "or type any share, 0–60%"; n.classList.remove("is-bad"); }
+      if (n) { n.textContent = "or type any share, 20–60%"; n.classList.remove("is-bad"); }
     });
     // la quota a mano: da 0 a 60% (il tetto della fabbrica), al centesimo
     const liqCustom = $("#f-liq-custom");
@@ -814,10 +815,10 @@
       liqCustom.addEventListener("input", () => {
         const raw = liqCustom.value.trim().replace(",", ".");
         const v = Number(raw);
-        const ok = raw !== "" && Number.isFinite(v) && v >= 0 && v <= 60;
+        const ok = raw !== "" && Number.isFinite(v) && v >= 20 && v <= 60;
         liqCustom.parentElement.classList.toggle("is-on", ok);
         liqCustom.parentElement.classList.toggle("is-bad", raw !== "" && !ok);
-        if (note) { note.textContent = raw !== "" && !ok ? "between 0% and 60% — the factory caps liquidity at 60%" : "or type any share, 0–60%"; note.classList.toggle("is-bad", raw !== "" && !ok); }
+        if (note) { note.textContent = raw !== "" && !ok ? "between 20% and 60% — below 20% the market is too thin, above 60% the factory says no" : "or type any share, 20–60%"; note.classList.toggle("is-bad", raw !== "" && !ok); }
         if (!ok) return;
         liqBps = Math.round(v * 100);
         document.querySelectorAll("[data-liq]").forEach((x) => x.classList.remove("is-on"));
