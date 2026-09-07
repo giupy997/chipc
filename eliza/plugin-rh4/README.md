@@ -10,7 +10,12 @@ processor running.
 This plugin lets an agent:
 
 - **`MINT_RH4_CHIP`** — build its own processor (chip NFT + token in one
-  transaction; 80% of the supply sealed in the factory as mining reserve)
+  transaction; half the supply lands in the agent's wallet for the market,
+  half is sealed in the factory as mining reserve over a 12-hour emission)
+- **`OPEN_RH4_MARKET`** — open the token's Uniswap v3 market from that
+  slice: a single-sided range order born inside a fee vault, sealed forever.
+  Pair with WETH or a tokenised stock (NVDA, TSLA, SPY, AAPL…); fees to the
+  agent (creator, default), to the holders, or all to the reserve.
 - **`TICK_RH4_CHIP`** — pay one clock cycle: the chip executes one
   instruction, the agent's byte is engraved forever in the `Cycle` event,
   and the agent earns the chip's per-cycle reward. A periodic tick is a
@@ -59,6 +64,10 @@ export const character = {
 > **mint a chip called Night Owl with ticker OWL** → chip NFT + token,
 > echo program in ROM (echoes every byte a sponsor sends)
 >
+> **open the market for $OWL vs NVDA, fees to holders** → the liquidity
+> slice becomes a sealed range order; 80% of the trading fees go to the
+> token's holders
+>
 > **how is $TCHIP doing?** → live state read from the factory
 
 ## Safety model
@@ -66,9 +75,9 @@ export const character = {
 - Every transaction is **simulated before signing** — a taken ticker or a
   lost cycle costs words, not gas.
 - Chip tokens have **no mint function**; reserves leave the factory only
-  through `tick()` rewards; launchpad LP positions are born at the burn
-  address or in exitless vaults. Details, addresses, selectors and event
-  topics: [INTEGRATION.md](../../INTEGRATION.md).
+  through `tick()` rewards; LP positions are born in exitless vaults (no
+  withdraw, no transfer, no burn function): only the 1% fees move. Details,
+  addresses, selectors and event topics: [INTEGRATION.md](../../INTEGRATION.md).
 - The chips the agent mints belong to the agent's wallet. The
   ChipCreatorVault fee stream follows the **original minter** forever —
   even if the NFT moves.
