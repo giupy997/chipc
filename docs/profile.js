@@ -290,7 +290,7 @@
     let idx;
     try { idx = await fetch(`${base}/index.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { idx = { epochs: [] }; }
     const me = state.me.toLowerCase();
-    let rows = 0, claimableRows = 0;
+    let rows = 0, claimableRows = 0, unread = 0;
     for (const e of idx.epochs) {
       let snap;
       try { snap = await fetch(`${base}/epoch-${e.epoch}.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { continue; }
@@ -298,8 +298,12 @@
       if (!mine) continue;
       const [, entry] = mine;
       // stato on-chain dell'epoca: token, quantita', scadenza, chiuso; e se ho gia' ritirato
-      const [epHex, doneHex] = await rpcBatch([ecall(vault, S_DIV_EPOCH + word(e.epoch)), ecall(vault, S_DIV_HASCLAIMED + word(e.epoch) + addrWord(state.me))]);
-      if (!epHex) continue;
+      let epHex = null, doneHex = null;
+      for (let k = 0; k < 3 && !epHex; k++) {   // il nodo pubblico sbuffa: si riprova prima di arrendersi
+        [epHex, doneHex] = await rpcBatch([ecall(vault, S_DIV_EPOCH + word(e.epoch)), ecall(vault, S_DIV_HASCLAIMED + word(e.epoch) + addrWord(state.me))]);
+        if (!epHex) await sleep(800 * (k + 1));
+      }
+      if (!epHex) { unread++; continue; }
       const ep = decodeEpoch(epHex);
       const done = doneHex && BigInt(doneHex) === 1n;
       const balance = BigInt(entry.balance);
@@ -327,8 +331,14 @@
         row.querySelector("button").addEventListener("click", (ev) => claimDividend(ev.target, vault, e.epoch, balance, entry.proof));
       }
     }
-    if (!rows) { const d = document.createElement("div"); d.className = "pf-empty-row"; d.textContent = idx.epochs.length ? "this wallet was below the snapshot minimum in every epoch so far." : "no epoch published yet — the first snapshot is coming."; host.appendChild(d); }
-    $("#c-div").textContent = claimableRows ? "CLAIMABLE" : rows ? "ALL CLAIMED" : "—";
+    if (!rows) {
+      const d = document.createElement("div"); d.className = "pf-empty-row";
+      d.textContent = unread ? "the network did not answer while reading your epochs — refresh in a moment."
+        : idx.epochs.length ? "this wallet was below the snapshot minimum in every epoch so far."
+        : "no epoch published yet — the first snapshot is coming.";
+      host.appendChild(d);
+    }
+    $("#c-div").textContent = claimableRows ? "CLAIMABLE" : rows ? "ALL CLAIMED" : unread ? "RETRY" : "—";
   }
 
   /** epoch(uint256) -> (root, totalEligible, publishedAt, expiresAt, address[] tokens, uint256[] amounts, uint256[] claimed, bool expired) */
