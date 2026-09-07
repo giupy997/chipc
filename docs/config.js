@@ -89,7 +89,7 @@ window.RH4_CONFIG = {
   // ChipHoldersVault: la casa HOLDERS per le posizioni LP dei chip. 80% delle
   // fee agli holder del chip (a epoche, keeper: tools/holders.js), 20% riserva
   // e buyback RH4. Vuoto = la modalita' resta "incoming" sul sito.
-  holdersVault: "",   // v1 0xb76a9861FaC7E3399f49089c9B36a6AC5c2Df057 ritirato (fidava della mappa della fabbrica); v2 col controllo stretto in arrivo
+  holdersVault: "0xF9E80B7422a3D3F2230B4Bb26c3b3A255817A518",   // v2, deploy 7 set 2026, executor keeper (v1 0xb76a…f057 ritirato, mai usato: si fidava della mappa della fabbrica)
   holdersPath: "holders",
 
   // Il launchpad a curva (src/curve: RH4Curve + CurveFeeVault). Contratti
