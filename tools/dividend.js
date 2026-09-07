@@ -11,6 +11,15 @@
  *   publish --file epoch-N.json [--days 60]
  *                                apre l'epoca N con TUTTE le azioni non distribuite
  *   expire --epoch N             chiude un'epoca scaduta, il resto torna nel mucchio
+ *   push --epoch N [--limit K] [--include-contracts]
+ *                                fa il claim PER CONTO di ogni holder dell'epoca
+ *                                (le azioni vanno a lui): nessuno deve connettere
+ *                                un wallet. Salta chi ha gia' ritirato e i pool
+ *                                Uniswap (le azioni ci morirebbero). Gli account con
+ *                                delega EIP-7702 (0xef0100..., i wallet delle app) e
+ *                                gli smart wallet ricevono normalmente; con
+ *                                --skip-contracts si salta ogni indirizzo con codice
+ *                                che non sia una delega 7702 (restano ritirabili dal sito).
  *   round [--max-eth ...]        allocate + convert + buyback in un colpo
  *
  *     --slip BPS    tolleranza sul prezzo (default 200)
@@ -52,6 +61,8 @@ const VAULT_ABI = parseAbi([
   "function buyback(uint256 amountIn, uint256 minOut)",
   "function publish(bytes32 root, uint256 totalEligible, address[] tokens, uint256[] amounts, uint64 duration) returns (uint256)",
   "function expire(uint256 id)",
+  "function claim(uint256 id, address account, uint256 balance, bytes32[] proof)",
+  "function hasClaimed(uint256, address) view returns (bool)",
 ]);
 const V3F_ABI = parseAbi(["function getPool(address,address,uint24) view returns (address)"]);
 const POOL_ABI = parseAbi(["function slot0() view returns (uint160 sqrtPriceX96, int24, uint16, uint16, uint16, uint8, bool)"]);
@@ -201,6 +212,63 @@ async function main() {
       "publish", [snap.root, BigInt(snap.totalEligible), tokens, amounts, days * 86400n]);
   }
 
+  // ---- push: il claim fatto dal keeper per ogni holder ----
+  async function push() {
+    if (args.epoch === undefined) { console.error("push vuole --epoch N"); process.exit(2); }
+    const id = BigInt(args.epoch);
+    const dir = args.dir || path.join(__dirname, "..", "docs", "dividends");
+    const snap = JSON.parse(fs.readFileSync(path.join(dir, `epoch-${args.epoch}.json`), "utf8"));
+    const e = await read("epoch", [id]);
+    if (e[7]) { console.log("  epoca chiusa, niente da spingere"); return; }
+    const entries = Object.entries(snap.claims);
+    const limit = args.limit ? Number(args.limit) : Infinity;
+    const skipContracts = Boolean(args["skip-contracts"]);
+    const POOL_TOKEN0 = "0x0dfe1681";
+    // che cos'e' un indirizzo con codice: delega 7702 (un EOA a tutti gli effetti),
+    // pool Uniswap (risponde a token0), o un contratto qualunque (smart wallet...)
+    const kindOf = async (addr) => {
+      const code = await pub.getCode({ address: addr }).catch(() => null);
+      if (code === null) return "unknown";
+      if (!code || code === "0x") return "eoa";
+      if (/^0xef0100[0-9a-f]{40}$/i.test(code)) return "eoa7702";
+      const t0 = await pub.call({ to: addr, data: POOL_TOKEN0 }).catch(() => null);
+      if (t0 && t0.data && t0.data.length === 66) return "pool";
+      return "contract";
+    };
+    // chi ha gia' ritirato (a fette, in batch)
+    const done = new Map();
+    for (let i = 0; i < entries.length; i += 40) {
+      const slice = entries.slice(i, i + 40);
+      const res = await Promise.all(slice.map(([a]) => read("hasClaimed", [id, a]).catch(() => null)));
+      slice.forEach(([a], k) => done.set(a, res[k]));
+    }
+    let sent = 0, ok = 0, skippedDone = 0, skippedCode = 0, skippedPool = 0, failed = 0;
+    let nonce = await pub.getTransactionCount({ address: account.address });
+    for (const [addr, entry] of entries) {
+      if (sent >= limit) break;
+      if (done.get(addr) === true) { skippedDone++; continue; }
+      if (done.get(addr) === null) { failed++; continue; }
+      const kind = await kindOf(addr);
+      if (kind === "unknown") { failed++; continue; }
+      if (kind === "pool") { skippedPool++; continue; }
+      if (kind === "contract" && skipContracts) { skippedCode++; continue; }
+      const fnArgs = [id, addr, BigInt(entry.balance), entry.proof];
+      if (dryRun) { console.log(`  [dry] claim epoca ${id} per ${addr} [${kind}] (${formatEther(BigInt(entry.balance))} RH4)`); sent++; continue; }
+      try {
+        const hash = await wallet.writeContract({ address: vault, abi: VAULT_ABI, functionName: "claim", args: fnArgs, nonce });
+        nonce++; sent++;
+        const rc = await pub.waitForTransactionReceipt({ hash, timeout: 90_000 });
+        if (rc.status === "success") ok++; else failed++;
+        process.stdout.write(`\r  spediti ${sent} · riusciti ${ok} · falliti ${failed} · gia' ritirati ${skippedDone} · pool saltati ${skippedPool} · contratti saltati ${skippedCode}   `);
+      } catch (err) {
+        failed++;
+        console.log(`\n  ${addr}: ${short(err)}`);
+        nonce = await pub.getTransactionCount({ address: account.address });
+      }
+    }
+    console.log(`\n  push epoca ${id}: spediti ${sent}, riusciti ${ok}, falliti ${failed}, gia' ritirati ${skippedDone}, pool saltati ${skippedPool}, contratti saltati ${skippedCode}`);
+  }
+
   async function expire() {
     if (args.epoch === undefined) { console.error("expire vuole --epoch N"); process.exit(2); }
     await send(`expire epoca ${args.epoch}`, "expire", [BigInt(args.epoch)]);
@@ -211,6 +279,7 @@ async function main() {
   else if (cmd === "buyback") await buyback();
   else if (cmd === "publish") await publish();
   else if (cmd === "expire") await expire();
+  else if (cmd === "push") await push();
   else if (cmd === "round") { await allocate(); await convert(); await buyback(); }
   else { console.error(`comando sconosciuto: ${cmd}`); process.exit(2); }
 }
