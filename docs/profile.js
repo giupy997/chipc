@@ -292,6 +292,7 @@
     sec.hidden = false;
     const host = $("#div");
     host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
+    const seq = state.seq;   // se nel frattempo riparte un caricamento, questo si ritira
     const base = CFG().dividendsPath || "dividends";
     let idx;
     try { idx = await fetch(`${base}/index.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { idx = { epochs: [] }; }
@@ -299,7 +300,8 @@
     let rows = 0, claimableRows = 0, unread = 0;
     for (const e of idx.epochs) {
       let snap;
-      try { snap = await fetch(`${base}/epoch-${e.epoch}.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { continue; }
+      try { snap = await fetch(`${base}/epoch-${e.epoch}.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { unread++; continue; }
+      if (seq !== state.seq) return;
       const mine = Object.entries(snap.claims).find(([a]) => a.toLowerCase() === me);
       if (!mine) continue;
       const [, entry] = mine;
@@ -309,6 +311,7 @@
         [epHex, doneHex] = await rpcBatch([ecall(vault, S_DIV_EPOCH + word(e.epoch)), ecall(vault, S_DIV_HASCLAIMED + word(e.epoch) + addrWord(state.me))]);
         if (!epHex) await sleep(800 * (k + 1));
       }
+      if (seq !== state.seq) return;
       if (!epHex) {
         // il nodo non ha risposto: la riga resta, con l'invito a riprovare
         unread++;
