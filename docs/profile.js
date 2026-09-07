@@ -309,7 +309,20 @@
         [epHex, doneHex] = await rpcBatch([ecall(vault, S_DIV_EPOCH + word(e.epoch)), ecall(vault, S_DIV_HASCLAIMED + word(e.epoch) + addrWord(state.me))]);
         if (!epHex) await sleep(800 * (k + 1));
       }
-      if (!epHex) { unread++; continue; }
+      if (!epHex) {
+        // il nodo non ha risposto: la riga resta, con l'invito a riprovare
+        unread++;
+        const row = document.createElement("div");
+        row.className = "prow div";
+        row.innerHTML =
+          `<span><b>#${e.epoch}</b><br><span class="sm">block ${esc(String(snap.block))}</span></span>` +
+          `<span class="num">${fmt(BigInt(entry.balance), 0)}</span>` +
+          `<span class="sm">network busy — could not read this epoch</span><span></span>` +
+          `<span><button class="btn btn-light btn-sm">RETRY</button></span>`;
+        row.querySelector("button").addEventListener("click", () => loadDividends().catch(() => {}));
+        host.appendChild(row);
+        continue;
+      }
       const ep = decodeEpoch(epHex);
       const done = doneHex && BigInt(doneHex) === 1n;
       const balance = BigInt(entry.balance);
@@ -337,7 +350,7 @@
         row.querySelector("button").addEventListener("click", (ev) => claimDividend(ev.target, vault, e.epoch, balance, entry.proof));
       }
     }
-    if (!rows) {
+    if (!rows && !unread) {
       const d = document.createElement("div"); d.className = "pf-empty-row";
       d.textContent = unread ? "the network did not answer while reading your epochs — refresh in a moment."
         : idx.epochs.length ? "this wallet was below the snapshot minimum in every epoch so far."
