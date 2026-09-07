@@ -1061,12 +1061,14 @@ main { max-width: var(--maxw); margin: 0 auto; }
   position: relative;
   border: 1.5px dashed rgba(17, 17, 16, 0.4);
   background: var(--paper-2);
-  min-height: 128px;
+  width: min(220px, 100%);
+  aspect-ratio: 1 / 1;      /* il logo e' quadrato ovunque venga mostrato: si sceglie gia' quadrato */
   display: grid;
   place-items: center;
   cursor: pointer;
   padding: 14px;
   transition: border-color 0.14s, background 0.14s;
+  overflow: hidden;
 }
 .drop:hover, .drop.is-over { border-color: var(--ink); background: var(--paper); }
 .drop.is-set { border-style: solid; padding: 0; }
@@ -1085,8 +1087,8 @@ main { max-width: var(--maxw); margin: 0 auto; }
 .drop img {
   display: block;
   width: 100%;
-  height: 168px;
-  object-fit: contain;
+  height: 100%;
+  object-fit: cover;
   background: var(--paper);
 }
 

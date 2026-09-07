@@ -545,11 +545,38 @@
 
   function say(msg, bad) {
     const el = $("#f-mint-note");
-    if (!el) return;
-    el.hidden = !msg;
-    el.textContent = msg || "";
-    el.classList.toggle("is-bad", Boolean(bad));
+    if (el) { el.hidden = !msg; el.textContent = msg || ""; el.classList.toggle("is-bad", Boolean(bad)); }
+    const ms = $("#lp-modal-status");   // se la modale post-mint e' aperta, parla anche li'
+    if (ms) { ms.textContent = msg || ""; ms.classList.toggle("is-bad", Boolean(bad)); }
   }
+
+  /** La scheda che appare a mint riuscito: aprire il mercato, aggiungere i
+   *  link, andare al chip. Stile sito, al centro, nessuna pagina nuova. */
+  function showMinted({ id, name, ticker, token, pairKey, hasLinks, links }) {
+    document.querySelectorAll(".lp-modal").forEach((m) => m.remove());
+    const m = document.createElement("div");
+    m.className = "lp-modal";
+    m.innerHTML =
+      `<div class="box" role="dialog" aria-label="chip minted">` +
+      `<button class="x" aria-label="close">&times;</button>` +
+      `<span class="ck"><i class="sq sq-mint"></i> CHIP #${id} IS ALIVE</span>` +
+      `<h2>${esc(name || ticker)}</h2>` +
+      `<div class="sub">${esc(ticker)} &middot; its token exists, its clock is waiting</div>` +
+      `<div class="acts">` +
+      (token ? `<button class="btn btn-dark btn-block" data-act="market">OPEN THE MARKET vs ${esc(String(pairKey).toUpperCase())} &mdash; LP SEALED, FEES 50/50</button>` : "") +
+      (hasLinks ? `<button class="btn btn-light btn-block" data-act="links">ADD LINKS TO CHIP #${id}</button>` : "") +
+      `<a class="btn btn-light btn-block" href="chip.html?id=${id}">GO TO YOUR CHIP &rarr;</a>` +
+      `</div><div class="status" id="lp-modal-status"></div></div>`;
+    document.body.appendChild(m);
+    m.querySelector(".x").addEventListener("click", () => m.remove());
+    m.addEventListener("click", (e) => { if (e.target === m) m.remove(); });
+    const mb = m.querySelector('[data-act="market"]');
+    if (mb) mb.addEventListener("click", () => walletOpenMarket(mb, token, pairKey));
+    const lb = m.querySelector('[data-act="links"]');
+    if (lb) lb.addEventListener("click", () => walletSetLinks(lb, id, links.x, links.web, links.tg));
+    return m;
+  }
+  window.RH4_LP = { showMinted };
 
   async function walletMint(btn) {
     const provider = window.ethereum;
@@ -605,6 +632,15 @@
       say(`${name} (${ticker}) is alive — its token exists, its clock is waiting. ` +
         `See it: ${CFG().explorer}/tx/${hash}`);
       loadGallery(); // il tuo chip appare subito in cima
+
+      // la scheda al centro: mercato, link, vai al chip
+      if (id) {
+        let tokenAddr = null;
+        if (liqBps > 0) {
+          try { const emiHex = await rpc("eth_call", [{ to: CFG().factory, data: S_EMISSION + word(id) }, "latest"]); tokenAddr = "0x" + emiHex.slice(2 + 24, 2 + 64); } catch (_) {}
+        }
+        showMinted({ id, name, ticker, token: tokenAddr, pairKey: pair, hasLinks: Boolean(CFG().socials && (lx || lweb || ltg)), links: { x: lx, web: lweb, tg: ltg } });
+      }
 
       // i link, se ne ha messi: una seconda firma, incisa accanto al chip
       if (id && CFG().socials && (lx || lweb || ltg)) {
