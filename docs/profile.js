@@ -93,11 +93,17 @@
   const state = { me: null, chips: [], symbols: new Map(), seq: 0 };
 
   async function symbolOf(token) {
-    if (!state.symbols.has(token.toLowerCase())) {
+    const key = token.toLowerCase();
+    if (!state.symbols.has(key)) {
+      // le quote (NVDA, SNDK...) le conosciamo gia': niente giro di rete
+      const q = (CFG().quotes || []).find((x) => x.address.toLowerCase() === key);
+      if (q) { state.symbols.set(key, q.sym); return q.sym; }
+      if (key === WETH.toLowerCase()) { state.symbols.set(key, "WETH"); return "WETH"; }
       const hex = await rpc("eth_call", [{ to: token, data: S_SYMBOL }, "latest"]).catch(() => null);
-      state.symbols.set(token.toLowerCase(), hex && hex.length > 2 ? decodeString(hex) : "?");
+      if (!(hex && hex.length > 2)) return "?";   // rete muta: non lo si memorizza, si riprova
+      state.symbols.set(key, decodeString(hex));
     }
-    return state.symbols.get(token.toLowerCase());
+    return state.symbols.get(key);
   }
 
   async function load(me) {
