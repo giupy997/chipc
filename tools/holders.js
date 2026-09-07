@@ -300,7 +300,10 @@ async function main() {
       const fnArgs = [id, addr, BigInt(entry.balance), entry.proof];
       if (dryRun) { console.log(`  [dry] claim epoca ${id} per ${addr} [${kind}]`); sent++; continue; }
       try {
-        const hash = await wallet.writeContract({ address: vault, abi: VAULT_ABI, functionName: "claim", args: fnArgs, nonce });
+        // la stima del nodo gira a gas price 0, dove il rimborso non parte: con il prezzo vero
+        // il claim chiama l'executor e costa ~10k in piu'. Margine, o finisce in OutOfGas.
+        const est = await pub.estimateContractGas({ account, address: vault, abi: VAULT_ABI, functionName: "claim", args: fnArgs });
+        const hash = await wallet.writeContract({ address: vault, abi: VAULT_ABI, functionName: "claim", args: fnArgs, nonce, gas: est * 13n / 10n + 40_000n });
         nonce++; sent++;
         const rc = await pub.waitForTransactionReceipt({ hash, timeout: 90_000 });
         if (rc.status === "success") ok++; else failed++;
