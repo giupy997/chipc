@@ -50,6 +50,8 @@
   .prow.fees { grid-template-columns: 1.2fr 1fr 1fr 1fr auto; }
   .prow.mine { grid-template-columns: 1.2fr 1fr 1fr; }
   .prow.hold { grid-template-columns: 1.2fr 1fr 1fr auto; }
+  .prow.div { grid-template-columns: 0.7fr 1.2fr 1.6fr 0.9fr auto; }
+  .prow.div .sm { font-size: 11px; color: var(--dim); }
   .prow .num { font-weight: 700; }
   .prow .dim { color: var(--dim); }
   .prow .sm { font-size: 11px; color: var(--dim); }
@@ -110,6 +112,19 @@
       </div>
       <p class="pf-note">Half of every trading fee your chips generate accrues here, in both tokens, at every sweep.
         Claim whenever you like &mdash; nobody else can. The other half feeds your chip&rsquo;s reserve and buys back RH4.</p>
+    </section>
+
+    <section class="pf-sec" id="div-sec" hidden>
+      <div class="pf-sec-head">
+        <span class="ck"><i class="sq sq-mint"></i> STOCK DIVIDENDS</span>
+        <span class="pf-count" id="c-div">&hellip;</span>
+      </div>
+      <div class="pf-table" id="div">
+        <div class="prow div h"><span>EPOCH</span><span>YOUR RH4 AT SNAPSHOT</span><span>YOUR SHARE</span><span>UNTIL</span><span></span></div>
+      </div>
+      <p class="pf-note" id="div-note">A share of the mother chip&rsquo;s fees is converted into tokenised stocks and split
+        pro-rata among RH4 holders, epoch by epoch. Holders above the snapshot minimum can claim until the epoch closes;
+        what is not claimed rolls into the next one.</p>
     </section>
 
     <section class="pf-sec">

@@ -11,6 +11,7 @@
     "keeper": "node tools/keeper.js"
   },
   "dependencies": {
+    "@openzeppelin/merkle-tree": "^1.0.8",
     "viem": "^2.21.0"
   }
 }

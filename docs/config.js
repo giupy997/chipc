@@ -66,6 +66,16 @@ window.RH4_CONFIG = {
   // sito apre senza tetto, quindi la lista non cresce piu'.
   cappedChips: [2, 3, 4, 5, 6, 9, 10, 11, 12],
 
+  // RH4StockVault: le fee della madre che diventano azioni per gli holder.
+  // stockVault vuoto = sezione nascosta nel profilo. I pesi (bps) guidano il
+  // keeper (tools/dividend.js) nel dividere l'ETH fra le azioni attive.
+  stockVault: "",
+  stockVaultWeights: {
+    "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC": 5000,   // NVDA
+    "0xB90A19fF0Af67f7779afF50A882A9CfF42446400": 5000,   // SNDK
+  },
+  dividendsPath: "dividends",
+
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
   launchpadOpen: true,

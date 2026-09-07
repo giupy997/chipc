@@ -135,7 +135,7 @@
     for (const c of chips) if (c.token !== ZERO) state.symbols.set(c.token.toLowerCase(), c.ticker || "?");
 
     renderChips(mine);
-    await Promise.all([loadFees(mine), loadMining(), loadHoldings(chips)]);
+    await Promise.all([loadFees(mine), loadMining(), loadHoldings(chips), loadDividends().catch(() => {})]);
     loadPending(mine).catch(() => {});
   }
 
@@ -272,6 +272,91 @@
     }
     if (!rows) { const d = document.createElement("div"); d.className = "pf-empty-row"; d.textContent = "no fees yet — they accrue here at every sweep of your chips' markets."; host.appendChild(d); }
     $("#c-fees").textContent = perVault.size ? "CLAIMABLE" : rows ? "ALL CLAIMED" : "—";
+  }
+
+  // ---- le azioni degli holder: epoche del RH4StockVault --------------------
+  // claim(uint256,address,uint256,bytes32[]) / hasClaimed(uint256,address) / epoch(uint256)
+  const S_DIV_CLAIM = "0x2e7ba6ef", S_DIV_HASCLAIMED = "0x873f6f9e", S_DIV_EPOCH = "0x5487c577";
+  const fmtStock = (raw, dec) => { const n = Number(raw) / 10 ** dec; return n >= 100 ? n.toFixed(2) : n >= 1 ? n.toFixed(4) : n.toPrecision(4); };
+
+  async function loadDividends() {
+    const vault = CFG().stockVault;
+    const sec = $("#div-sec");
+    if (!vault || !sec) return;
+    sec.hidden = false;
+    const host = $("#div");
+    host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
+    const base = CFG().dividendsPath || "dividends";
+    let idx;
+    try { idx = await fetch(`${base}/index.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { idx = { epochs: [] }; }
+    const me = state.me.toLowerCase();
+    let rows = 0, claimableRows = 0;
+    for (const e of idx.epochs) {
+      let snap;
+      try { snap = await fetch(`${base}/epoch-${e.epoch}.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { continue; }
+      const mine = Object.entries(snap.claims).find(([a]) => a.toLowerCase() === me);
+      if (!mine) continue;
+      const [, entry] = mine;
+      // stato on-chain dell'epoca: token, quantita', scadenza, chiuso; e se ho gia' ritirato
+      const [epHex, doneHex] = await rpcBatch([ecall(vault, S_DIV_EPOCH + word(e.epoch)), ecall(vault, S_DIV_HASCLAIMED + word(e.epoch) + addrWord(state.me))]);
+      if (!epHex) continue;
+      const ep = decodeEpoch(epHex);
+      const done = doneHex && BigInt(doneHex) === 1n;
+      const balance = BigInt(entry.balance);
+      const parts = [];
+      for (let i = 0; i < ep.tokens.length; i++) {
+        const amt = ep.amounts[i] * balance / ep.totalEligible;
+        const sym = await symbolOf(ep.tokens[i]);
+        const dec = decOf(ep.tokens[i]);
+        parts.push(`<b>${fmtStock(amt, dec)}</b> ${esc(sym)}`);
+      }
+      const until = new Date(Number(ep.expiresAt) * 1000).toISOString().slice(0, 10);
+      const status = ep.expired ? "closed" : done ? "claimed" : "open";
+      const row = document.createElement("div");
+      row.className = "prow div";
+      row.innerHTML =
+        `<span><b>#${e.epoch}</b><br><span class="sm">block ${esc(String(snap.block))}</span></span>` +
+        `<span class="num">${fmt(balance, 0)}</span>` +
+        `<span class="num">${parts.join(" + ")}</span>` +
+        `<span class="sm">${status === "open" ? until : status.toUpperCase()}</span>` +
+        `<span>${status === "open" ? `<button class="btn btn-dark btn-sm">CLAIM</button>` : status === "claimed" ? `<span class="sm">✓</span>` : ""}</span>`;
+      host.appendChild(row);
+      rows++;
+      if (status === "open") {
+        claimableRows++;
+        row.querySelector("button").addEventListener("click", (ev) => claimDividend(ev.target, vault, e.epoch, balance, entry.proof));
+      }
+    }
+    if (!rows) { const d = document.createElement("div"); d.className = "pf-empty-row"; d.textContent = idx.epochs.length ? "this wallet was below the snapshot minimum in every epoch so far." : "no epoch published yet — the first snapshot is coming."; host.appendChild(d); }
+    $("#c-div").textContent = claimableRows ? "CLAIMABLE" : rows ? "ALL CLAIMED" : "—";
+  }
+
+  /** epoch(uint256) -> (root, totalEligible, publishedAt, expiresAt, address[] tokens, uint256[] amounts, uint256[] claimed, bool expired) */
+  function decodeEpoch(hex) {
+    const d = hex.slice(2);
+    const W = (i) => d.slice(i * 64, (i + 1) * 64);
+    const arr = (off) => { const o = Number(BigInt("0x" + off)) / 32; const n = Number(BigInt("0x" + W(o))); const out = []; for (let i = 0; i < n; i++) out.push(W(o + 1 + i)); return out; };
+    return {
+      root: "0x" + W(0), totalEligible: BigInt("0x" + W(1)), publishedAt: BigInt("0x" + W(2)), expiresAt: BigInt("0x" + W(3)),
+      tokens: arr(W(4)).map((x) => "0x" + x.slice(24)), amounts: arr(W(5)).map((x) => BigInt("0x" + x)), claimed: arr(W(6)).map((x) => BigInt("0x" + x)),
+      expired: BigInt("0x" + W(7)) === 1n,
+    };
+  }
+
+  async function claimDividend(btn, vault, epoch, balance, proof) {
+    const provider = window.ethereum;
+    if (!provider) return;
+    btn.disabled = true; btn.textContent = "CONFIRM…";
+    try {
+      // claim(uint256 id, address account, uint256 balance, bytes32[] proof)
+      const data = S_DIV_CLAIM + word(epoch) + addrWord(state.me) + balance.toString(16).padStart(64, "0") + word(128) + word(proof.length) + proof.map((p) => p.slice(2)).join("");
+      const h = await provider.request({ method: "eth_sendTransaction", params: [{ from: state.me, to: vault, data }] });
+      btn.textContent = "CLAIMING…";
+      let r = null;
+      for (let i = 0; i < 40 && !r; i++) { await sleep(2500); r = await rpc("eth_getTransactionReceipt", [h]); }
+      btn.textContent = r && r.status === "0x1" ? "CLAIMED ✓" : "FAILED";
+      if (r && r.status === "0x1") setTimeout(() => load(state.me), 1500);
+    } catch (e) { btn.textContent = "CLAIM"; btn.disabled = false; }
   }
 
   async function claim(btn, vault, tokens) {
