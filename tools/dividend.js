@@ -243,6 +243,7 @@ async function main() {
       slice.forEach(([a], k) => done.set(a, res[k]));
     }
     let sent = 0, ok = 0, skippedDone = 0, skippedCode = 0, skippedPool = 0, failed = 0;
+    console.log(`  epoca ${id}: ${entries.length} holder nello snapshot, ${[...done.values()].filter(Boolean).length} hanno gia' ritirato`);
     let nonce = await pub.getTransactionCount({ address: account.address });
     for (const [addr, entry] of entries) {
       if (sent >= limit) break;
@@ -259,7 +260,7 @@ async function main() {
         nonce++; sent++;
         const rc = await pub.waitForTransactionReceipt({ hash, timeout: 90_000 });
         if (rc.status === "success") ok++; else failed++;
-        process.stdout.write(`\r  spediti ${sent} · riusciti ${ok} · falliti ${failed} · gia' ritirati ${skippedDone} · pool saltati ${skippedPool} · contratti saltati ${skippedCode}   `);
+        if (sent % 25 === 0) console.log(`  ${sent} spediti · ${ok} riusciti · ${failed} falliti`);
       } catch (err) {
         failed++;
         console.log(`\n  ${addr}: ${short(err)}`);
