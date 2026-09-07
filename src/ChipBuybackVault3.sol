@@ -195,8 +195,9 @@ contract ChipBuybackVault3 {
     function chipOf(address token) public view returns (uint256 id) {
         id = factory.chipByToken(token);
         if (id == 0) return 0;
-        try IChipTokenLite(token).factory() returns (address f) { if (f != address(factory)) return 0; } catch { return 0; }
-        try IChipTokenLite(token).chipId() returns (uint256 c) { if (c != id) return 0; } catch { return 0; }
+        // gas limitato: un token estraneo con un fallback che scrive brucerebbe tutto il gas della chiamata
+        try IChipTokenLite(token).factory{gas: 30_000}() returns (address f) { if (f != address(factory)) return 0; } catch { return 0; }
+        try IChipTokenLite(token).chipId{gas: 30_000}() returns (uint256 c) { if (c != id) return 0; } catch { return 0; }
     }
 
     // ---- interno -----------------------------------------------------------

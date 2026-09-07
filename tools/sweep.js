@@ -53,6 +53,8 @@ const V3F_ABI = parseAbi(["function getPool(address,address,uint24) view returns
 const POOL_ABI = parseAbi(["function slot0() view returns (uint160 sqrtPriceX96, int24, uint16, uint16, uint16, uint8, bool)"]);
 const PM_ABI = parseAbi(["function extsload(bytes32) view returns (bytes32)"]);
 const ERC20_ABI = parseAbi(["function symbol() view returns (string)", "function balanceOf(address) view returns (uint256)"]);
+const CHIPTOKEN_ABI = parseAbi(["function factory() view returns (address)", "function chipId() view returns (uint256)"]);
+const FACTORY_LITE_ABI = parseAbi(["function chipByToken(address) view returns (uint256)"]);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const short = (e) => (e.shortMessage || e.message || String(e)).split("\n")[0].slice(0, 90);
 
@@ -107,15 +109,37 @@ async function main() {
     } catch (e) { console.log(`  ${label} — invio fallito: ${short(e)}`); return false; }
   };
 
+  // un chip token vero: la fabbrica lo mappa E lui risponde factory()/chipId() in modo coerente
+  const chipTokenCache = new Map();
+  async function isChipToken(t) {
+    const k = t.toLowerCase();
+    if (chipTokenCache.has(k)) return chipTokenCache.get(k);
+    let ok = false;
+    try {
+      const id = await pub.readContract({ address: cfg.factory, abi: FACTORY_LITE_ABI, functionName: "chipByToken", args: [t] });
+      if (id !== 0n) {
+        const f = await pub.readContract({ address: t, abi: CHIPTOKEN_ABI, functionName: "factory" });
+        const c = await pub.readContract({ address: t, abi: CHIPTOKEN_ABI, functionName: "chipId" });
+        ok = f.toLowerCase() === cfg.factory.toLowerCase() && c === id;
+      }
+    } catch (_) { ok = false; }
+    chipTokenCache.set(k, ok);
+    return ok;
+  }
+
   // ---- 1. riscuotere ----
+  const MAX_COLLECTS = num(args["max-collects"], 20);   // tetto per giro: il gas del keeper non e' infinito
   async function sweepAll() {
-    let swept = 0, skipped = 0;
+    let swept = 0, skipped = 0, junk = 0;
     for (const vault of [...buybackVaults, ...legacyVaults]) {
       const n = Number(await pub.readContract({ address: NPM, abi: NPM_ABI, functionName: "balanceOf", args: [vault] }));
       for (let i = 0; i < n; i++) {
+        if (swept >= MAX_COLLECTS) break;
         try {
           const tokenId = await pub.readContract({ address: NPM, abi: NPM_ABI, functionName: "tokenOfOwnerByIndex", args: [vault, BigInt(i)] });
           const pos = await pub.readContract({ address: NPM, abi: NPM_ABI, functionName: "positions", args: [tokenId] });
+          // posizioni spazzatura mandate qui da estranei: non sono un chip, non si paga gas per loro
+          if (!(await isChipToken(pos[2])) && !(await isChipToken(pos[3]))) { junk++; continue; }
           const data = encodeFunctionData({ abi: VAULT_ABI, functionName: "collect", args: [tokenId] });
           const r = await pub.call({ account: account.address, to: vault, data });
           const [a0, a1] = decodeFunctionResult({ abi: VAULT_ABI, functionName: "collect", data: r.data });
@@ -125,6 +149,7 @@ async function main() {
         } catch (e) { console.log(`  ${vault.slice(0, 8)} posizione ${i}: ${short(e)}`); }
       }
     }
+    if (junk) console.log(`  ${junk} posizioni non-chip nei vault, ignorate`);
     return { swept, skipped };
   }
 
