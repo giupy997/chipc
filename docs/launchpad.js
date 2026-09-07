@@ -167,7 +167,8 @@
       const nowBlock = BigInt(nowHex);
 
       const ids = [];
-      for (let id = total; id >= 1; id--) ids.push(id);
+      const hidden = new Set((CFG().hiddenChips || []).map(Number));   // chip tolti dal sito (token agganciato a mano)
+      for (let id = total; id >= 1; id--) if (!hidden.has(id)) ids.push(id);
       const reqs = [];
       for (const id of ids) {
         reqs.push(ecall(SELECTOR_CHIP + word(id)), ecall(SELECTOR_INSPECT + word(id)), ecall(SELECTOR_LOGO + word(id)));

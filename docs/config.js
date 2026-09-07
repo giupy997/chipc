@@ -70,6 +70,11 @@ window.RH4_CONFIG = {
   // sito apre senza tetto, quindi la lista non cresce piu'.
   cappedChips: [2, 3, 4, 5, 6, 9, 10, 11, 12],
 
+  // Chip nascosti dal sito. Il 28 ("poison") ha agganciato NVDA come suo token
+  // via attachToken (7 set 2026): la factory ha azzerato la sua ricompensa,
+  // ma il chip resta e mostrerebbe il mcap di NVDA. Non e' un chip token.
+  hiddenChips: [28],
+
   // RH4StockVault: le fee della madre che diventano azioni per gli holder.
   // stockVault vuoto = sezione nascosta nel profilo. I pesi (bps) guidano il
   // keeper (tools/dividend.js) nel dividere l'ETH fra le azioni attive.
@@ -84,7 +89,7 @@ window.RH4_CONFIG = {
   // ChipHoldersVault: la casa HOLDERS per le posizioni LP dei chip. 80% delle
   // fee agli holder del chip (a epoche, keeper: tools/holders.js), 20% riserva
   // e buyback RH4. Vuoto = la modalita' resta "incoming" sul sito.
-  holdersVault: "0xb76a9861FaC7E3399f49089c9B36a6AC5c2Df057",   // deploy 7 set 2026, executor keeper
+  holdersVault: "",   // v1 0xb76a9861FaC7E3399f49089c9B36a6AC5c2Df057 ritirato (fidava della mappa della fabbrica); v2 col controllo stretto in arrivo
   holdersPath: "holders",
 
   // Il launchpad a curva (src/curve: RH4Curve + CurveFeeVault). Contratti

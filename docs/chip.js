@@ -116,6 +116,13 @@
     const label = b32ToString(w(chipHex, 1));
     state.token = "0x" + w(chipHex, 6).slice(24);
     state.bornBlock = Number(BigInt("0x" + w(chipHex, 4)));
+    if ((CFG().hiddenChips || []).map(Number).includes(Number(id))) {
+      // il token di questo chip non e' nato dalla fabbrica: agganciato a mano, ricompensa azzerata
+      const main = document.querySelector("main");
+      if (main) main.insertAdjacentHTML("afterbegin",
+        `<p class="cp-lock cp-cap" style="margin:20px 24px 0"><b>NOT A CHIP TOKEN</b> &middot; this chip was attached by hand to a token the factory never launched. ` +
+        `Its mining reward has been zeroed for good: ticking it pays nothing, and the market shown is that token's own, not a chip market.</p>`);
+    }
 
     document.title = `${ticker} — chip #${id} — RH-4`;
     $("#cp-ticker").textContent = ticker || `CHIP #${id}`;
