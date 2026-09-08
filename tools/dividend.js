@@ -76,6 +76,7 @@ function siteConfig() {
   return sandbox.window.RH4_CONFIG;
 }
 function num(v, dflt) { const n = Number(v); return Number.isFinite(n) && n >= 0 ? n : dflt; }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const short = (e) => (e.shortMessage || e.message || String(e)).split("\n")[0].slice(0, 120);
 
 async function main() {
@@ -264,7 +265,11 @@ async function main() {
       } catch (err) {
         failed++;
         console.log(`\n  ${addr}: ${short(err)}`);
-        nonce = await pub.getTransactionCount({ address: account.address });
+        // l'RPC pubblico ogni tanto non risponde: si riprende il nonce con pazienza, senza far cadere il giro
+        for (let k = 0; ; k++) {
+          try { nonce = await pub.getTransactionCount({ address: account.address }); break; }
+          catch (e2) { if (k >= 5) { console.log(`  nonce irrecuperabile (${short(e2)}): mi fermo, rilancia il push`); return; } await sleep(3000 * (k + 1)); }
+        }
       }
     }
     console.log(`\n  push epoca ${id}: spediti ${sent}, riusciti ${ok}, falliti ${failed}, gia' ritirati ${skippedDone}, pool saltati ${skippedPool}, contratti saltati ${skippedCode}`);
