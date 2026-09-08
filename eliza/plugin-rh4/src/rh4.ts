@@ -25,9 +25,9 @@ import { privateKeyToAccount } from "viem/accounts";
 
 export const DEFAULTS = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
-  factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address,
+  factory: "0x4a5E39B8a41c169210d1F7dCD307854330D8144C" as Address,   // ChipFactory9: tickers up to 12 chars, ids from 43
   // the first factory: chips up to `lastId` live there, later ones in `factory` (ids continue across the two)
-  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address, lastId: 0 },
+  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address, lastId: 42 },
   explorer: "https://robinhoodchain.blockscout.com",
   site: "https://rh4cpu.tech",
 };

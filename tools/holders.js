@@ -201,7 +201,7 @@ async function main() {
       if (p && !/^0x0{40}$/.test(p)) pools.push(p);
     }
     const exclude = new Set([
-      ...SYSTEM, ...factoriesOf(cfg), cfg.feeVault, cfg.creatorVault, cfg.holdersVault, cfg.stockVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []),
+      ...SYSTEM, ...factoriesOf(cfg), cfg.feeVault, cfg.creatorVault, cfg.holdersVault, ...(cfg.holdersVaultsLegacy || []).map((h) => h.vault), cfg.stockVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []),
       cfg.curve && cfg.curve.address, cfg.curve && cfg.curve.vault, token, ...pools,
       ...String(args.exclude || "").split(",").filter(Boolean),
     ].filter(Boolean).map((a) => a.toLowerCase()));

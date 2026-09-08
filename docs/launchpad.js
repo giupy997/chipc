@@ -24,7 +24,7 @@
   const short = (e) => String((e && (e.message || e)) || "error").slice(0, 90);
 
   function safeTicker(raw) {
-    return String(raw).toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+    return String(raw).toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
   }
 
   /** La label di un chip e' bytes32 LIBERI sul contratto: chiunque puo'
@@ -54,7 +54,7 @@
   }
 
   /** le revert custom dei nostri contratti, tradotte: 4 byte -> frase */
-  const ERRORS = {"0xe454f6d8": "no such chip", "0x06893d25": "someone already paid this block's cycle \u2014 try again", "0xd6c912e6": "the chip is halted", "0xc36f2a95": "only the chip's creator or owner can do this", "0x788a686f": "wrong mint payment", "0xb4c4da23": "this ticker is taken \u2014 forever", "0xb2d7fcd2": "ticker: 1-8 of A-Z, 0-9, dash", "0x7732985d": "logo URI must be https:// or ipfs://", "0xa8af6972": "liquidity share too big", "0x607eaf48": "emission too short", "0xd45eb4fc": "mother already set", "0x79d93f49": "no token", "0xe22d1c9e": "token already set", "0xf6e17d95": "token already serves another chip", "0xfdabadb7": "reserve not funded", "0x6cf71335": "links must be https:// with no spaces or quotes", "0xb2f53681": "nothing to claim or buy", "0x6586e129": "no WETH pool for this token yet", "0xe20a4c5d": "the market moved past the slippage floor", "0x3344031e": "not a quote token", "0xae18210a": "not the pool manager"};
+  const ERRORS = {"0xe454f6d8": "no such chip", "0x06893d25": "someone already paid this block's cycle \u2014 try again", "0xd6c912e6": "the chip is halted", "0xc36f2a95": "only the chip's creator or owner can do this", "0x788a686f": "wrong mint payment", "0xb4c4da23": "this ticker is taken \u2014 forever", "0xb2d7fcd2": "ticker: 1-12 of A-Z, 0-9, dash", "0x7732985d": "logo URI must be https:// or ipfs://", "0xa8af6972": "liquidity share too big", "0x607eaf48": "emission too short", "0xd45eb4fc": "mother already set", "0x79d93f49": "no token", "0xe22d1c9e": "token already set", "0xf6e17d95": "token already serves another chip", "0xfdabadb7": "reserve not funded", "0x6cf71335": "links must be https:// with no spaces or quotes", "0xb2f53681": "nothing to claim or buy", "0x6586e129": "no WETH pool for this token yet", "0xe20a4c5d": "the market moved past the slippage floor", "0x3344031e": "not a quote token", "0xae18210a": "not the pool manager"};
   function explain(err) {
     const data = err && (err.data || (err.error && err.error.data));
     const hex = typeof data === "string" ? data : data && data.data;

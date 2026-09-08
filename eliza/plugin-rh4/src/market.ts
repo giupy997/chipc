@@ -24,11 +24,11 @@ export const UNI = {
   minOpen: 10_000_000n * 10n ** 18n,   // below 1% of the supply a market is a trap
 };
 
-/** Where the position is born. v3 vaults (Sep 7 2026) and the holders vault. */
+/** Where the position is born: the ChipFactory9 vaults (Sep 8 2026). */
 export const VAULTS: Record<"creator" | "holders" | "reserve", Address> = {
-  creator: "0x99cbC09CF1221237565Edc3EE77f11D9D1Ba3c7A",
-  holders: "0xF9E80B7422a3D3F2230B4Bb26c3b3A255817A518",
-  reserve: "0xEE42d4708A0Faec9f896C9283001dCb1e4C15CAC",
+  creator: "0x094943a2ff18b4d3b28a05A37E5dF10599a9223B",
+  holders: "0xFBB3bac91aeFb37277318a74D0D13D118b1B12AA",
+  reserve: "0x64F26350754f33ea0F9C5A2771a4757435623533",
 };
 export type FeeMode = keyof typeof VAULTS;
 

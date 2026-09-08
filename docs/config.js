@@ -15,12 +15,14 @@ window.RH4_CONFIG = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   explorer: "https://robinhoodchain.blockscout.com",
 
-  factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b",
-  // La fabbrica di prima. Gli id continuano: i chip fino a `lastId` vivono
-  // li' (con i loro link nel suo ChipSocials), quelli dopo nella fabbrica
-  // viva. `factoryFor(id)` e `socialsFor(id)` in fondo al file scelgono.
-  // Finche' lastId e' 0 tutto vive nella stessa fabbrica.
-  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b", socials: "0x355A7C6d677944979bf604080698f131E0B72891", lastId: 0 },
+  // ChipFactory9 (8 set 2026): ticker fino a 12, id che continuano dalla v8
+  // (dal 43), restart onesto, riserva in pausa e non spenta, attach solo
+  // di token ammessi. Qui si conia.
+  factory: "0x4a5E39B8a41c169210d1F7dCD307854330D8144C",
+  // La fabbrica di prima (ChipFactory8). Gli id continuano: i chip 1..42
+  // vivono li' (con i loro link nel suo ChipSocials), quelli dopo nella
+  // fabbrica viva. `factoryFor(id)` e `socialsFor(id)` in fondo al file scelgono.
+  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b", socials: "0x355A7C6d677944979bf604080698f131E0B72891", lastId: 42 },
   token: "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B",
   // I vault delle fee: le posizioni LP nascono qui e non escono mai. Dalla
   // generazione buyback, la quota "riserva" della quote ricompra RH4 per
@@ -31,17 +33,20 @@ window.RH4_CONFIG = {
   // v3 (7 set 2026): un chip token e' solo un token nato dalla fabbrica
   // (factory()/chipId()), non "quello che la fabbrica mappa": attachToken
   // lascia agganciare a un chip qualsiasi ERC20, e il v2 si fidava.
-  feeVault: "0xEE42d4708A0Faec9f896C9283001dCb1e4C15CAC",       // 100% riserva + buyback RH4
-  creatorVault: "0x99cbC09CF1221237565Edc3EE77f11D9D1Ba3c7A",   // 50/50 (claim) + buyback RH4
-  // i v2, con le loro posizioni: si riscuotono, si convertono e pagano i creator come prima
-  creatorVaultsLegacy: ["0x48B8CdbF29d65981F9dFbc4176A868AcE28c30Aa"],   // 50/50 v2
-  feeVaultsLegacy: ["0x2F9D010BE1D2b8F304Bb1c0a02fe9277Fcdb3896"],       // 100% v2
+  // v4 (8 set 2026), per la ChipFactory9: come i v3, con l'RH4 ricomprato che
+  // torna nella riserva della madre sulla ChipFactory8.
+  feeVault: "0x64F26350754f33ea0F9C5A2771a4757435623533",       // 100% riserva + buyback RH4
+  creatorVault: "0x094943a2ff18b4d3b28a05A37E5dF10599a9223B",   // 50/50 (claim) + buyback RH4
+  // i vault delle generazioni prima, con le loro posizioni: si riscuotono,
+  // si convertono e pagano i creator come prima
+  creatorVaultsLegacy: ["0x99cbC09CF1221237565Edc3EE77f11D9D1Ba3c7A", "0x48B8CdbF29d65981F9dFbc4176A868AcE28c30Aa"],   // 50/50 v3, v2
+  feeVaultsLegacy: ["0xEE42d4708A0Faec9f896C9283001dCb1e4C15CAC", "0x2F9D010BE1D2b8F304Bb1c0a02fe9277Fcdb3896"],       // 100% v3, v2
   legacyVaults: [
     "0xc7d42eefe7Ba99F35E37cE4b8eBEBB3e66691233",   // 50/50 prima generazione
     "0xb5C467bA319a1aCe5baCe0ffd45f6582C3AE491D",   // 100% riserva prima generazione
   ],
   // ChipSocials: i link (X, sito, Telegram) di ogni chip, on-chain.
-  socials: "0x355A7C6d677944979bf604080698f131E0B72891",
+  socials: "0xbc06c136239edb6BEa11F203a5334b2Ac00F2274",   // ChipSocials della ChipFactory9 (quello della v8 sta in legacy)
   gateArray: "0x31b9E8a34B9B6e67Af51044080ed6d684a415f8a",
   defaultChip: 1,
   // dove sta la function che pinna i loghi su IPFS. Relativa finche' il sito
@@ -100,8 +105,10 @@ window.RH4_CONFIG = {
   // ChipHoldersVault: la casa HOLDERS per le posizioni LP dei chip. 80% delle
   // fee agli holder del chip (a epoche, keeper: tools/holders.js), 20% riserva
   // e buyback RH4. Vuoto = la modalita' resta "incoming" sul sito.
-  holdersVault: "0xF9E80B7422a3D3F2230B4Bb26c3b3A255817A518",   // v2, deploy 7 set 2026, executor keeper (v1 0xb76a…f057 ritirato, mai usato: si fidava della mappa della fabbrica)
-  holdersPath: "holders",
+  holdersVault: "0xFBB3bac91aeFb37277318a74D0D13D118b1B12AA",   // ChipHoldersVault2 per la ChipFactory9 (8 set 2026), executor keeper
+  holdersPath: "holders9",
+  // il vault holders della v8, con CHIPCAT dentro: epoche gia' scritte in docs/holders
+  holdersVaultsLegacy: [{ vault: "0xF9E80B7422a3D3F2230B4Bb26c3b3A255817A518", path: "holders" }],
 
   // Il launchpad a curva (src/curve: RH4Curve + CurveFeeVault). Contratti
   // scritti e testati, NON deployati. La pagina curve.html non ha link da

@@ -13,7 +13,7 @@ import { DEFAULTS } from "../rh4.js";
 
 /** "mint a chip called Night Owl with ticker OWL and logo https://…/owl.png" → { name, ticker, logoURI } */
 export const parseMintParams = (text: string): { name?: string; ticker?: string; logoURI?: string } => {
-  const ticker = text.match(/\btick(?:er)?\s*[:=]?\s*\$?([A-Za-z0-9-]{1,8})\b/i)?.[1];
+  const ticker = text.match(/\btick(?:er)?\s*[:=]?\s*\$?([A-Za-z0-9-]{1,12})\b/i)?.[1];
   const name =
     text.match(/\b(?:called|named|name\s*[:=]?)\s*"([^"]{1,32})"/i)?.[1] ??
     text.match(/\b(?:called|named|name\s*[:=]?)\s*([A-Za-z0-9][A-Za-z0-9 _-]{0,31}?)(?=\s+(?:with|ticker|and|logo|,)|\s*$)/i)?.[1];
@@ -31,7 +31,7 @@ export const mintChipAction: Action = {
     "token: 50% lands in the agent's wallet as the liquidity slice (open the " +
     "market next with OPEN_RH4_MARKET), 50% is sealed in the factory as mining " +
     "reserve over a 12-hour emission. Needs a name (max 32 chars), a unique " +
-    "ticker (1-8 of A-Z 0-9 dash), optionally a logo URL (https:// or ipfs://), and a funded wallet.",
+    "ticker (1-12 of A-Z 0-9 dash), optionally a logo URL (https:// or ipfs://), and a funded wallet.",
 
   validate: async (runtime: IAgentRuntime) => {
     return Boolean(runtime.getSetting("RH4_PRIVATE_KEY"));

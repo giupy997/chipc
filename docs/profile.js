@@ -368,19 +368,22 @@
   /** Le fee dei chip in modalita' HOLDERS: stesse epoche Merkle del vault delle azioni,
    *  ma per chip, e con l'indirizzo del chip token davanti alla struct. */
   async function loadChipFees() {
-    const vault = CFG().holdersVault;
     const sec = $("#hf-sec");
-    if (!vault || !sec) return;
+    if (!CFG().holdersVault || !sec) return;
     sec.hidden = false;
     const host = $("#hf");
     host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
     const seq = state.seq;
-    const base = CFG().holdersPath || "holders";
-    let idx;
-    try { idx = await fetch(`${base}/index.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { idx = { epochs: [] }; }
+    // il vault vivo e quelli di prima: ogni sorgente ha la sua cartella di epoche
+    const sources = [{ vault: CFG().holdersVault, base: CFG().holdersPath || "holders" }, ...(CFG().holdersVaultsLegacy || []).map((h) => ({ vault: h.vault, base: h.path }))];
+    const epochs = [];
+    for (const src of sources) {
+      try { const idx = await fetch(`${src.base}/index.json`, { cache: "no-cache" }).then((r) => r.json()); for (const e of idx.epochs) epochs.push({ ...e, vault: src.vault, base: src.base }); } catch (_) {}
+    }
     const me = state.me.toLowerCase();
     let rows = 0, claimableRows = 0, unread = 0;
-    for (const e of idx.epochs) {
+    for (const e of epochs) {
+      const vault = e.vault, base = e.base;
       let snap;
       try { snap = await fetch(`${base}/epoch-${e.id}.json`, { cache: "no-cache" }).then((r) => r.json()); } catch (_) { unread++; continue; }
       if (seq !== state.seq) return;
@@ -432,7 +435,7 @@
     }
     if (!rows && !unread) {
       const d = document.createElement("div"); d.className = "pf-empty-row";
-      d.textContent = idx.epochs.length ? "no chip fees for this wallet yet — hold a chip token whose market pays its holders."
+      d.textContent = epochs.length ? "no chip fees for this wallet yet — hold a chip token whose market pays its holders."
         : "no epoch published yet — the first snapshot is coming.";
       host.appendChild(d);
     }

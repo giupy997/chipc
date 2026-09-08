@@ -34,6 +34,10 @@ echo; echo "== 3/4 dividendi: round"
 node tools/dividend.js round $DRY
 echo; echo "== 4/4 fee dei chip HOLDERS: round"
 node tools/holders.js round $DRY
+# i vault holders di prima (con le loro posizioni), ognuno con la sua cartella di epoche
+node -e "const c=require('./tools/chain.js').siteConfig(); for (const h of c.holdersVaultsLegacy||[]) console.log(h.vault, h.path)" | while read V P; do
+  echo "   -- vault di prima $V"; node tools/holders.js round $DRY --vault $V --out docs/$P
+done
 
 if [ -n "$EPOCH" ]; then
   echo; echo "== 5/5 epoca dividendi RH4"

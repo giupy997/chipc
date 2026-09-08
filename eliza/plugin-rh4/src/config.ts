@@ -38,6 +38,6 @@ export function clientFromRuntime(runtime: IAgentRuntime): Rh4Client {
 export function findChipRef(text: string): string | undefined {
   const byId = text.match(/(?:#|\bchip\s+#?)(\d+)\b/i)?.[1];
   if (byId) return byId;
-  const byTicker = text.match(/\$([A-Za-z0-9-]{1,8})\b/)?.[1];
+  const byTicker = text.match(/\$([A-Za-z0-9-]{1,12})\b/)?.[1];
   return byTicker;
 }

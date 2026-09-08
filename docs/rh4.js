@@ -212,9 +212,9 @@
     return out;
   }
 
-  /** Stessa regola del contratto: 1-8 fra A-Z, 0-9 e trattino. */
+  /** Stessa regola del contratto: 1-12 fra A-Z, 0-9 e trattino. */
   function safeTicker(raw) {
-    return String(raw).toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 8);
+    return String(raw).toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 12);
   }
 
   function text(x, y, size, fill, body, anchor) {

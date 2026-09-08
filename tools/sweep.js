@@ -80,7 +80,7 @@ async function main() {
   const cfg = siteConfig();
   if (Array.isArray(cfg.quotes) && cfg.quotes.length) QUOTES = cfg.quotes.map((q) => ({ address: q.address, decimals: q.decimals || 18 }));
   // tutti i vault con convert/buyback: i v3, il vault holders (per la sua quota 20%) e i v2 con le loro posizioni
-  const buybackVaults = [cfg.creatorVault, cfg.feeVault, cfg.holdersVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || [])].filter(Boolean);
+  const buybackVaults = [cfg.creatorVault, cfg.feeVault, cfg.holdersVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.holdersVaultsLegacy || []).map((h) => h.vault)].filter(Boolean);
   const legacyVaults = cfg.legacyVaults || [];
 
   const chain = chainFor(rpc);
@@ -184,7 +184,8 @@ async function main() {
   // ---- 3. ricomprare: minimo dallo spot v4 (extsload), letto qui ----
   async function buybackAll(vault) {
     // il vault holders rimborsa al keeper il gas dei push dal suo ETH: gliene si lascia una scorta
-    const floor = cfg.holdersVault && vault.toLowerCase() === cfg.holdersVault.toLowerCase() ? 5n * 10n ** 15n : 0n;
+    const holdersLike = [cfg.holdersVault, ...(cfg.holdersVaultsLegacy || []).map((h) => h.vault)].filter(Boolean).map((a) => a.toLowerCase());
+    const floor = holdersLike.includes(vault.toLowerCase()) ? 5n * 10n ** 15n : 0n;
     let bal = await pub.getBalance({ address: vault }) - floor;
     if (bal < min) return;
     const key = encodeAbiParameters([{ type: "address" }, { type: "address" }, { type: "uint24" }, { type: "int24" }, { type: "address" }],
