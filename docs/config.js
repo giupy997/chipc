@@ -77,6 +77,17 @@ window.RH4_CONFIG = {
     { sym: "MSTR", name: "Strategy", address: "0xec262a75e413fAfD0dF80480274532C79D42da09" },    // pool WETH 176 ETH, fee 1% — live 7 set 2026
     { sym: "COIN", name: "Coinbase", address: "0x6330D8C3178a418788dF01a47479c0ce7CCF450b" },    // pool WETH 71 ETH, fee 0.3% — live 7 set 2026
     { sym: "RDDT", name: "Reddit", address: "0x05b37Fb53A299a1b874A619e1c4C404D52C36F4C" },      // pool WETH 179 ETH, fee 1% — live 7 set 2026
+    // 8 set 2026: i pool WETH piu' profondi fra i 194 token Robinhood, scansionati uno a uno
+    { sym: "GLD", name: "SPDR Gold", address: "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e" },      // pool WETH 139 ETH, fee 1%
+    { sym: "HIMS", name: "Hims & Hers", address: "0xCceE82fE024c36fA15E1005edE3E9e4787e23D09" },    // pool WETH 99 ETH, fee 1%
+    { sym: "AMC", name: "AMC Entertainment", address: "0x05a3d1Cd21d0C88145E82600E62e7E496e0F222B" }, // pool WETH 96 ETH, fee 1%
+    { sym: "RBLX", name: "Roblox", address: "0xF0C4BF4C582cb3836e98394b1d4e7B7281101bE8" },         // pool WETH 39 ETH, fee 0.3%
+    { sym: "CRCL", name: "Circle", address: "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5" },         // pool WETH 33 ETH, fee 1%
+    { sym: "QQQ", name: "Invesco QQQ", address: "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68" },     // pool WETH 30 ETH, fee 0.3%
+    { sym: "DJT", name: "Trump Media", address: "0x1D11f0496982706C5e14A514D4E79F2e6BdE4516" },     // pool WETH 29 ETH, fee 0.3%
+    { sym: "META", name: "Meta", address: "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35" },           // pool WETH 24 ETH, fee 0.3%
+    { sym: "SGOV", name: "iShares 0-3M Treasury", address: "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5" }, // pool WETH 20 ETH, fee 1%
+    { sym: "LLY", name: "Eli Lilly", address: "0x8005d266423c7ea827372c9c864491e5786600ea" },       // pool WETH 11 ETH, fee 0.3%
     // USDG ha 6 decimali (le azioni e WETH 18): `decimals` guida prezzi, tick e soglie.
     { sym: "USDG", name: "Global Dollar", address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", decimals: 6 }, // pool WETH 5,600 ETH, fee 0.01% — live 6 set 2026
   ],

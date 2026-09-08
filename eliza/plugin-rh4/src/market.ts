@@ -47,6 +47,16 @@ export const QUOTES: Record<string, { address: Address; decimals: number }> = {
   MSTR: { address: "0xec262a75e413fAfD0dF80480274532C79D42da09", decimals: 18 },
   COIN: { address: "0x6330D8C3178a418788dF01a47479c0ce7CCF450b", decimals: 18 },
   RDDT: { address: "0x05b37Fb53A299a1b874A619e1c4C404D52C36F4C", decimals: 18 },
+  GLD:  { address: "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e", decimals: 18 },
+  HIMS: { address: "0xCceE82fE024c36fA15E1005edE3E9e4787e23D09", decimals: 18 },
+  AMC:  { address: "0x05a3d1Cd21d0C88145E82600E62e7E496e0F222B", decimals: 18 },
+  RBLX: { address: "0xF0C4BF4C582cb3836e98394b1d4e7B7281101bE8", decimals: 18 },
+  CRCL: { address: "0xdF0992E440dD0be65BD8439b609d6D4366bf1CB5", decimals: 18 },
+  QQQ:  { address: "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68", decimals: 18 },
+  DJT:  { address: "0x1D11f0496982706C5e14A514D4E79F2e6BdE4516", decimals: 18 },
+  META: { address: "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35", decimals: 18 },
+  SGOV: { address: "0x92FD66527192E3e61d4DDd13322Aa222DE86F9B5", decimals: 18 },
+  LLY:  { address: "0x8005d266423c7ea827372c9c864491e5786600ea", decimals: 18 },
   USDG: { address: "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", decimals: 6 },
 };
 
