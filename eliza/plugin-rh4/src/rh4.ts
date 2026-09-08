@@ -27,10 +27,21 @@ export const DEFAULTS = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   factory: "0x4a5E39B8a41c169210d1F7dCD307854330D8144C" as Address,   // ChipFactory9: tickers up to 12 chars, ids from 43
   // the first factory: chips up to `lastId` live there, later ones in `factory` (ids continue across the two)
-  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address, lastId: 42 },
+  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address, lastId: 42, socials: "0x355A7C6d677944979bf604080698f131E0B72891" as Address },
+  /** ChipSocials of the live factory: the chip's links, writable by its minter or owner only */
+  socials: "0xbc06c136239edb6BEa11F203a5334b2Ac00F2274" as Address,
+  /** the on-chain signature of an agent-minted chip: this URL in the chip's website link */
+  agentMark: "https://github.com/giupy997/chipc/tree/main/eliza/plugin-rh4",
   explorer: "https://robinhoodchain.blockscout.com",
   site: "https://rh4cpu.tech",
 };
+
+export const SOCIALS_ABI = [
+  { type: "function", name: "links", stateMutability: "view", inputs: [{ type: "uint256" }],
+    outputs: [{ name: "x", type: "string" }, { name: "website", type: "string" }, { name: "telegram", type: "string" }] },
+  { type: "function", name: "setLinks", stateMutability: "nonpayable",
+    inputs: [{ type: "uint256" }, { type: "string" }, { type: "string" }, { type: "string" }], outputs: [] },
+] as const;
 
 export const robinhoodChain = defineChain({
   id: 4663,
@@ -152,7 +163,9 @@ export interface Rh4Config {
   rpc: string;
   factory: Address;
   /** the first factory and the last chip id that lives there (ids continue in `factory`) */
-  legacy?: { factory: Address; lastId: number };
+  legacy?: { factory: Address; lastId: number; socials?: Address };
+  /** ChipSocials of the live factory */
+  socials?: Address;
   privateKey?: Hex;
   /** the chip this agent considers its own (for the provider) */
   agentChipId?: number;
@@ -292,6 +305,30 @@ export class Rh4Client {
       cycle: ev?.args.cycle, pc: ev?.args.pc, out: ev?.args.out, halted: ev?.args.halted,
       gasSpent: formatEther(receipt.gasUsed * receipt.effectiveGasPrice),
     };
+  }
+
+  /** The ChipSocials a chip's links live in (one per factory). */
+  socialsFor(id: number): Address {
+    const L = this.cfg.legacy ?? DEFAULTS.legacy;
+    return L.factory && id <= L.lastId ? (L.socials ?? DEFAULTS.legacy.socials) : (this.cfg.socials ?? DEFAULTS.socials);
+  }
+
+  /** Sign a chip as agent-minted: the plugin's URL goes into the chip's on-chain
+   *  website link (ChipSocials, writable by minter/owner only). X and Telegram are kept. */
+  async signChip(id: number, links?: { x?: string; telegram?: string }) {
+    const { wallet, account } = this.requireWallet();
+    const reg = this.socialsFor(id);
+    const [x, website, telegram] = await this.pub.readContract({ address: reg, abi: SOCIALS_ABI, functionName: "links", args: [BigInt(id)] })
+      .catch(() => ["", "", ""] as const);
+    if (website === DEFAULTS.agentMark && !links) return { hash: undefined, already: true };
+    const { request } = await this.pub.simulateContract({
+      account, address: reg, abi: SOCIALS_ABI, functionName: "setLinks",
+      args: [BigInt(id), links?.x ?? x, DEFAULTS.agentMark, links?.telegram ?? telegram],
+    });
+    const hash = await wallet.writeContract(request);
+    const receipt = await this.pub.waitForTransactionReceipt({ hash, timeout: 120_000 });
+    if (receipt.status !== "success") throw new Error("setLinks reverted on-chain");
+    return { hash, already: false };
   }
 
   /** Mint a chip (echo program) and, with targetCycles > 0, launch its token. */

@@ -242,6 +242,17 @@
     } catch (_) {}
 
     host.innerHTML = "";
+    // la firma di un agente: il link del plugin ElizaOS nel sito del chip, scritto dal minter stesso
+    const AGENT_MARK = "https://github.com/giupy997/chipc/tree/main/eliza/plugin-rh4";
+    const badgeOld = document.querySelector(".cp-agent"); if (badgeOld) badgeOld.remove();
+    if (cur[1] === AGENT_MARK) {
+      const b = document.createElement("p");
+      b.className = "cp-lock cp-agent";
+      b.innerHTML = `<b>MINTED BY AN ELIZAOS AGENT</b> &middot; signed on-chain by its own minter: the chip's website link, writable only by the minter, points to the ` +
+        `<a href="${AGENT_MARK}" target="_blank" rel="noopener">RH-4 plugin for ElizaOS &nearr;</a>`;
+      const anchor = $("#cp-lock") || host;
+      anchor.parentNode.insertBefore(b, anchor);
+    }
     const items = [["website", cur[1], "website"], ["x", cur[0], "X"], ["telegram", cur[2], "Telegram"]];
     for (const [key, url, title] of items) {
       if (!linkOk(url) || !url) continue; // solo https:// pulito arriva in un href

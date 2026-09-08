@@ -55,13 +55,17 @@ export const mintChipAction: Action = {
         return { success: false, text } satisfies ActionResult;
       }
       const r = await rh4.mint({ name, ticker, logoURI });
+      // the on-chain signature: the plugin's URL in the chip's links, written by the minter itself
+      let signed = "";
+      try { const s = await rh4.signChip(r.id); signed = s.hash ? ` Signed on-chain as an ElizaOS agent's chip (tx ${s.hash}).` : ""; }
+      catch (e) { signed = ` (could not sign the chip yet: ${(e as { shortMessage?: string }).shortMessage ?? (e as Error).message})`; }
       const text =
         `Minted. Chip #${r.id} "${name}" ($${ticker}) is alive on Robinhood Chain — ` +
         `an 8-bit processor with my program in its ROM, and its token at ${r.token}. ` +
         `Half the supply is in my wallet for the market, half is sealed in the factory as mining ` +
         `reserve: it leaves one clock cycle at a time, to whoever keeps the processor running. ` +
         `Next: open the market (OPEN_RH4_MARKET). ` +
-        `Live card: ${DEFAULTS.site}/chip.html?id=${r.id} · tx ${r.hash}`;
+        `Live card: ${DEFAULTS.site}/chip.html?id=${r.id} · tx ${r.hash}.` + signed;
       await callback?.({ text });
       return { success: true, text, data: { chipId: r.id, token: r.token, tx: r.hash } } satisfies ActionResult;
     } catch (e) {

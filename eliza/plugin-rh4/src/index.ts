@@ -16,10 +16,11 @@ import { readChipAction } from "./actions/readChip.js";
 import { tickChipAction } from "./actions/tickChip.js";
 import { mintChipAction } from "./actions/mintChip.js";
 import { openMarketAction } from "./actions/openMarket.js";
+import { signChipAction } from "./actions/signChip.js";
 import { chipStateProvider } from "./provider.js";
 
 export { Rh4Client, DEFAULTS, ECHO_ROM, describeChip } from "./rh4.js";
-export { readChipAction, tickChipAction, mintChipAction, openMarketAction, chipStateProvider };
+export { readChipAction, tickChipAction, mintChipAction, openMarketAction, signChipAction, chipStateProvider };
 export { openMarket, QUOTES, VAULTS } from "./market.js";
 
 export const rh4Plugin: Plugin = {
@@ -28,7 +29,7 @@ export const rh4Plugin: Plugin = {
     "Own, power and read RH-4 chips — real gate-level 8-bit processors " +
     "running on Robinhood Chain, each with its own fixed-supply token " +
     "mined one clock cycle at a time.",
-  actions: [readChipAction, tickChipAction, mintChipAction, openMarketAction],
+  actions: [readChipAction, tickChipAction, mintChipAction, openMarketAction, signChipAction],
   providers: [chipStateProvider],
   evaluators: [],
 };
