@@ -271,6 +271,31 @@ stock until `expiresAt`; unclaimed amounts roll into the next epoch via
 | `StockSet(address,bool,uint24)` | `0x48551244564561afc0c70bb02bc9a3ad2f7f9449c69cd62f8b78bbf8c4178d4f` |
 
 
+## 5d. Two factories (ChipFactory9, Sep 8 2026)
+
+Minting moved to **ChipFactory9** `0x4a5E39B8a41c169210d1F7dCD307854330D8144C`.
+The first factory (`0x265a…f65b`) keeps chips **#1..#42** alive: mining, fees
+and markets there do not change. Ids continue: chip #43 onwards lives in the
+new factory. For any chip id: `id <= 42 ? factory8 : factory9` (the site's
+`RH4_CONFIG.factoryFor(id)`). Same ABI, same selectors, same events, same
+`ChipToken`. What changed in v9:
+
+- tickers up to **12** characters, unique across both factories (`mint`
+  reverts `TickerTaken` for a ticker taken in v8; note `tickerAvailable()`
+  checks v9 only);
+- `restart()` keeps the last-tick block: one cycle per block also for the owner;
+- an empty reserve **pauses** the reward (`ReserveEmpty`) instead of zeroing it;
+- `attachToken(id, token, reserve, rewardPerCycle)` only for tokens the
+  factory owner allowed (`allowAttach`), and the reserve is pulled from the
+  caller in the same call.
+
+Vaults for v9 chips (RH4 buybacks still land in the mother's factory, v8):
+creator 50/50 `0x094943a2ff18b4d3b28a05A37E5dF10599a9223B`, 100% reserve
+`0x64F26350754f33ea0F9C5A2771a4757435623533`, holders 80/20
+`0xFBB3bac91aeFb37277318a74D0D13D118b1B12AA`, socials
+`0xbc06c136239edb6BEa11F203a5334b2Ac00F2274`. The v8 vaults and socials stay
+in service for the 42 chips that use them.
+
 ## 5c. Chip fees to holders (ChipHoldersVault)
 
 A chip's market can be opened with the LP position sent to the
