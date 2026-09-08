@@ -9,3 +9,9 @@ lib/
 node_modules/
 out/
 tools/state/
+# l'agente Eliza di prova: dipendenze, build, e soprattutto il .env con le chiavi
+eliza/rh4-agent/node_modules/
+eliza/rh4-agent/dist/
+eliza/rh4-agent/.eliza/
+eliza/rh4-agent/.env
+eliza/rh4-agent/*.tsbuildinfo

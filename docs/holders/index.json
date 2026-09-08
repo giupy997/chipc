@@ -1,0 +1,13 @@
+{
+ "epochs": [
+  {
+   "id": 0,
+   "token": "0x35561B36d7EE67a08eBF69152BE74C1CE7ddE13A",
+   "symbol": "CHIPCAT",
+   "chip": 30,
+   "block": "57540649",
+   "holders": 2,
+   "totalEligible": "8968111829424740282825998"
+  }
+ ]
+}

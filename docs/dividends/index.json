@@ -20,6 +20,13 @@
    "root": "0xa87013cd88704ce2cb2b6f34c208afd7c1199158e13ff1ec9a6c2e53958598ea",
    "holders": 839,
    "totalEligible": "577724930510226825059912950"
+  },
+  {
+   "epoch": 3,
+   "block": "57541063",
+   "root": "0xe0ab298a23ede4ceed4caced7dbe5a115bac9fb9848bcdaf8fa9dea1e03576eb",
+   "holders": 781,
+   "totalEligible": "568219391698984846047852129"
   }
  ]
 }
