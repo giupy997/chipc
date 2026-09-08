@@ -11,13 +11,15 @@ import type { Action, ActionResult, HandlerCallback, HandlerOptions, IAgentRunti
 import { clientFromRuntime } from "../config.js";
 import { DEFAULTS } from "../rh4.js";
 
-/** "mint a chip called Night Owl with ticker OWL" → { name, ticker } */
-export const parseMintParams = (text: string): { name?: string; ticker?: string } => {
+/** "mint a chip called Night Owl with ticker OWL and logo https://…/owl.png" → { name, ticker, logoURI } */
+export const parseMintParams = (text: string): { name?: string; ticker?: string; logoURI?: string } => {
   const ticker = text.match(/\btick(?:er)?\s*[:=]?\s*\$?([A-Za-z0-9-]{1,8})\b/i)?.[1];
   const name =
     text.match(/\b(?:called|named|name\s*[:=]?)\s*"([^"]{1,32})"/i)?.[1] ??
-    text.match(/\b(?:called|named|name\s*[:=]?)\s*([A-Za-z0-9][A-Za-z0-9 _-]{0,31}?)(?=\s+(?:with|ticker|and|,)|\s*$)/i)?.[1];
-  return { name: name?.trim(), ticker: ticker?.toUpperCase() };
+    text.match(/\b(?:called|named|name\s*[:=]?)\s*([A-Za-z0-9][A-Za-z0-9 _-]{0,31}?)(?=\s+(?:with|ticker|and|logo|,)|\s*$)/i)?.[1];
+  // the factory takes https:// or ipfs:// only, no spaces or quotes
+  const logoURI = text.match(/\b(?:logo|image|icon)\s*[:=]?\s*((?:https:\/\/|ipfs:\/\/)[\x21\x23-\x5b\x5d-\x7e]{1,190})/i)?.[1];
+  return { name: name?.trim(), ticker: ticker?.toUpperCase(), logoURI };
 };
 
 export const mintChipAction: Action = {
@@ -29,7 +31,7 @@ export const mintChipAction: Action = {
     "token: 50% lands in the agent's wallet as the liquidity slice (open the " +
     "market next with OPEN_RH4_MARKET), 50% is sealed in the factory as mining " +
     "reserve over a 12-hour emission. Needs a name (max 32 chars), a unique " +
-    "ticker (1-8 of A-Z 0-9 dash), and a funded wallet.",
+    "ticker (1-8 of A-Z 0-9 dash), optionally a logo URL (https:// or ipfs://), and a funded wallet.",
 
   validate: async (runtime: IAgentRuntime) => {
     return Boolean(runtime.getSetting("RH4_PRIVATE_KEY"));
@@ -44,7 +46,7 @@ export const mintChipAction: Action = {
   ) => {
     const rh4 = clientFromRuntime(runtime);
     try {
-      const { name, ticker } = parseMintParams(message.content?.text ?? "");
+      const { name, ticker, logoURI } = parseMintParams(message.content?.text ?? "");
       if (!name || !ticker) {
         const text =
           "To mint I need a name and a ticker — e.g. \"mint a chip called " +
@@ -52,7 +54,7 @@ export const mintChipAction: Action = {
         await callback?.({ text });
         return { success: false, text } satisfies ActionResult;
       }
-      const r = await rh4.mint({ name, ticker });
+      const r = await rh4.mint({ name, ticker, logoURI });
       const text =
         `Minted. Chip #${r.id} "${name}" ($${ticker}) is alive on Robinhood Chain — ` +
         `an 8-bit processor with my program in its ROM, and its token at ${r.token}. ` +
