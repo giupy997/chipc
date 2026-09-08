@@ -56,7 +56,7 @@ export const tickChipAction: Action = {
         data: { chipId: id, byte, tx: r.hash, cycle: r.cycle?.toString(), out: Number(r.out ?? 0), halted: r.halted },
       } satisfies ActionResult;
     } catch (e) {
-      const text = `Tick failed: ${(e as Error).message}`;
+      const text = `Tick failed: ${(e as { shortMessage?: string }).shortMessage ?? (e as Error).message}`;
       await callback?.({ text });
       return { success: false, text, error: e as Error } satisfies ActionResult;
     }

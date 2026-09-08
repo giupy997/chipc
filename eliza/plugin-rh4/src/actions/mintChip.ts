@@ -63,7 +63,7 @@ export const mintChipAction: Action = {
       await callback?.({ text });
       return { success: true, text, data: { chipId: r.id, token: r.token, tx: r.hash } } satisfies ActionResult;
     } catch (e) {
-      const text = `Mint failed: ${(e as Error).message}`;
+      const text = `Mint failed: ${(e as { shortMessage?: string }).shortMessage ?? (e as Error).message}`;
       await callback?.({ text });
       return { success: false, text, error: e as Error } satisfies ActionResult;
     }

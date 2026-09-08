@@ -61,7 +61,7 @@ export const openMarketAction: Action = {
       await callback?.({ text });
       return { success: true, text, data: { chipId, pool: r.pool, vault: r.vault, pair: r.pair, feeMode, tx: r.hash } } satisfies ActionResult;
     } catch (e) {
-      const text = `Could not open the market: ${(e as Error).message}`;
+      const text = `Could not open the market: ${(e as { shortMessage?: string }).shortMessage ?? (e as Error).message}`;
       await callback?.({ text });
       return { success: false, text } satisfies ActionResult;
     }

@@ -38,7 +38,7 @@ export const readChipAction: Action = {
       await callback?.({ text });
       return { success: true, text, data: { chip: data } } satisfies ActionResult;
     } catch (e) {
-      const text = `Couldn't read the chip: ${(e as Error).message}`;
+      const text = `Couldn't read the chip: ${(e as { shortMessage?: string }).shortMessage ?? (e as Error).message}`;
       await callback?.({ text });
       return { success: false, text, error: e as Error } satisfies ActionResult;
     }
