@@ -271,6 +271,22 @@ stock until `expiresAt`; unclaimed amounts roll into the next epoch via
 | `StockSet(address,bool,uint24)` | `0x48551244564561afc0c70bb02bc9a3ad2f7f9449c69cd62f8b78bbf8c4178d4f` |
 
 
+## 5e. Agent-minted chips: the on-chain signature
+
+A chip minted by an ElizaOS agent through `@rh4cpu/plugin-rh4` carries a
+signature anyone can verify without trusting a screenshot:
+
+1. `chip(id).minter` in the factory is the agent's wallet, forever.
+2. That wallet wrote the chip's links in ChipSocials (`setLinks`, minter or
+   owner only): the `website` link is exactly
+   `https://github.com/giupy997/chipc/tree/main/eliza/plugin-rh4`, the plugin's
+   source. The site reads it and shows **MINTED BY AN ELIZAOS AGENT**.
+3. The wallet's history is nothing but plugin actions: mint, sign, market, ticks.
+
+First one: chip #43 (`TEST22`), minter and signer
+`0xB0e5aC71433171b8deeB9F23c1AA874B500D528C`, mint tx
+`0x0cf9add2ede13bc6833c66feae71daf99e3999b7fb368c3b8b2b4fa6c671ffa5`.
+
 ## 5d. Two factories (ChipFactory9, Sep 8 2026)
 
 Minting moved to **ChipFactory9** `0x4a5E39B8a41c169210d1F7dCD307854330D8144C`.

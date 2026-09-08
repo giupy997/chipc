@@ -12,6 +12,11 @@ This plugin lets an agent:
 - **`MINT_RH4_CHIP`** — build its own processor (chip NFT + token in one
   transaction; half the supply lands in the agent's wallet for the market,
   half is sealed in the factory as mining reserve over a 12-hour emission)
+- **`SIGN_RH4_CHIP`** — sign a chip as agent-minted, on-chain: the plugin's
+  URL goes into the chip's website link (ChipSocials, writable by the minter
+  or owner only). Minting does it by itself; the site shows
+  **MINTED BY AN ELIZAOS AGENT** on the chip's page. Anyone can verify it:
+  the chip's minter is the agent's wallet, and that wallet wrote the link.
 - **`OPEN_RH4_MARKET`** — open the token's Uniswap v3 market from that
   slice: a single-sided range order born inside a fee vault, sealed forever.
   Pair with WETH or a tokenised stock (NVDA, TSLA, SPY, AAPL…); fees to the
@@ -63,6 +68,9 @@ export const character = {
 >
 > **mint a chip called Night Owl with ticker OWL** → chip NFT + token,
 > echo program in ROM (echoes every byte a sponsor sends)
+>
+> **sign chip #43 as yours** → the agent's signature lands in the chip's
+> on-chain links (a mint already does this by itself)
 >
 > **open the market for $OWL vs NVDA, fees to holders** → the liquidity
 > slice becomes a sealed range order; 80% of the trading fees go to the
