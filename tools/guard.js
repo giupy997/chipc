@@ -83,6 +83,10 @@ async function main() {
       // la madre (RH4, chip #1) e' agganciata a mano dall'owner: legittima
       if (id === 1 || token.toLowerCase() === mother || token.toLowerCase() === String(cfg.token || "").toLowerCase()) continue;
       if (await isChipToken(token, id)) continue;
+      // sulle fabbriche v9 un token estraneo puo' esserci solo se l'owner l'ha ammesso (allowAttach), e un tick
+      // a riserva zero non spegne piu' niente: si segnala e non si tocca
+      const allowed = await pub.readContract({ address: factory, abi: parseAbi(["function attachAllowed(address) view returns (bool)"]), functionName: "attachAllowed", args: [token] }).catch(() => null);
+      if (allowed !== null) { console.log(`  chip #${id}: token agganciato ${allowed ? "con permesso dell'owner" : "SENZA permesso (impossibile sulla v9: controlla)"}`); if (!allowed) foreign++; continue; }
       // i chip-guardia del team ("quote lock", un HLT): la quota e' agganciata apposta, e sono gia' fermi
       if (c.label === "0x71756f7465206c6f636b00000000000000000000000000000000000000000000") { console.log(`  chip #${id}: lucchetto del team, ok`); continue; }
       foreign++;

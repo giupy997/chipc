@@ -957,7 +957,10 @@
       debounce = setTimeout(async () => {
         try {
           const hex = b32(cleaned);
-          const taken = BigInt(await call(SELECTOR_BYTICKER + hex)) !== 0n;
+          // unico per sempre, anche rispetto alla fabbrica di prima
+          const fabs = [...new Set([CFG().factory, CFG().legacy && CFG().legacy.factory].filter(Boolean))];
+          const hits = await Promise.all(fabs.map((f) => rpc("eth_call", [{ to: f, data: SELECTOR_BYTICKER + hex }, "latest"])));
+          const taken = hits.some((h) => BigInt(h || "0x0") !== 0n);
           if (cleaned !== safeTicker(tickerEl.value)) return; // e' arrivata una risposta vecchia
           const note = $("#f-ticker-note");
           note.textContent = taken ? `${cleaned} is taken — forever` : `${cleaned} is free`;

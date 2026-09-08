@@ -26,8 +26,8 @@ const ABI = parseAbi([
 
 function tickerBytes(s) {
   const up = s.toUpperCase();
-  if (!/^[A-Z0-9-]{1,8}$/.test(up)) {
-    throw new Error(`sigla non valida: "${s}" (1-8 fra A-Z, 0-9 e trattino)`);
+  if (!/^[A-Z0-9-]{1,12}$/.test(up)) {
+    throw new Error(`sigla non valida: "${s}" (1-12 fra A-Z, 0-9 e trattino)`);
   }
   const bytes = new Uint8Array(32);
   for (let i = 0; i < up.length; i++) bytes[i] = up.charCodeAt(i);

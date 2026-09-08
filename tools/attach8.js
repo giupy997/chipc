@@ -13,7 +13,6 @@
  *   --reserve N   token da mandare in riserva (unita' intere, non wei)
  *   --target N    cicli su cui spalmarla: reward = riserva / target
  *                 (default 77.760.000 = 90 giorni a 10 Hz)
- *   --skip-fund   la riserva e' gia' nella fabbrica: solo l'aggancio
  *   --dry-run     mostra i numeri e non manda niente
  */
 
@@ -21,7 +20,9 @@ const { createPublicClient, createWalletClient, http, parseAbi, parseUnits, form
 const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
 
 const ABI = parseAbi([
-  "function attachToken(uint256 id, address token, uint96 rewardPerCycle)",
+  "function attachToken(uint256 id, address token, uint256 reserve, uint96 rewardPerCycle)",   // ChipFactory9: la riserva la tira dentro lei
+  "function attachAllowed(address) view returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)",
   "function emission(uint256 id) view returns (address token, uint256 reserveLeft, uint256 rewardPerCycle, uint256 cyclesLeft)",
   "function ownerOf(uint256 id) view returns (address)",
   "function balanceOf(address) view returns (uint256)",
@@ -57,8 +58,8 @@ async function main() {
   const inWallet = await pub.readContract({ address: token, abi: ABI, functionName: "balanceOf", args: [account.address] });
 
   let toSend = 0n;
-  if (!args["skip-fund"]) {
-    if (!args.reserve) { console.error("manca --reserve (o usa --skip-fund se e' gia' dentro)"); process.exit(2); }
+  {
+    if (!args.reserve) { console.error("manca --reserve"); process.exit(2); }
     toSend = parseUnits(String(args.reserve), decimals);
     if (toSend > inWallet) {
       console.error(`vuoi mandare ${args.reserve} ${symbol} ma il wallet ne ha ${formatUnits(inWallet, decimals)}`);
@@ -81,15 +82,17 @@ async function main() {
 
   if (args["dry-run"]) { console.log("\ndry run: non ho mandato niente."); return; }
 
+  // ChipFactory9: il token deve essere ammesso dall'owner, e la riserva la tira dentro attachToken stesso
+  const allowed = await pub.readContract({ address: factory, abi: ABI, functionName: "attachAllowed", args: [token] }).catch(() => null);
+  if (allowed === false) { console.error("questo token non e' ammesso all'aggancio: serve allowAttach(token, true) dall'owner della fabbrica"); process.exit(1); }
   if (toSend > 0n) {
-    const th = await wallet.writeContract({ address: token, abi: ABI, functionName: "transfer", args: [factory, toSend] });
-    await pub.waitForTransactionReceipt({ hash: th });
-    console.log(`\n  1/2 riserva trasferita  ${th.slice(0, 18)}…`);
+    const ph = await wallet.writeContract({ address: token, abi: ABI, functionName: "approve", args: [factory, toSend] });
+    await pub.waitForTransactionReceipt({ hash: ph });
+    console.log(`\n  1/2 approve            ${ph.slice(0, 18)}…`);
   }
-
   const ah = await wallet.writeContract({
     address: factory, abi: ABI, functionName: "attachToken",
-    args: [chipId, token, reward],
+    args: [chipId, token, toSend, reward],
   });
   await pub.waitForTransactionReceipt({ hash: ah });
   console.log(`  2/2 token agganciato    ${ah.slice(0, 18)}…`);

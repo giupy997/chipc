@@ -121,7 +121,7 @@
       const main = document.querySelector("main");
       if (main) main.insertAdjacentHTML("afterbegin",
         `<p class="cp-lock cp-cap" style="margin:20px 24px 0"><b>NOT A CHIP TOKEN</b> &middot; this chip was attached by hand to a token the factory never launched. ` +
-        `Its mining reward has been zeroed for good: ticking it pays nothing, and the market shown is that token's own, not a chip market.</p>`);
+        `Ticking it pays nothing, and the market shown is that token's own, not a chip market.</p>`);
     }
 
     document.title = `${ticker} — chip #${id} — RH-4`;
