@@ -712,10 +712,13 @@
     async checkTickerFree(ticker) {
       const hex = UI.b32(ticker);
       if (!hex) return false;
-      const result = await this.rpc("eth_call", [
-        { to: CFG().factory, data: SELECTOR_BYTICKER + hex }, "latest",
-      ]);
-      return BigInt(result || "0x0") === 0n;
+      // unica per sempre, anche rispetto alla fabbrica di prima
+      const fabs = [...new Set([CFG().factory, CFG().legacy && CFG().legacy.factory].filter(Boolean))];
+      for (const f of fabs) {
+        const result = await this.rpc("eth_call", [{ to: f, data: SELECTOR_BYTICKER + hex }, "latest"]);
+        if (BigInt(result || "0x0") !== 0n) return false;
+      }
+      return true;
     }
 
     buildMint() {

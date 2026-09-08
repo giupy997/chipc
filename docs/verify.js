@@ -42,7 +42,7 @@
 
   /** Gli argomenti del costruttore di un chip, letti dalla chain. */
   async function argsFor(id) {
-    const F = CFG().factory;
+    const F = CFG().factoryFor(id);
     const chip = await rpc("eth_call", [{ to: F, data: S_CHIP + word(id) }, "latest"]);
     const w = (i) => chip.slice(2 + i * 64, 2 + (i + 1) * 64);
     const label = b32ToString(w(1)), ticker = b32ToString(w(2)), minter = "0x" + w(3).slice(24), token = "0x" + w(6).slice(24);

@@ -26,6 +26,8 @@ import { privateKeyToAccount } from "viem/accounts";
 export const DEFAULTS = {
   rpc: "https://rpc.mainnet.chain.robinhood.com",
   factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address,
+  // the first factory: chips up to `lastId` live there, later ones in `factory` (ids continue across the two)
+  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b" as Address, lastId: 0 },
   explorer: "https://robinhoodchain.blockscout.com",
   site: "https://rh4cpu.tech",
 };
@@ -149,6 +151,8 @@ export const ECHO_ROM: bigint[] = (() => {
 export interface Rh4Config {
   rpc: string;
   factory: Address;
+  /** the first factory and the last chip id that lives there (ids continue in `factory`) */
+  legacy?: { factory: Address; lastId: number };
   privateKey?: Hex;
   /** the chip this agent considers its own (for the provider) */
   agentChipId?: number;
@@ -203,6 +207,16 @@ export class Rh4Client {
 
   get address(): Address | undefined { return this.account?.address; }
 
+  /** The factory a chip lives in: the first one up to legacy.lastId, the live one after. */
+  factoryFor(id: number): Address {
+    const L = this.cfg.legacy ?? DEFAULTS.legacy;
+    return L.factory && id <= L.lastId ? L.factory : this.cfg.factory;
+  }
+  private factories(): Address[] {
+    const L = this.cfg.legacy ?? DEFAULTS.legacy;
+    return [...new Set([this.cfg.factory, L.factory].filter(Boolean).map((a) => a.toLowerCase()))] as Address[];
+  }
+
   requireWallet(): { wallet: WalletClient; account: Account } {
     if (!this.wallet || !this.account) {
       throw new Error(
@@ -224,19 +238,21 @@ export class Rh4Client {
   async resolveChip(refRaw: string): Promise<number> {
     const ref = refRaw.trim().replace(/^[#$]/, "");
     if (/^\d+$/.test(ref)) return Number(ref);
-    const id = await this.pub.readContract({
-      address: this.cfg.factory, abi: FACTORY_ABI,
-      functionName: "chipByTicker", args: [toB32(ref.toUpperCase())],
-    });
-    if (id === 0n) throw new Error(`no chip with ticker "${ref.toUpperCase()}" in the factory`);
-    return Number(id);
+    for (const f of this.factories()) {   // tickers are unique across both factories
+      const id = await this.pub.readContract({
+        address: f, abi: FACTORY_ABI, functionName: "chipByTicker", args: [toB32(ref.toUpperCase())],
+      });
+      if (id !== 0n) return Number(id);
+    }
+    throw new Error(`no chip with ticker "${ref.toUpperCase()}" in the factory`);
   }
 
   async chipState(id: number): Promise<ChipState> {
+    const F = this.factoryFor(id);
     const [c, ins, em, bn] = await Promise.all([
-      this.pub.readContract({ address: this.cfg.factory, abi: FACTORY_ABI, functionName: "chip", args: [BigInt(id)] }),
-      this.pub.readContract({ address: this.cfg.factory, abi: FACTORY_ABI, functionName: "inspect", args: [BigInt(id)] }),
-      this.pub.readContract({ address: this.cfg.factory, abi: FACTORY_ABI, functionName: "emission", args: [BigInt(id)] }),
+      this.pub.readContract({ address: F, abi: FACTORY_ABI, functionName: "chip", args: [BigInt(id)] }),
+      this.pub.readContract({ address: F, abi: FACTORY_ABI, functionName: "inspect", args: [BigInt(id)] }),
+      this.pub.readContract({ address: F, abi: FACTORY_ABI, functionName: "emission", args: [BigInt(id)] }),
       this.pub.getBlockNumber(),
     ]);
     return {
@@ -264,7 +280,7 @@ export class Rh4Client {
     // simulate first: a revert (someone else's tick this block, or a halted
     // chip) should come back as words, not as burned gas
     const { request } = await this.pub.simulateContract({
-      account, address: this.cfg.factory, abi: FACTORY_ABI,
+      account, address: this.factoryFor(id), abi: FACTORY_ABI,
       functionName: "tick", args: [BigInt(id), byte],
     });
     const hash = await wallet.writeContract(request);

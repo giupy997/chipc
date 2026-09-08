@@ -105,7 +105,7 @@
 
   async function loadChip() {
     const w = (hex, i) => hex.slice(2 + i * 64, 2 + (i + 1) * 64);
-    const F = CFG().factory;
+    const F = CFG().factoryFor(id);   // la fabbrica di questo chip
     const [chipHex, insHex, logoHex, emiHex, nowHex] = await Promise.all([
       call(F, S_CHIP + word(id)), call(F, S_INSPECT + word(id)),
       call(F, S_LOGO + word(id)), call(F, S_EMISSION + word(id)),
@@ -232,7 +232,7 @@
 
   let socialEdit = null;
   async function loadSocials() {
-    const reg = CFG().socials;
+    const reg = CFG().socialsFor(id);
     const host = $("#cp-social");
     if (!reg || !host) return;
     let cur = ["", "", ""];
@@ -286,7 +286,7 @@
         await ensureChain(provider);
         note.textContent = "confirm in your wallet…";
         const h = await provider.request({ method: "eth_sendTransaction", params: [{
-          from: account, to: CFG().socials, data: encSetLinks(id, vals) }] });
+          from: account, to: CFG().socialsFor(id), data: encSetLinks(id, vals) }] });
         await waitTx(h, "links");
         note.textContent = "written ✓";
         box.classList.remove("is-open");
@@ -997,7 +997,7 @@
         }
         const byte = Math.max(0, Math.min(255, Number($("#cp-byte").value) || 0));
         const hash = await provider.request({ method: "eth_sendTransaction", params: [{
-          from: account, to: CFG().factory,
+          from: account, to: CFG().factoryFor(id),
           data: S_TICK + word(id) + word(byte),
         }] });
         $("#cp-power-note").innerHTML = `cycle sent — <b>${hash.slice(0, 10)}…</b> waiting`;

@@ -185,8 +185,10 @@ const TOTAL_ABI = [{ type: "function", name: "totalChips", stateMutability: "vie
 async function heartbeat(args) {
   const rpc = args.rpc || process.env.RPC_URL || DEFAULT_RPC;
   const dryRun = Boolean(args["dry-run"]);
-  const factory = args.factory || process.env.RH4_FACTORY;
-  if (!factory) { console.error("--all vuole --factory 0x<indirizzo>"); process.exit(2); }
+  // senza --factory: tutte le fabbriche di docs/config.js, ognuna con i suoi id
+  const cfgAll = args.factory || process.env.RH4_FACTORY ? null : require("./chain").siteConfig();
+  const ranges = cfgAll ? require("./chain").chipRanges(cfgAll) : [{ factory: args.factory || process.env.RH4_FACTORY, from: 1, to: null }];
+  const factory = ranges[ranges.length - 1].factory;   // la fabbrica viva: ci finisce lo sweep verso "factory"
   const inputByte = Number(args.input || 0) & 0xff;
   const interval = args.interval ? Number(args.interval) : 600_000;
   const budget = args.budget ? parseEther(String(args.budget)) : null;
@@ -242,19 +244,24 @@ async function heartbeat(args) {
 
   while (running) {
     if (budget && stats.spent >= budget) { console.log("budget esaurito."); break; }
-    const total = Number(await pub.readContract({ address: factory, abi: TOTAL_ABI, functionName: "totalChips" }));
     stats.rounds++;
     const t = new Date().toISOString().slice(11, 19);
     let line = `  giro ${stats.rounds} (${t}) —`;
-    for (let id = 1; id <= total && running; id++) {
+    const plan = [];   // [fabbrica, id] per ogni chip, fabbrica per fabbrica
+    for (const r of ranges) {
+      const total = r.to ?? Number(await pub.readContract({ address: r.factory, abi: TOTAL_ABI, functionName: "totalChips" }));
+      for (let id = r.from; id <= total; id++) plan.push([r.factory, id]);
+    }
+    for (const [fab, id] of plan) {
+      if (!running) break;
       try {
-        const ins = await pub.readContract({ address: factory, abi: FACTORY_ABI, functionName: "inspect", args: [BigInt(id)] });
+        const ins = await pub.readContract({ address: fab, abi: FACTORY_ABI, functionName: "inspect", args: [BigInt(id)] });
         if (ins[2]) { stats.skipped++; line += ` #${id} HLT`; continue; }
-        const [token, , , cyclesLeft] = await pub.readContract({ address: factory, abi: EMISSION_ABI, functionName: "emission", args: [BigInt(id)] });
+        const [token, , , cyclesLeft] = await pub.readContract({ address: fab, abi: EMISSION_ABI, functionName: "emission", args: [BigInt(id)] });
         if (cyclesLeft === 0n) { stats.skipped++; line += ` #${id} esaurito`; continue; }
         if (token !== "0x0000000000000000000000000000000000000000") tokens.set(id, token);
         if (dryRun) { line += ` #${id} [dry]`; stats.landed++; continue; }
-        const hash = await wallet.writeContract({ address: factory, abi: FACTORY_ABI, functionName: "tick", args: [BigInt(id), inputByte], gas: gasLimit, nonce });
+        const hash = await wallet.writeContract({ address: fab, abi: FACTORY_ABI, functionName: "tick", args: [BigInt(id), inputByte], gas: gasLimit, nonce });
         nonce++;
         const r = await pub.waitForTransactionReceipt({ hash, timeout: 30_000 });
         stats.spent += r.gasUsed * r.effectiveGasPrice;

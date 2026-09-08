@@ -21,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const { createPublicClient, createWalletClient, http, parseAbi, formatUnits } = require("viem");
-const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
+const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs, chipRanges } = require("./chain");
 
 const FACTORY_ABI = parseAbi([
   "function totalChips() view returns (uint256)",
@@ -52,11 +52,11 @@ async function main() {
   const dryRun = Boolean(args["dry-run"]);
   const interval = args.interval ? Number(args.interval) : 0;
   const cfg = siteConfig();
-  const factory = cfg.factory;
   const chain = chainFor(rpc);
   const account = dryRun && !process.env.PRIVATE_KEY ? { address: "0x0000000000000000000000000000000000000001" } : accountFromEnv();   // in dry run si puo' solo guardare
   const pub = createPublicClient({ chain, transport: http(rpc) });
   const wallet = dryRun ? null : createWalletClient({ account, chain, transport: http(rpc) });
+  let factory = cfg.factory;   // la fabbrica del giro corrente (guard() scorre tutte)
   const readF = (fn, a = []) => pub.readContract({ address: factory, abi: FACTORY_ABI, functionName: fn, args: a });
 
   // un ChipToken vero: factory() == fabbrica e chipId() == id
@@ -70,10 +70,13 @@ async function main() {
   }
 
   async function round() {
-    const total = Number(await readF("totalChips"));
+    for (const range of chipRanges(cfg)) { factory = range.factory; await roundOn(range); }
+  }
+  async function roundOn(range) {
+    const total = range.to ?? Number(await readF("totalChips"));
     const mother = (await readF("motherToken").catch(() => "0x")).toLowerCase();
     let foreign = 0, live = 0;
-    for (let id = 1; id <= total; id++) {
+    for (let id = range.from; id <= total; id++) {
       const c = await readF("chip", [BigInt(id)]);
       const token = c.token;
       if (!token || /^0x0{40}$/.test(token)) continue;
@@ -105,11 +108,11 @@ async function main() {
         } catch (e) { console.log(`    tick fallito: ${short(e)}`); await sleep(3000); }
       }
     }
-    console.log(`  guardia: ${total} chip, ${foreign} con token estraneo, ${live} da spegnere${dryRun ? " (dry run)" : ""}`);
+    console.log(`  guardia su ${factory.slice(0, 8)}: chip ${range.from}..${total}, ${foreign} con token estraneo, ${live} da spegnere${dryRun ? " (dry run)" : ""}`);
   }
 
   do {
-    console.log(`[${new Date().toISOString()}] guardia sulla fabbrica ${factory}`);
+    console.log(`[${new Date().toISOString()}] guardia sulle fabbriche`);
     try { await round(); } catch (e) { console.log(`  giro fallito: ${short(e)}`); }
     if (interval) await sleep(interval);
   } while (interval);

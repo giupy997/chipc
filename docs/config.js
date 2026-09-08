@@ -16,6 +16,11 @@ window.RH4_CONFIG = {
   explorer: "https://robinhoodchain.blockscout.com",
 
   factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b",
+  // La fabbrica di prima. Gli id continuano: i chip fino a `lastId` vivono
+  // li' (con i loro link nel suo ChipSocials), quelli dopo nella fabbrica
+  // viva. `factoryFor(id)` e `socialsFor(id)` in fondo al file scelgono.
+  // Finche' lastId e' 0 tutto vive nella stessa fabbrica.
+  legacy: { factory: "0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b", socials: "0x355A7C6d677944979bf604080698f131E0B72891", lastId: 0 },
   token: "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B",
   // I vault delle fee: le posizioni LP nascono qui e non escono mai. Dalla
   // generazione buyback, la quota "riserva" della quote ricompra RH4 per
@@ -108,4 +113,13 @@ window.RH4_CONFIG = {
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
   launchpadOpen: true,
+};
+// dove vive un chip: nella fabbrica di prima fino a legacy.lastId, poi in quella viva
+window.RH4_CONFIG.factoryFor = function (id) {
+  const L = this.legacy || {};
+  return L.factory && Number(id) <= Number(L.lastId || 0) ? L.factory : this.factory;
+};
+window.RH4_CONFIG.socialsFor = function (id) {
+  const L = this.legacy || {};
+  return L.socials && Number(id) <= Number(L.lastId || 0) ? L.socials : this.socials;
 };

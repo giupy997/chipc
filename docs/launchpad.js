@@ -170,8 +170,10 @@
       const hidden = new Set((CFG().hiddenChips || []).map(Number));   // chip tolti dal sito (token agganciato a mano)
       for (let id = total; id >= 1; id--) if (!hidden.has(id)) ids.push(id);
       const reqs = [];
-      for (const id of ids) {
-        reqs.push(ecall(SELECTOR_CHIP + word(id)), ecall(SELECTOR_INSPECT + word(id)), ecall(SELECTOR_LOGO + word(id)));
+      for (const id of ids) {   // ogni chip si legge dalla sua fabbrica (gli id continuano da una all'altra)
+        const F = CFG().factoryFor(id);
+        const at = (data) => ({ method: "eth_call", params: [{ to: F, data }, "latest"] });
+        reqs.push(at(SELECTOR_CHIP + word(id)), at(SELECTOR_INSPECT + word(id)), at(SELECTOR_LOGO + word(id)));
       }
       const res = await rpcBatch(reqs); // tutta la fabbrica in un giro solo
 

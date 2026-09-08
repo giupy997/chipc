@@ -25,7 +25,7 @@ const path = require("path");
 const vm = require("vm");
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const { createPublicClient, http, parseAbiItem, formatEther, parseEther, getAddress } = require("viem");
-const { DEFAULT_RPC, chainFor, parseArgs } = require("./chain");
+const { DEFAULT_RPC, chainFor, parseArgs, factoriesOf } = require("./chain");
 
 const RH4 = "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B";
 const FROM_BLOCK = 51_000_000n;   // prima della nascita di questa generazione del token
@@ -60,7 +60,7 @@ async function main() {
   const outDir = args.out || path.join(__dirname, "..", "docs", "dividends");
   const cfg = siteConfig();
   const exclude = new Set([
-    ...SYSTEM, cfg.feeVault, cfg.creatorVault, cfg.holdersVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []), cfg.stockVault, cfg.curve && cfg.curve.address, cfg.curve && cfg.curve.vault,
+    ...SYSTEM, ...factoriesOf(cfg), cfg.feeVault, cfg.creatorVault, cfg.holdersVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []), cfg.stockVault, cfg.curve && cfg.curve.address, cfg.curve && cfg.curve.vault,
     ...String(args.exclude || "").split(",").filter(Boolean),
   ].filter(Boolean).map((a) => a.toLowerCase()));
 

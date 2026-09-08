@@ -26,7 +26,7 @@ const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
 const { createPublicClient, createWalletClient, http, parseAbi, formatEther, formatUnits, decodeFunctionResult, encodeFunctionData, keccak256, encodeAbiParameters, encodePacked } = require("viem");
-const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
+const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs, factoriesOf } = require("./chain");
 
 const NPM = "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3";
 const V3F = "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA";
@@ -116,14 +116,15 @@ async function main() {
     const k = t.toLowerCase();
     if (chipTokenCache.has(k)) return chipTokenCache.get(k);
     let ok = false;
-    try {
-      const id = await pub.readContract({ address: cfg.factory, abi: FACTORY_LITE_ABI, functionName: "chipByToken", args: [t] });
-      if (id !== 0n) {
+    for (const fab of factoriesOf(cfg)) {   // le fabbriche sono due: il token dice da quale viene
+      try {
+        const id = await pub.readContract({ address: fab, abi: FACTORY_LITE_ABI, functionName: "chipByToken", args: [t] });
+        if (id === 0n) continue;
         const f = await pub.readContract({ address: t, abi: CHIPTOKEN_ABI, functionName: "factory" });
         const c = await pub.readContract({ address: t, abi: CHIPTOKEN_ABI, functionName: "chipId" });
-        ok = f.toLowerCase() === cfg.factory.toLowerCase() && c === id;
-      }
-    } catch (_) { ok = false; }
+        if (f.toLowerCase() === fab.toLowerCase() && c === id) { ok = true; break; }
+      } catch (_) { /* si prova l'altra */ }
+    }
     chipTokenCache.set(k, ok);
     return ok;
   }

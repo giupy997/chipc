@@ -49,4 +49,28 @@ function parseArgs(argv, flags = []) {
   return out;
 }
 
-module.exports = { DEFAULT_RPC, robinhoodChain, chainFor, accountFromEnv, parseArgs };
+/** docs/config.js e' un global del browser: lo si legge in una sandbox. */
+function siteConfig() {
+  const fs = require("fs"), path = require("path"), vm = require("vm");
+  const src = fs.readFileSync(path.join(__dirname, "..", "docs", "config.js"), "utf8");
+  const sandbox = { window: {} };
+  vm.runInNewContext(src, sandbox);
+  return sandbox.window.RH4_CONFIG;
+}
+/** La fabbrica di un chip: quella di prima fino a legacy.lastId, poi quella viva. */
+function factoryFor(cfg, id) {
+  const L = cfg.legacy || {};
+  return L.factory && Number(id) <= Number(L.lastId || 0) ? L.factory : cfg.factory;
+}
+/** Le fabbriche con il loro intervallo di id: [{factory, from, to|null}]. */
+function chipRanges(cfg) {
+  const L = cfg.legacy || {};
+  const out = [];
+  if (L.factory && Number(L.lastId) > 0 && L.factory.toLowerCase() !== String(cfg.factory).toLowerCase()) out.push({ factory: L.factory, from: 1, to: Number(L.lastId) });
+  out.push({ factory: cfg.factory, from: out.length ? Number(L.lastId) + 1 : 1, to: null });
+  return out;
+}
+/** Tutte le fabbriche, senza doppioni. */
+function factoriesOf(cfg) { return [...new Set(chipRanges(cfg).map((r) => r.factory.toLowerCase()))]; }
+
+module.exports = { DEFAULT_RPC, robinhoodChain, chainFor, accountFromEnv, parseArgs, siteConfig, factoryFor, chipRanges, factoriesOf };

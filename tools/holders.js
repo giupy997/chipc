@@ -36,7 +36,7 @@ const path = require("path");
 const vm = require("vm");
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const { createPublicClient, createWalletClient, http, parseAbi, parseAbiItem, formatEther, formatUnits, parseEther, getAddress, encodeFunctionData, decodeFunctionResult } = require("viem");
-const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs } = require("./chain");
+const { DEFAULT_RPC, chainFor, accountFromEnv, parseArgs, factoriesOf, factoryFor } = require("./chain");
 
 const NPM = "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3";
 const V3F = "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA";
@@ -119,6 +119,15 @@ async function main() {
     } catch (e) { console.log(`  ${label} — fallito: ${short(e)}`); return false; }
   };
 
+  // il chip di un token, cercandolo in tutte le fabbriche (gli id sono unici fra loro)
+  async function chipIdOf(token) {
+    for (const fab of factoriesOf(cfg)) {
+      const id = await pub.readContract({ address: fab, abi: FACTORY_ABI, functionName: "chipByToken", args: [token] }).catch(() => 0n);
+      if (id !== 0n) return id;
+    }
+    return 0n;
+  }
+
   // ---- le posizioni nel vault, con il chip di ciascuna ----
   async function positions() {
     const n = Number(await pub.readContract({ address: NPM, abi: NPM_ABI, functionName: "balanceOf", args: [vault] }));
@@ -126,9 +135,9 @@ async function main() {
     for (let i = 0; i < n; i++) {
       const tokenId = await pub.readContract({ address: NPM, abi: NPM_ABI, functionName: "tokenOfOwnerByIndex", args: [vault, BigInt(i)] });
       const pos = await pub.readContract({ address: NPM, abi: NPM_ABI, functionName: "positions", args: [tokenId] });
-      let chipId = await pub.readContract({ address: cfg.factory, abi: FACTORY_ABI, functionName: "chipByToken", args: [pos[2]] });
+      let chipId = await chipIdOf(pos[2]);
       let token = pos[2], quote = pos[3];
-      if (chipId === 0n) { chipId = await pub.readContract({ address: cfg.factory, abi: FACTORY_ABI, functionName: "chipByToken", args: [pos[3]] }); token = pos[3]; quote = pos[2]; }
+      if (chipId === 0n) { chipId = await chipIdOf(pos[3]); token = pos[3]; quote = pos[2]; }
       out.push({ tokenId, token, quote, chipId: Number(chipId) });
     }
     return out;
@@ -177,9 +186,9 @@ async function main() {
   // ---- snapshot: gli holder di un chip token ----
   async function snapshot(tokenArg) {
     const token = getAddress(tokenArg || args.token || "");
-    const chipId = Number(await pub.readContract({ address: cfg.factory, abi: FACTORY_ABI, functionName: "chipByToken", args: [token] }));
+    const chipId = Number(await chipIdOf(token));
     if (!chipId) { console.error(`${token} non e' un chip token`); process.exit(1); }
-    const chip = await pub.readContract({ address: cfg.factory, abi: FACTORY_ABI, functionName: "chip", args: [BigInt(chipId)] });
+    const chip = await pub.readContract({ address: factoryFor(cfg, chipId), abi: FACTORY_ABI, functionName: "chip", args: [BigInt(chipId)] });
     const id = args.id !== undefined ? Number(args.id) : Number(await read("epochCount"));
     const latest = await pub.getBlockNumber();
     const block = args.block ? BigInt(args.block) : latest;
@@ -192,7 +201,7 @@ async function main() {
       if (p && !/^0x0{40}$/.test(p)) pools.push(p);
     }
     const exclude = new Set([
-      ...SYSTEM, cfg.factory, cfg.feeVault, cfg.creatorVault, cfg.holdersVault, cfg.stockVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []),
+      ...SYSTEM, ...factoriesOf(cfg), cfg.feeVault, cfg.creatorVault, cfg.holdersVault, cfg.stockVault, ...(cfg.creatorVaultsLegacy || []), ...(cfg.feeVaultsLegacy || []), ...(cfg.legacyVaults || []),
       cfg.curve && cfg.curve.address, cfg.curve && cfg.curve.vault, token, ...pools,
       ...String(args.exclude || "").split(",").filter(Boolean),
     ].filter(Boolean).map((a) => a.toLowerCase()));

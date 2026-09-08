@@ -118,9 +118,10 @@
     const total = Number(BigInt(await rpc("eth_call", [{ to: F, data: S_TOTAL }, "latest"])));
     const ids = Array.from({ length: total }, (_, i) => i + 1);
     const nowBlock = BigInt(await rpc("eth_blockNumber", []));
-    const res = await rpcBatch(ids.flatMap((id) => [
-      ecall(F, S_CHIP + word(id)), ecall(F, S_OWNEROF + word(id)), ecall(F, S_INSPECT + word(id)),
-    ]));
+    const res = await rpcBatch(ids.flatMap((id) => {
+      const Fi = CFG().factoryFor(id);   // i chip vecchi vivono nella fabbrica di prima
+      return [ecall(Fi, S_CHIP + word(id)), ecall(Fi, S_OWNEROF + word(id)), ecall(Fi, S_INSPECT + word(id))];
+    }));
     const chips = ids.map((id, k) => {
       const c = res[k * 3], o = res[k * 3 + 1], s = res[k * 3 + 2];
       if (!c) return null;
@@ -488,7 +489,8 @@
   async function loadMining() {
     const host = $("#mine");
     host.querySelectorAll(".prow:not(.h), .pf-empty-row").forEach((n) => n.remove());
-    const logs = await logsSince(CFG().factory, [TOPIC_REWARDED, null, "0x" + addrWord(state.me)]).catch(() => []);
+    const fabs = [...new Set([CFG().factory, CFG().legacy && CFG().legacy.factory].filter(Boolean).map((a) => a.toLowerCase()))];
+    const logs = (await Promise.all(fabs.map((f) => logsSince(f, [TOPIC_REWARDED, null, "0x" + addrWord(state.me)]).catch(() => [])))).flat();
     const per = new Map();
     for (const l of logs) {
       const id = Number(BigInt(l.topics[1]));
