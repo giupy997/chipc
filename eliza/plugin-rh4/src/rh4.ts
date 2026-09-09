@@ -179,6 +179,14 @@ export interface Rh4Config {
   agentCardId?: number;
   /** the RH4 token */
   token?: Address;
+  /** trading is off unless the operator turns it on (RH4_TRADING) */
+  trading?: boolean;
+  /** the per-trade ceiling, in ETH (RH4_TRADE_MAX_ETH) */
+  tradeMaxEth?: number;
+  /** how far below the pool's price a fill may land (RH4_TRADE_SLIPPAGE_BPS) */
+  slippageBps?: number;
+  /** ETH the agent must always keep for gas (RH4_GAS_FLOOR_ETH) */
+  gasFloorEth?: number;
 }
 
 export interface ChipState {

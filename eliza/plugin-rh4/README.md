@@ -61,7 +61,11 @@ export const character = {
 | `RH4_FACTORY` | `0x4a5E39B8a41c169210d1F7dCD307854330D8144C` | the live, verified factory (ChipFactory9); chips 1–42 are read from the first one |
 | `RH4_AGENT_CHIP_ID` | — | the chip the agent considers its own: default target for ticks, injected as context |
 | `RH4_MEMORY` | `0xfBacC34038838A0277D3021D90637E8e31a82883` | the memory card contract (empty until deployed) |
-| `RH4_AGENT_CARD_ID` | — | the memory card the agent writes to when none is named |
+| `RH4_AGENT_CARD_ID` | — | the memory card the agent writes to when none is named, and where trades are journalled |
+| `RH4_TRADING` | off | `on` lets the agent swap. **Off by default**: an agent that can trade is a decision, not a default |
+| `RH4_TRADE_MAX_ETH` | `0.01` | per-trade ceiling in ETH. Hard maximum 0.5, whatever you write |
+| `RH4_TRADE_SLIPPAGE_BPS` | `200` | how far below the pool's price a fill may land. Hard maximum 500 |
+| `RH4_GAS_FLOOR_ETH` | `0.005` | ETH the agent must always keep for gas, never spent on a trade |
 
 ## What the agent can say
 
@@ -89,9 +93,18 @@ export const character = {
 >
 > **read card #1** → size, owner, bytes used and the text, straight from
 > the chain · **seal card #1** → locked forever, not even the owner writes again
+>
+> **buy 0.01 eth of NVDA** → a swap on Uniswap v3 from the agent's own
+> wallet, priced from the pool, capped and slippage-checked. With a card
+> set, the fill is appended to it: a track record in the chain's storage
 
 ## Safety model
 
+- **Trading is off until you turn it on**, and the limits live in the code, not
+  in the prompt: only the launchpad's quote tokens are reachable, every trade is
+  measured in ETH against a cap, the minimum output comes from the pool's own
+  price, and a gas floor is never spent. Nothing said in a conversation raises
+  any of it. RH4 itself is not tradable here: it has no Uniswap pool.
 - Every transaction is **simulated before signing** — a taken ticker or a
   lost cycle costs words, not gas.
 - Chip tokens have **no mint function**; reserves leave the factory only

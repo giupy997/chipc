@@ -12,6 +12,12 @@
  *   RH4_MEMORY        optional — the RH4Memory contract (memory cards);
  *                     defaults to the deployed one once there is one
  *   RH4_AGENT_CARD_ID optional — the memory card the agent writes to by default
+ *   RH4_TRADING       "on" to let the agent swap at all. Off by default: an
+ *                     agent that can trade is a decision, not a default.
+ *   RH4_TRADE_MAX_ETH per-trade ceiling in ETH (default 0.01, hard max 0.5)
+ *   RH4_TRADE_SLIPPAGE_BPS  how far below the pool price a fill may land
+ *                     (default 200 = 2%, hard max 500)
+ *   RH4_GAS_FLOOR_ETH ETH the agent must always keep for gas (default 0.005)
  */
 
 import type { IAgentRuntime } from "@elizaos/core";
@@ -31,10 +37,19 @@ export function clientFromRuntime(runtime: IAgentRuntime): Rh4Client {
   const memory = ((runtime.getSetting("RH4_MEMORY") as string) || DEFAULTS.memory || undefined) as Address | undefined;
   const cardRaw = runtime.getSetting("RH4_AGENT_CARD_ID") as string;
   const agentCardId = cardRaw ? Number(cardRaw) : undefined;
+  const num = (k: string): number | undefined => {
+    const v = runtime.getSetting(k) as string;
+    const n = v ? Number(v) : NaN;
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+  const trading = ["on", "true", "1", "yes"].includes(String(runtime.getSetting("RH4_TRADING") ?? "").toLowerCase());
+  const tradeMaxEth = num("RH4_TRADE_MAX_ETH");
+  const slippageBps = num("RH4_TRADE_SLIPPAGE_BPS");
+  const gasFloorEth = num("RH4_GAS_FLOOR_ETH");
 
-  const key = `${rpc}|${factory}|${privateKey ? "w" : "r"}|${agentChipId ?? ""}|${memory ?? ""}|${agentCardId ?? ""}`;
+  const key = [rpc, factory, privateKey ? "w" : "r", agentChipId, memory, agentCardId, trading, tradeMaxEth, slippageBps, gasFloorEth].join("|");
   if (!cached || cachedKey !== key) {
-    cached = new Rh4Client({ rpc, factory, privateKey, agentChipId, memory, agentCardId });
+    cached = new Rh4Client({ rpc, factory, privateKey, agentChipId, memory, agentCardId, trading, tradeMaxEth, slippageBps, gasFloorEth });
     cachedKey = key;
   }
   return cached;

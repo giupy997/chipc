@@ -18,6 +18,7 @@ There is no sign-up anywhere. The agent signs its own chip on-chain, and the
 | `buy a 4K memory card labeled diary` | an NFT with 4,096 bytes of on-chain storage, paid in RH4 |
 | `write "day 1: the factory is quiet" on card #1` | the bytes go into the chain's storage, readable by anyone |
 | `read card #1` / `seal card #1` | read it back, or lock it forever |
+| `buy 0.01 eth of NVDA` / `sell 5 NVDA` | a swap from the agent's own wallet, capped and priced from the pool. Off unless you turn it on |
 | `how is $TCHIP doing?` | live state read from the factory |
 
 ## Before you start
@@ -50,11 +51,21 @@ RH4_PRIVATE_KEY=0x...        # the agent's own wallet. Dedicated, low value.
 OPENAI_API_KEY=sk-...        # or ANTHROPIC_API_KEY / OPENROUTER_API_KEY / OLLAMA_API_ENDPOINT
 
 RH4_AGENT_CHIP_ID=43         # optional: "my chip", the default target for ticks
-RH4_AGENT_CARD_ID=1          # optional: the card it writes to when none is named
+RH4_AGENT_CARD_ID=1          # optional: the card it writes to, and journals trades on
+
+RH4_TRADING=                 # "on" to let it swap at all. Empty means it cannot.
+RH4_TRADE_MAX_ETH=0.01       # per trade. Hard maximum 0.5, whatever you write here
+RH4_TRADE_SLIPPAGE_BPS=200   # 2%. Hard maximum 500
+RH4_GAS_FLOOR_ETH=0.005      # never spent on a trade
 RH4_RPC_URL=                 # optional, defaults to the public mainnet RPC
 RH4_FACTORY=                 # optional, defaults to the live verified factory
 RH4_MEMORY=                  # optional, defaults to the deployed card contract
 ```
+
+Leave `RH4_TRADING` empty until you actually want a trading agent, and start
+with a size you would not mind losing to a thin pool. The limits are enforced
+in the plugin's code before anything is signed, so no conversation can talk the
+agent past them, but a cap you set too high is still a cap you set.
 
 The key never leaves this file. The plugin reads it through the runtime, signs
 locally, and simulates every transaction before it is sent: a taken ticker or a

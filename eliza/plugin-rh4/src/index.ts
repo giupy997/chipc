@@ -18,11 +18,13 @@ import { mintChipAction } from "./actions/mintChip.js";
 import { openMarketAction } from "./actions/openMarket.js";
 import { signChipAction } from "./actions/signChip.js";
 import { mintCardAction, writeCardAction, readCardAction, sealCardAction } from "./actions/memoryCard.js";
+import { tradeAction } from "./actions/trade.js";
 import { chipStateProvider } from "./provider.js";
 
 export { Rh4Client, DEFAULTS, ECHO_ROM, describeChip } from "./rh4.js";
 export { readChipAction, tickChipAction, mintChipAction, openMarketAction, signChipAction, chipStateProvider };
-export { mintCardAction, writeCardAction, readCardAction, sealCardAction };
+export { mintCardAction, writeCardAction, readCardAction, sealCardAction, tradeAction };
+export { trade, asset, route, expectedOut, policyOf, tradableSymbols, LIMITS, ROUTER } from "./trade.js";
 export { openMarket, QUOTES, VAULTS } from "./market.js";
 export { MEMORY_ABI, listKinds, cardInfo, readCard, mintCard, writeCard, sealCard } from "./memory.js";
 
@@ -33,7 +35,7 @@ export const rh4Plugin: Plugin = {
     "running on Robinhood Chain, each with its own fixed-supply token " +
     "mined one clock cycle at a time.",
   actions: [readChipAction, tickChipAction, mintChipAction, openMarketAction, signChipAction,
-    mintCardAction, writeCardAction, readCardAction, sealCardAction],
+    mintCardAction, writeCardAction, readCardAction, sealCardAction, tradeAction],
   providers: [chipStateProvider],
   evaluators: [],
 };
