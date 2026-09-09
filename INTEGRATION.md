@@ -341,10 +341,10 @@ Expired epochs return the unclaimed part to the chip's pile. Keeper:
 
 ## 5f. Memory cards (RH4Memory)
 
-An ERC-721 ("RH-4 Memory Card", CARD) whose tokens hold bytes. Not deployed
-yet: `memory` in `docs/config.js` and `DEFAULTS.memory` in the plugin carry
-the address once it is. Source: `src/RH4Memory.sol`, tests in
-`test/RH4Memory.t.sol`, std-json in `verify/RH4Memory.std.json`.
+An ERC-721 ("RH-4 Memory Card", CARD) whose tokens hold bytes.
+**`0xfBacC34038838A0277D3021D90637E8e31a82883`**, live since block 58,588,854 (Sep 9 2026),
+owner rh4-dev2. Source: `src/RH4Memory.sol`, tests in `test/RH4Memory.t.sol`,
+std-json in `verify/RH4Memory.std.json`.
 
 - **Kinds** (`kinds(uint256)` → capacity, onchain, enabled, price, name):
   on-chain cards (4K / 16K / 64K / 256K) keep every byte in contract storage,

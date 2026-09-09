@@ -36,8 +36,8 @@ export const DEFAULTS = {
   site: "https://rh4cpu.tech",
   /** the RH4 token, what memory cards are paid with */
   token: "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B" as Address,
-  /** RH4Memory: memory cards (NFTs with bytes inside). Empty until deployed; RH4_MEMORY overrides. */
-  memory: "" as Address,
+  /** RH4Memory: memory cards (NFTs with bytes inside). RH4_MEMORY overrides. */
+  memory: "0xfBacC34038838A0277D3021D90637E8e31a82883" as Address,
 };
 
 export const SOCIALS_ABI = [

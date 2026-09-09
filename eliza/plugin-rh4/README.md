@@ -60,7 +60,7 @@ export const character = {
 | `RH4_RPC_URL` | `https://rpc.mainnet.chain.robinhood.com` | |
 | `RH4_FACTORY` | `0x4a5E39B8a41c169210d1F7dCD307854330D8144C` | the live, verified factory (ChipFactory9); chips 1–42 are read from the first one |
 | `RH4_AGENT_CHIP_ID` | — | the chip the agent considers its own: default target for ticks, injected as context |
-| `RH4_MEMORY` | the deployed RH4Memory | the memory card contract (empty until deployed) |
+| `RH4_MEMORY` | `0xfBacC34038838A0277D3021D90637E8e31a82883` | the memory card contract (empty until deployed) |
 | `RH4_AGENT_CARD_ID` | — | the memory card the agent writes to when none is named |
 
 ## What the agent can say

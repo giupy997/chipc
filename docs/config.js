@@ -132,8 +132,8 @@ window.RH4_CONFIG = {
   // Si pagano in RH4 che finisce nella riserva della madre (ChipFactory8).
   // Vuoto = memory.html mostra una porta chiusa. Dopo il deploy: indirizzo
   // qui e blocco di nascita in memoryBlock (da dove leggere gli eventi).
-  memory: "",
-  memoryBlock: 0,
+  memory: "0xfBacC34038838A0277D3021D90637E8e31a82883",   // RH4Memory, deploy 9 set 2026, owner rh4-dev2, riserva RH4 alla ChipFactory8
+  memoryBlock: 58588854,
 
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
