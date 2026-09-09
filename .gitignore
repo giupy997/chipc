@@ -15,3 +15,4 @@ eliza/rh4-agent/dist/
 eliza/rh4-agent/.eliza/
 eliza/rh4-agent/.env
 eliza/rh4-agent/*.tsbuildinfo
+.claude/launch.json

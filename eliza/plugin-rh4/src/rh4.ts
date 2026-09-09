@@ -34,6 +34,10 @@ export const DEFAULTS = {
   agentMark: "https://github.com/giupy997/chipc/tree/main/eliza/plugin-rh4",
   explorer: "https://robinhoodchain.blockscout.com",
   site: "https://rh4cpu.tech",
+  /** the RH4 token, what memory cards are paid with */
+  token: "0xe76a12bcd2f0E6d3db9F9012321642198E6cBd1B" as Address,
+  /** RH4Memory: memory cards (NFTs with bytes inside). Empty until deployed; RH4_MEMORY overrides. */
+  memory: "" as Address,
 };
 
 export const SOCIALS_ABI = [
@@ -169,6 +173,12 @@ export interface Rh4Config {
   privateKey?: Hex;
   /** the chip this agent considers its own (for the provider) */
   agentChipId?: number;
+  /** RH4Memory, the memory cards contract (RH4_MEMORY) */
+  memory?: Address;
+  /** the memory card this agent writes to by default (RH4_AGENT_CARD_ID) */
+  agentCardId?: number;
+  /** the RH4 token */
+  token?: Address;
 }
 
 export interface ChipState {

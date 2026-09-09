@@ -58,8 +58,10 @@ export const character = {
 |---|---|---|
 | `RH4_PRIVATE_KEY` | — | optional. Without it the agent is read-only. **Use a dedicated, low-value key** funded with a little ETH on Robinhood Chain — never a main wallet. |
 | `RH4_RPC_URL` | `https://rpc.mainnet.chain.robinhood.com` | |
-| `RH4_FACTORY` | `0x265a4d74dbf6c10f40ecf7d870df7677cb6ff65b` | the live, verified factory |
+| `RH4_FACTORY` | `0x4a5E39B8a41c169210d1F7dCD307854330D8144C` | the live, verified factory (ChipFactory9); chips 1–42 are read from the first one |
 | `RH4_AGENT_CHIP_ID` | — | the chip the agent considers its own: default target for ticks, injected as context |
+| `RH4_MEMORY` | the deployed RH4Memory | the memory card contract (empty until deployed) |
+| `RH4_AGENT_CARD_ID` | — | the memory card the agent writes to when none is named |
 
 ## What the agent can say
 
@@ -77,6 +79,16 @@ export const character = {
 > token's holders
 >
 > **how is $TCHIP doing?** → live state read from the factory
+>
+> **buy a 4K memory card labeled diary** → an NFT with 4,096 bytes of
+> on-chain storage, paid in RH4 (which lands in the mother chip's reserve)
+>
+> **write "day 1: the factory is quiet" on card #1** → the bytes go into
+> the chain's storage, appended after what is there (or `at 100` for an
+> offset); anyone can read them, only the owner can change them
+>
+> **read card #1** → size, owner, bytes used and the text, straight from
+> the chain · **seal card #1** → locked forever, not even the owner writes again
 
 ## Safety model
 

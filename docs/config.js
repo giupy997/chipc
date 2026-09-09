@@ -128,6 +128,13 @@ window.RH4_CONFIG = {
   // lanci veri). Per accendere: deploy, indirizzi qui, enabled: true.
   curve: { address: "", vault: "", enabled: false },
 
+  // RH4Memory: le memory card, NFT con dentro i byte (src/RH4Memory.sol).
+  // Si pagano in RH4 che finisce nella riserva della madre (ChipFactory8).
+  // Vuoto = memory.html mostra una porta chiusa. Dopo il deploy: indirizzo
+  // qui e blocco di nascita in memoryBlock (da dove leggere gli eventi).
+  memory: "",
+  memoryBlock: 0,
+
   // Il cancello del launchpad: finche' e' false il bottone MINT resta
   // spento sul sito pubblico. Si apre con un flip qui, al T-0.
   launchpadOpen: true,

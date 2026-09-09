@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory cards — RH-4</title>
+<link rel="icon" type="image/png" sizes="32x32" href="brand/icon4-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://rpc.mainnet.chain.robinhood.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .lp-main { max-width: var(--maxw); margin: 0 auto; padding: 0 24px 80px; }
+  .lp-head { padding: 42px 0 26px; border-bottom: var(--rule); margin-bottom: 34px; }
+  .lp-head h1 { margin: 10px 0 8px; }
+  .lp-head .sec-copy { max-width: 64ch; }
+  .lp-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 34px; align-items: start; }
+  @media (max-width: 1000px) { .lp-grid { grid-template-columns: 1fr; } }
+  .lp-grid .mintform { position: sticky; top: calc(var(--nav-h, 0px) + 20px); }
+  @media (max-width: 1000px) { .lp-grid .mintform { position: static; } }
+
+  .cv-banner { border: 2px solid var(--ink); background: var(--ink); color: var(--paper); font-family: var(--mono);
+    font-size: 12px; letter-spacing: 0.06em; padding: 12px 16px; margin-top: 18px; }
+  .cv-banner b { color: var(--mint); }
+  .cv-closed { border: var(--rule); padding: 42px 30px; text-align: center; font-family: var(--mono); max-width: 620px; margin: 60px auto; }
+  .cv-closed h2 { font-family: var(--display); font-size: 34px; margin: 0 0 12px; }
+  .cv-closed p { color: var(--dim); font-size: 13px; line-height: 1.6; }
+
+  /* i tagli */
+  .kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .kind { border: 1.5px solid #bdbcb0; background: var(--paper); padding: 10px 10px 9px; cursor: pointer; text-align: left;
+    font-family: var(--mono); color: var(--ink); }
+  .kind:hover { border-color: var(--ink); }
+  .kind.is-on { border-color: var(--ink); background: var(--mint); }
+  .kind.is-off { opacity: 0.4; cursor: default; pointer-events: none; }
+  .kind .kn { font-size: 15px; font-weight: 700; letter-spacing: 0.06em; }
+  .kind .kp { font-size: 10.5px; color: var(--dim); margin-top: 4px; letter-spacing: 0.04em; }
+  .kind.is-on .kp { color: var(--ink); }
+  .kind .kt { font-size: 9.5px; letter-spacing: 0.14em; margin-top: 5px; color: var(--mint-deep); }
+  .simple-note { border: var(--rule); background: rgba(143, 232, 176, 0.14); padding: 14px 16px; font-size: 14px; line-height: 1.55; }
+  .simple-note b { font-family: var(--mono); }
+
+  /* la lista delle card */
+  .gal-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .gal-count { font-family: var(--mono); font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: var(--dim); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .mcard { border: var(--rule); background: var(--paper); padding: 0; cursor: pointer; text-align: left; overflow: hidden; }
+  .mcard:hover { outline: 2px solid var(--ink); }
+  .mcard.is-on { outline: 2px solid var(--ink); }
+  .mcard img { display: block; width: 100%; aspect-ratio: 1; background: var(--panel); }
+  .mcard .mm { font-family: var(--mono); font-size: 10.5px; padding: 8px 10px; display: flex; justify-content: space-between; letter-spacing: 0.06em; }
+  .mcard .mm b { font-weight: 700; }
+  .gal-note { font-family: var(--mono); font-size: 12px; color: var(--dim); margin-top: 16px; line-height: 1.5; }
+  .gal-empty { border: var(--rule); padding: 26px 20px; font-family: var(--mono); font-size: 12.5px; color: var(--dim); line-height: 1.6; }
+
+  /* il lettore */
+  .viewer { margin-top: 30px; border: var(--rule); background: var(--paper); }
+  .vh { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-bottom: var(--rule); flex-wrap: wrap; font-family: var(--mono); }
+  .vh h2 { font-size: 22px; font-weight: 700; letter-spacing: 0.04em; margin: 0; }
+  .vh .sub { font-size: 11.5px; color: var(--dim); letter-spacing: 0.06em; }
+  .vh .badge { margin-left: auto; font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; padding: 5px 10px; border: 1.5px solid var(--ink); }
+  .vh .badge.sealed { background: var(--ink); color: var(--paper); }
+  .vh .badge.mine { background: var(--mint); }
+  .vgrid { display: grid; grid-template-columns: 1fr 1.6fr; }
+  @media (max-width: 900px) { .vgrid { grid-template-columns: 1fr; } }
+  .vinfo { padding: 18px 20px; border-right: var(--rule); font-family: var(--mono); font-size: 12px; }
+  @media (max-width: 900px) { .vinfo { border-right: 0; border-bottom: var(--rule); } }
+  .vinfo .row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; color: var(--dim); border-bottom: 1px dashed #d8d7cb; }
+  .vinfo .row b { color: var(--ink); text-align: right; word-break: break-all; }
+  .vinfo .row a { color: var(--ink); }
+  .vinfo .row:last-child { border-bottom: 0; }
+  .meter { height: 8px; border: 1.5px solid var(--ink); margin: 12px 0 4px; }
+  .meter i { display: block; height: 100%; background: var(--mint); }
+  .vbody { padding: 18px 20px; }
+  .vtabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  .dump { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; background: var(--panel); color: var(--paper);
+    padding: 14px 16px; min-height: 140px; max-height: 420px; overflow: auto; margin: 0; }
+  .dump.hex { font-size: 11px; letter-spacing: 0.02em; }
+  .dump .zero { color: var(--panel-dim); }
+  .wform { margin-top: 16px; border-top: var(--rule); padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .wform textarea { width: 100%; min-height: 96px; box-sizing: border-box; font-family: var(--mono); font-size: 13px; padding: 10px 12px;
+    border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink); resize: vertical; }
+  .wform .wrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .wform .wrow input { width: 100px; font-family: var(--mono); font-size: 13px; padding: 10px 12px; border: 1.5px solid var(--ink); background: var(--paper); }
+  .wform .wrow .spacer { flex: 1; }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+  .btn-danger { background: transparent; color: #b4432b; border: 1.5px solid #b4432b; }
+  .field-note.is-bad { color: #b4432b; }
+  [hidden] { display: none !important; }   /* display:flex vincerebbe sull'hidden del browser */
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <a class="logo" href="./">
+    <img class="logo-box" src="brand/icon4-64.png" alt="" width="30" height="30">
+    <span class="logo-word">RH&#8209;4.CPU</span>
+  </a>
+  <nav class="nav-links">
+    <a href="launchpad.html">Launchpad</a>
+    <a href="memory.html"><strong>Memory</strong></a>
+    <a href="./#clock">Clock</a>
+    <a href="./#roadmap">Roadmap</a>
+  </nav>
+  <a class="btn btn-light btn-sm" href="https://x.com/RH4cpu">X <span class="arr">&#8599;</span></a>
+  <a class="btn btn-dark btn-sm" href="https://github.com/giupy997/chipc">Source <span class="arr">&#8599;</span></a>
+</header>
+
+<main class="lp-main" id="mc-main">
+
+  <div class="lp-head">
+    <p class="pill"><span class="pill-n">FACTORY</span>MEMORY CARDS</p>
+    <h1 class="display display-2">Memory that lives<br><em>inside the chain.</em></h1>
+    <p class="sec-copy">
+      A memory card is an NFT with bytes in it. The owner writes at any offset,
+      anyone reads, and the card can be sealed forever. Nothing is stored on a
+      server: the bytes sit in the contract&rsquo;s storage on Robinhood Chain,
+      readable by any wallet, any agent, any explorer. Paid in RH4, which goes
+      straight into the mother chip&rsquo;s mining reserve.
+    </p>
+    <div class="cv-banner" id="mc-banner" hidden></div>
+  </div>
+
+  <div class="lp-grid">
+
+    <div class="card card-pad mintform" id="mc-form">
+      <span class="ck"><i class="sq"></i> BUY A CARD</span>
+
+      <label class="field">
+        <span class="field-k">SIZE</span>
+        <div class="kinds" id="k-list"><span class="field-note">reading the sizes&hellip;</span></div>
+        <span class="field-note" id="k-note">on-chain cards keep every byte in storage; pinned cards hold a content hash for files too big for the chain</span>
+      </label>
+
+      <label class="field">
+        <span class="field-k">LABEL</span>
+        <input id="k-label" type="text" maxlength="32" value="" placeholder="optional, up to 32 characters">
+      </label>
+
+      <div class="simple-note" id="k-price">Pick a size.</div>
+
+      <button class="btn btn-dark btn-block" id="k-buy" disabled>BUY</button>
+      <p class="field-note" id="k-buy-note" hidden></p>
+      <p class="field-note">Two signatures the first time (approve RH4, then mint). The RH4 leaves your wallet for the mother&rsquo;s
+      reserve: it comes back out one clock cycle at a time, to whoever keeps the chip running.</p>
+    </div>
+
+    <div>
+      <div class="gal-head">
+        <span class="ck"><i class="sq sq-mint"></i> <span id="gal-title">CARDS</span></span>
+        <span class="gal-count" id="gal-count">&hellip;</span>
+      </div>
+      <div class="cards" id="gal"></div>
+      <p class="gal-note" id="gal-note">Every card is read straight from the contract. Connect to see yours first; click one to open it.</p>
+    </div>
+
+  </div>
+
+  <section class="viewer" id="viewer" hidden>
+    <div class="vh">
+      <h2 id="v-title">CARD #&hellip;</h2>
+      <span class="sub" id="v-sub"></span>
+      <span class="badge" id="v-badge"></span>
+    </div>
+    <div class="vgrid">
+      <div class="vinfo" id="v-info"></div>
+      <div class="vbody">
+        <div class="vtabs">
+          <button class="chip is-on" id="v-tab-text">TEXT</button>
+          <button class="chip" id="v-tab-hex">HEX</button>
+          <span class="spacer" style="flex:1"></span>
+          <a class="chip" id="v-uri" href="#" target="_blank" rel="noopener">TOKEN URI</a>
+        </div>
+        <pre class="dump" id="v-dump"></pre>
+        <div class="wform" id="v-write" hidden>
+          <span class="ck">WRITE</span>
+          <textarea id="w-text" placeholder="text to write on the card (UTF-8)"></textarea>
+          <div class="wrow">
+            <span class="field-note">at byte</span>
+            <input id="w-off" type="text" inputmode="numeric" value="0">
+            <span class="field-note" id="w-size">0 bytes</span>
+            <span class="spacer"></span>
+            <button class="btn btn-dark" id="w-go">WRITE</button>
+          </div>
+          <p class="field-note" id="w-note" hidden></p>
+          <div class="wrow">
+            <button class="btn btn-ghost btn-sm" id="w-clear">CLEAR</button>
+            <button class="btn btn-danger btn-sm" id="w-seal">SEAL FOREVER</button>
+            <span class="spacer"></span>
+            <span class="field-note">a sealed card never changes again, not even for its owner</span>
+          </div>
+        </div>
+        <div class="wform" id="v-pin" hidden>
+          <span class="ck">CONTENT</span>
+          <div class="wrow">
+            <input id="p-uri" type="text" style="flex:1; width:auto" placeholder="ipfs://… (the pinned content)">
+            <button class="btn btn-dark btn-sm" id="p-set">SET</button>
+          </div>
+          <div class="wrow">
+            <input id="p-name" type="text" style="flex:1; width:auto" maxlength="32" placeholder="name: 3-32 of a-z 0-9 dash">
+            <button class="btn btn-dark btn-sm" id="p-name-set">NAME</button>
+          </div>
+          <p class="field-note" id="p-note" hidden></p>
+          <p class="field-note">The hash of the content is written next to the URI, so anyone can check the file matches. The name is unique: one per card.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span class="f-word">RH&#8209;4.CPU</span>
+  <span class="f-mid">VERILOG &rarr; YOSYS &rarr; NAND &rarr; YUL &rarr; EVM</span>
+  <a class="f-link" href="https://x.com/RH4cpu">X <span class="arr">&#8599;</span></a>
+  <a class="f-link" href="https://github.com/giupy997/chipc">GITHUB <span class="arr">&#8599;</span></a>
+</footer>
+
+<script src="config.js"></script>
+<script src="wallet.js"></script>
+<script src="memory.js"></script>
+</body>
+</html>

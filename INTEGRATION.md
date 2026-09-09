@@ -339,6 +339,37 @@ Expired epochs return the unclaimed part to the chip's pile. Keeper:
 `tools/holders.js` (`status`, `collect`, `snapshot`, `publish`, `push`,
 `expire`, `round`).
 
+## 5f. Memory cards (RH4Memory)
+
+An ERC-721 ("RH-4 Memory Card", CARD) whose tokens hold bytes. Not deployed
+yet: `memory` in `docs/config.js` and `DEFAULTS.memory` in the plugin carry
+the address once it is. Source: `src/RH4Memory.sol`, tests in
+`test/RH4Memory.t.sol`, std-json in `verify/RH4Memory.std.json`.
+
+- **Kinds** (`kinds(uint256)` → capacity, onchain, enabled, price, name):
+  on-chain cards (4K / 16K / 64K / 256K) keep every byte in contract storage,
+  slot-packed 32 per word; pinned cards (32M / 256M) keep a content hash +
+  URI and can take a unique name (3–32 of `a-z 0-9 -`) for a web space.
+- **Price** in RH4 (`mint(kind, label)` pulls it with `transferFrom`): the
+  RH4 goes to `sink`, the ChipFactory8, i.e. the mother chip's mining
+  reserve. It leaves again only through `tick()` rewards.
+- **Writes**: `write(id, offset, bytes)` by the owner, any offset within
+  capacity, partial slots merged byte by byte, whole slots copied in one go
+  (~740k gas per fresh KB, ~33k per overwritten KB). `clear(id)` wipes the
+  used range. `read(id, offset, len)` / `readAll(id)` are free views.
+- **Seal**: `seal(id)` locks a card forever: no write, clear, label or
+  content change, by anyone, ever. The seal travels with the NFT.
+- **tokenURI** is fully on-chain (JSON + SVG): kind, bytes used, writes,
+  sealed flag.
+- Selectors: `kinds` 0x1be40a49 · `card` 0xbfcfd9b9 · `read` 0xdcd1749b ·
+  `readAll` 0xff9847e7 · `mint` 0x1801fbe5 · `write` 0x396e9b3a · `seal`
+  0x86fe212d · `setName` 0xfe55932a · `setContent` 0x6c39bf8b · `nameOf`
+  0x051a2664 · `cardOfName` 0x0efe17b9. Event `CardMinted(uint256 indexed id,
+  address indexed owner, uint256 indexed kind, bytes32 label, uint256 paid)`
+  topic 0x9a2e01237a6ee1a2453316ccf4a37ef98d8cb4584ae257c512469369995f63f7.
+- Site: `memory.html` (buy, read, write, seal, name). Plugin actions:
+  `MINT_RH4_CARD`, `WRITE_RH4_CARD`, `READ_RH4_CARD`, `SEAL_RH4_CARD`.
+
 ## 6. Mining (the emission channel)
 
 `tick(uint256 id, uint8 inPort)` — selector `0xe5bbf637` — is permissionless,
