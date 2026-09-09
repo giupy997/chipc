@@ -1,122 +1,93 @@
-# Project Starter
+# rh4agent — an ElizaOS agent with a processor of its own
 
-This is the starter template for ElizaOS projects.
+A ready-to-run ElizaOS project wired to [`@rh4cpu/plugin-rh4`](../plugin-rh4).
+Copy this folder, give it a key, and the agent can mint a real 8-bit chip on
+Robinhood Chain, open its market, pay clock cycles, and keep a memory card
+whose bytes live in the chain's storage.
 
-## Features
+There is no sign-up anywhere. The agent signs its own chip on-chain, and the
+[roster](https://rh4cpu.tech/agents.html) picks it up on the next reload.
 
-- Pre-configured project structure for ElizaOS development
-- Comprehensive testing setup with component and e2e tests
-- Default character configuration with plugin integration
-- Example service, action, and provider implementations
-- TypeScript configuration for optimal developer experience
-- Built-in documentation and examples
+## What it can do
 
-## Getting Started
+| say this | what happens |
+|---|---|
+| `mint a chip called Night Owl with ticker OWL` | chip NFT plus its fixed-supply token, echo program in ROM, signed as the agent's own |
+| `open the market for chip #46 vs NVDA, fees to holders` | the liquidity slice becomes a sealed range order, 80% of trading fees to the token's holders |
+| `power chip #2 and send byte 42` | one paid cycle: the byte is engraved on-chain, the reward comes out of the chip's reserve |
+| `buy a 4K memory card labeled diary` | an NFT with 4,096 bytes of on-chain storage, paid in RH4 |
+| `write "day 1: the factory is quiet" on card #1` | the bytes go into the chain's storage, readable by anyone |
+| `read card #1` / `seal card #1` | read it back, or lock it forever |
+| `how is $TCHIP doing?` | live state read from the factory |
+
+## Before you start
+
+- **Node 22** (`nvm use 22`) and **bun** (`npm i -g bun`).
+- The ElizaOS CLI: `npm i -g @elizaos/cli`. If a postinstall fails, retry with
+  `npm i -g @elizaos/cli --ignore-scripts`.
+- A **dedicated, low-value wallet** on Robinhood Chain with a little ETH.
+  Never a main wallet. A mint costs the factory's mint price plus gas; a
+  memory card costs RH4.
+- A model provider key (OpenAI, Anthropic, OpenRouter, or a local Ollama).
+  Without credit on the account the agent starts but cannot think.
+
+## Run it
 
 ```bash
-# Create a new project
-elizaos create --type project my-project
-# Dependencies are automatically installed and built
-
-# Navigate to the project directory
-cd my-project
-
-# Start development immediately
-elizaos dev
-```
-
-## Development
-
-```bash
-# Start development with hot-reloading (recommended)
-elizaos dev
-
-# OR start without hot-reloading
+cp .env.example .env      # then fill it in, see below
+bun install
 elizaos start
-# Note: When using 'start', you need to rebuild after changes:
-# bun run build
-
-# Test the project
-elizaos test
 ```
 
-## Testing
+Open the chat the CLI prints, and talk to the agent.
 
-ElizaOS employs a dual testing strategy:
+## Settings
 
-1. **Component Tests** (`src/__tests__/*.test.ts`)
-
-   - Run with Bun's native test runner
-   - Fast, isolated tests using mocks
-   - Perfect for TDD and component logic
-
-2. **E2E Tests** (`src/__tests__/e2e/*.e2e.ts`)
-   - Run with ElizaOS custom test runner
-   - Real runtime with actual database (PGLite)
-   - Test complete user scenarios
-
-### Test Structure
+In `.env` (git-ignored, and it must stay that way):
 
 ```
-src/
-  __tests__/              # All tests live inside src
-    *.test.ts            # Component tests (use Bun test runner)
-    e2e/                 # E2E tests (use ElizaOS test runner)
-      project-starter.e2e.ts  # E2E test suite
-      README.md          # E2E testing documentation
-  index.ts               # Export tests here: tests: [ProjectStarterTestSuite]
+RH4_PRIVATE_KEY=0x...        # the agent's own wallet. Dedicated, low value.
+OPENAI_API_KEY=sk-...        # or ANTHROPIC_API_KEY / OPENROUTER_API_KEY / OLLAMA_API_ENDPOINT
+
+RH4_AGENT_CHIP_ID=43         # optional: "my chip", the default target for ticks
+RH4_AGENT_CARD_ID=1          # optional: the card it writes to when none is named
+RH4_RPC_URL=                 # optional, defaults to the public mainnet RPC
+RH4_FACTORY=                 # optional, defaults to the live verified factory
+RH4_MEMORY=                  # optional, defaults to the deployed card contract
 ```
 
-### Running Tests
+The key never leaves this file. The plugin reads it through the runtime, signs
+locally, and simulates every transaction before it is sent: a taken ticker or a
+lost cycle costs words, not gas.
 
-- `elizaos test` - Run all tests (component + e2e)
-- `elizaos test component` - Run only component tests
-- `elizaos test e2e` - Run only E2E tests
+## Making it yours
 
-### Writing Tests
+`src/character.ts` holds the name, the bio and the system prompt. Change them
+freely. The two things worth keeping are the plugin in the `plugins` list and
+the two secrets in `settings.secrets`, which is how the actions find the wallet.
 
-Component tests use bun:test:
+To point the agent at your own local build of the plugin instead of npm:
 
-```typescript
-// Unit test example (__tests__/config.test.ts)
-describe('Configuration', () => {
-  it('should load configuration correctly', () => {
-    expect(config.debug).toBeDefined();
-  });
-});
-
-// Integration test example (__tests__/integration.test.ts)
-describe('Integration: Plugin with Character', () => {
-  it('should initialize character with plugins', async () => {
-    // Test interactions between components
-  });
-});
+```bash
+bun link ../plugin-rh4
 ```
 
-E2E tests use ElizaOS test interface:
+Rebuild the plugin (`npm run build` in `../plugin-rh4`) and restart the agent
+whenever you change it: ElizaOS loads plugins once, at start.
 
-```typescript
-// E2E test example (e2e/project.test.ts)
-export class ProjectTestSuite implements TestSuite {
-  name = 'project_test_suite';
-  tests = [
-    {
-      name: 'project_initialization',
-      fn: async (runtime) => {
-        // Test project in a real runtime
-      },
-    },
-  ];
-}
+## What lands on-chain, and what does not
 
-export default new ProjectTestSuite();
-```
+On-chain: the chip, its token, the market, the ticks, the card's bytes, and
+the chip's links (the signature). Off-chain and yours alone: the key, the
+model, the conversation.
 
-The test utilities in `__tests__/utils/` provide helper functions to simplify writing tests.
+A chip signed by an agent shows a badge on its page. Be precise about what it
+proves: the mint transaction was signed by that key, and the minter set that
+link. Whether a model or a person was holding the key is not something a chain
+can prove, here or anywhere else.
 
-## Configuration
+## Links
 
-Customize your project by modifying:
-
-- `src/index.ts` - Main entry point
-- `src/character.ts` - Character definition
+- Site and roster: https://rh4cpu.tech · https://rh4cpu.tech/agents.html
+- Plugin: [`eliza/plugin-rh4`](../plugin-rh4) · [npm](https://www.npmjs.com/package/@rh4cpu/plugin-rh4)
+- Contracts, addresses, selectors: [INTEGRATION.md](../../INTEGRATION.md)

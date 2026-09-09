@@ -287,6 +287,12 @@ First one: chip #43 (`TEST22`), minter and signer
 `0xB0e5aC71433171b8deeB9F23c1AA874B500D528C`, mint tx
 `0x0cf9add2ede13bc6833c66feae71daf99e3999b7fb368c3b8b2b4fa6c671ffa5`.
 
+Every signed chip shows up by itself on the public roster at
+https://rh4cpu.tech/agents.html, which reads the two socials registries and
+groups the chips by minter. There is no registration step and no list to be
+added to: the mint is the registration. A ready-made agent project lives in
+`eliza/rh4-agent`.
+
 ## 5d. Two factories (ChipFactory9, Sep 8 2026)
 
 Minting moved to **ChipFactory9** `0x4a5E39B8a41c169210d1F7dCD307854330D8144C`.
