@@ -11,6 +11,9 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *
  *   OWNER=0x... forge script script/DeployMemory.s.sol --rpc-url $RPC --broadcast
  *
+ * Chi firma (PRIVATE_KEY) puo' essere diverso da OWNER: in quel caso deploya,
+ * scrive i tagli e poi passa la proprieta' a OWNER nella stessa corsa.
+ *
  * Prezzi di partenza, in RH4 (a ~0.0006 $/RH4: 4K ~1 $, 64K ~12 $, 32M pinned ~3 $):
  *   0  4K     on-chain   2,000 RH4
  *   1  16K    on-chain   6,000 RH4
@@ -26,17 +29,21 @@ contract DeployMemory is Script {
     function run() external {
         address owner = vm.envAddress("OWNER");
         uint256 pk = vm.envUint("PRIVATE_KEY");
-        require(vm.addr(pk) == owner, "deploy from the OWNER key");
+        address deployer = vm.addr(pk);
         vm.startBroadcast(pk);
-        RH4Memory mem = new RH4Memory(IERC20(RH4), FACTORY8, owner);
+        // i tagli li scrive chi firma: la proprieta' passa a OWNER in fondo
+        RH4Memory mem = new RH4Memory(IERC20(RH4), FACTORY8, deployer);
         mem.setKind(0, "4K", 4096, true, 2_000e18, true);
         mem.setKind(1, "16K", 16384, true, 6_000e18, true);
         mem.setKind(2, "64K", 65536, true, 20_000e18, true);
         mem.setKind(3, "256K", 262144, true, 60_000e18, true);
         mem.setKind(4, "32M", 0, false, 5_000e18, true);
         mem.setKind(5, "256M", 0, false, 30_000e18, true);
+        if (deployer != owner) mem.transferOwnership(owner);
         vm.stopBroadcast();
+        require(mem.owner() == owner, "ownership did not land on OWNER");
         console.log("RH4Memory", address(mem));
+        console.log("deployer", deployer);
         console.log("owner", owner);
         console.log("sink (mother's factory)", FACTORY8);
     }
